@@ -30,10 +30,13 @@ if (NOT AMREX_INCLUDE_DIR)
   message(FATAL_ERROR "Failed to locate AMReX headers. Set AMREX_ROOT (or cache variable AMREX_INCLUDE_DIR) to the AMReX installation path containing AMReX_GpuQualifiers.H.")
 endif()
 
+find_package(OpenMP REQUIRED)
+
 target_include_directories(WeakLibReader INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${AMREX_INCLUDE_DIR}>
   $<INSTALL_INTERFACE:include>)
+target_link_libraries(WeakLibReader INTERFACE OpenMP::OpenMP_CXX)
 
 enable_testing()
 
