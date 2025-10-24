@@ -62,7 +62,7 @@ Layout MakeLayout(const int* extents, int nd) noexcept
   Layout layout{};
   layout.nd = nd;
   std::size_t stride = 1;
-  for (int dim = nd - 1; dim >= 0; --dim) {
+  for (int dim = 0; dim < nd; ++dim) {
     layout.n[dim] = extents[dim];
     layout.stride[dim] = stride;
     stride *= static_cast<std::size_t>(extents[dim]);
@@ -78,7 +78,11 @@ Layout SliceLeading(const Layout& layout, int drop) noexcept
   for (int dim = drop; dim < layout.nd; ++dim) {
     const int out = dim - drop;
     result.n[out] = layout.n[dim];
-    result.stride[out] = layout.stride[dim];
+  }
+  std::size_t stride = 1;
+  for (int dim = 0; dim < result.nd; ++dim) {
+    result.stride[dim] = stride;
+    stride *= static_cast<std::size_t>(result.n[dim]);
   }
   return result;
 }
