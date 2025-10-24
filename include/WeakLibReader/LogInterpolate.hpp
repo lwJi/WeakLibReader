@@ -3,6 +3,7 @@
 #include <AMReX_GpuQualifiers.H>
 #include <cstddef>
 
+#include "WeakLibReader/InterpLogTable.hpp"
 #include "WeakLibReader/Math.hpp"
 #include "WeakLibReader/WeakLibReader.hpp"
 
@@ -54,6 +55,15 @@ inline void StoreSymmetric(double* plane, std::size_t size,
   plane[idxLower] = value;
   if (i != j) {
     plane[i * size + j] = value;
+  }
+}
+
+inline void FillNaNPlane(double* plane, std::size_t size) noexcept
+{
+  const std::size_t planeSize = size * size;
+  const double nanValue = detail::NaN();
+  for (std::size_t idx = 0; idx < planeSize; ++idx) {
+    plane[idx] = nanValue;
   }
 }
 
@@ -192,6 +202,82 @@ inline int LogInterpolateSingleVariable2DCustom(
       x0, x1, count, data, layout, axesLocal, offset, out, cfg);
 }
 
+inline int LogInterpolateSingleVariable2D2DCustomAlignedPoint(
+    std::size_t sizeE,
+    double logT, double logX,
+    const double* data, const Layout& layout,
+    const Axis axes[2],
+    double offset,
+    double* out,
+    const InterpConfig& cfg = InterpConfig{}) noexcept
+{
+  if (data == nullptr || out == nullptr || axes == nullptr) {
+    return 1;
+  }
+  if (sizeE == 0) {
+    return 0;
+  }
+  if (layout.nd < 4) {
+    return 2;
+  }
+  if (axes[0].grid == nullptr || axes[1].grid == nullptr) {
+    return 3;
+  }
+
+  int idxT = 0;
+  int idxX = 0;
+  double fracT = 0.0;
+  double fracX = 0.0;
+  const bool outT = detail::IndexAndDelta(axes[0], logT, idxT, fracT);
+  const bool outX = detail::IndexAndDelta(axes[1], logX, idxX, fracX);
+  if (outT || outX) {
+    if (cfg.outOfRange == OutOfRangePolicy::Error) {
+      return 4;
+    }
+    if (cfg.outOfRange == OutOfRangePolicy::FillNaN) {
+      detail::FillNaNPlane(out, sizeE);
+      return 0;
+    }
+    fracT = detail::Clamp01(fracT);
+    fracX = detail::Clamp01(fracX);
+  }
+
+  for (std::size_t j = 0; j < sizeE; ++j) {
+    for (std::size_t i = 0; i <= j; ++i) {
+      const double value = LinearInterp2D4DArray2DAlignedPoint(
+          static_cast<int>(i), static_cast<int>(j),
+          idxT, idxX, fracT, fracX, offset,
+          data, layout);
+      detail::StoreSymmetric(out, sizeE, i, j, value);
+    }
+  }
+
+  return 0;
+}
+
+inline int LogInterpolateSingleVariable2D2DCustomAlignedPoint(
+    std::size_t sizeE,
+    double logT, double logX,
+    const double* gridT, int nT, AxisScale scaleT = AxisScale::Linear,
+    const double* gridX, int nX, AxisScale scaleX = AxisScale::Linear,
+    const double* data,
+    double offset,
+    double* out,
+    const InterpConfig& cfg = InterpConfig{}) noexcept
+{
+  Axis axesLocal[2] = {
+      MakeAxis(gridT, nT, scaleT),
+      MakeAxis(gridX, nX, scaleX)};
+  int extents[4] = {
+      static_cast<int>(sizeE),
+      static_cast<int>(sizeE),
+      nT,
+      nX};
+  const Layout layout = MakeLayout(extents, 4);
+  return LogInterpolateSingleVariable2D2DCustomAlignedPoint(
+      sizeE, logT, logX, data, layout, axesLocal, offset, out, cfg);
+}
+
 inline int LogInterpolateSingleVariable2D2DCustomPoint(
     const double* logE, std::size_t sizeE,
     double logT, double logX,
@@ -224,6 +310,65 @@ inline int LogInterpolateSingleVariable2D2DCustomPoint(
   }
 
   return 0;
+}
+
+inline int LogInterpolateSingleVariable2D2DCustomAligned(
+    std::size_t sizeE,
+    const double* logT, const double* logX, std::size_t count,
+    const double* data, const Layout& layout,
+    const Axis axes[2],
+    double offset,
+    double* out,
+    const InterpConfig& cfg = InterpConfig{}) noexcept
+{
+  if (logT == nullptr || logX == nullptr ||
+      data == nullptr || out == nullptr || axes == nullptr) {
+    return 1;
+  }
+  if (sizeE == 0 || count == 0) {
+    return 0;
+  }
+  if (layout.nd < 4) {
+    return 2;
+  }
+  if (axes[0].grid == nullptr || axes[1].grid == nullptr) {
+    return 3;
+  }
+
+  const std::size_t planeSize = sizeE * sizeE;
+  for (std::size_t k = 0; k < count; ++k) {
+    double* plane = out + k * planeSize;
+    const int rc = LogInterpolateSingleVariable2D2DCustomAlignedPoint(
+        sizeE, logT[k], logX[k], data, layout, axes, offset, plane, cfg);
+    if (rc != 0) {
+      return rc;
+    }
+  }
+
+  return 0;
+}
+
+inline int LogInterpolateSingleVariable2D2DCustomAligned(
+    std::size_t sizeE,
+    const double* logT, const double* logX, std::size_t count,
+    const double* gridT, int nT, AxisScale scaleT = AxisScale::Linear,
+    const double* gridX, int nX, AxisScale scaleX = AxisScale::Linear,
+    const double* data,
+    double offset,
+    double* out,
+    const InterpConfig& cfg = InterpConfig{}) noexcept
+{
+  Axis axesLocal[2] = {
+      MakeAxis(gridT, nT, scaleT),
+      MakeAxis(gridX, nX, scaleX)};
+  int extents[4] = {
+      static_cast<int>(sizeE),
+      static_cast<int>(sizeE),
+      nT,
+      nX};
+  const Layout layout = MakeLayout(extents, 4);
+  return LogInterpolateSingleVariable2D2DCustomAligned(
+      sizeE, logT, logX, count, data, layout, axesLocal, offset, out, cfg);
 }
 
 inline int LogInterpolateSingleVariable2D2DCustom(
