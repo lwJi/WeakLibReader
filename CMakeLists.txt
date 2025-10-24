@@ -9,9 +9,30 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(WeakLibReader INTERFACE)
+
+set(AMREX_ROOT "" CACHE PATH "Root directory of the AMReX installation")
+if (NOT AMREX_ROOT AND DEFINED ENV{AMREX_ROOT})
+  set(AMREX_ROOT "$ENV{AMREX_ROOT}")
+endif()
+if (NOT AMREX_ROOT AND DEFINED ENV{AMREX_HOME})
+  set(AMREX_ROOT "$ENV{AMREX_HOME}")
+endif()
+
+find_path(AMREX_INCLUDE_DIR
+  NAMES AMReX_GpuQualifiers.H
+  HINTS
+    ${AMREX_ROOT}
+    ${AMREX_ROOT}/include
+  PATH_SUFFIXES
+    include)
+
+if (NOT AMREX_INCLUDE_DIR)
+  message(FATAL_ERROR "Failed to locate AMReX headers. Set AMREX_ROOT (or cache variable AMREX_INCLUDE_DIR) to the AMReX installation path containing AMReX_GpuQualifiers.H.")
+endif()
+
 target_include_directories(WeakLibReader INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/stub>
+  $<BUILD_INTERFACE:${AMREX_INCLUDE_DIR}>
   $<INSTALL_INTERFACE:include>)
 
 enable_testing()
