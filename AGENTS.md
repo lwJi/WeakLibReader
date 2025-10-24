@@ -20,7 +20,7 @@ Translate WeakLib’s EOS & opacity **interpolators** from Fortran into **GPU‑
 
 ## Naming & Style (CamelCase)
 
-* **Namespace:** `WeaklibReader`
+* **Namespace:** `WeakLibReader`
 * **Types/structs/enums/classes:** `PascalCase` (e.g., `Axis`, `Layout`, `InterpConfig`, `AxisScale`, `OutOfRangePolicy`).
 * **Functions (public & device):** `PascalCase` (e.g., `IndexAndDeltaLin`, `InterpLinearND`).
 * **Variables/parameters/data members:** `lowerCamelCase` (e.g., `outOfRange`, `rowStride`).
@@ -30,9 +30,9 @@ Translate WeakLib’s EOS & opacity **interpolators** from Fortran into **GPU‑
 ## Directory Layout (v1)
 
 ```
-include/WeaklibReader/WeaklibReader.hpp      # public API (host+device)
-include/WeaklibReader/IndexDelta.hpp         # index/delta (lin/log)
-include/WeaklibReader/Layout.hpp             # shapes, strides, policies
+include/WeakLibReader/WeakLibReader.hpp      # public API (host+device)
+include/WeakLibReader/IndexDelta.hpp         # index/delta (lin/log)
+include/WeakLibReader/Layout.hpp             # shapes, strides, policies
 examples/amrex/DemoInterp.cpp                # AMReX MultiFab example
 test/                                         # Catch2 tests vs reference
 ref/weaklib/                                  # Fortran sources & notes
@@ -61,7 +61,7 @@ ref/weaklib/                                  # Fortran sources & notes
 #include <cstddef>
 #include <AMReX_GpuQualifiers.H>
 
-namespace WeaklibReader {
+namespace WeakLibReader {
 
 enum class AxisScale : uint8_t { Linear, Log10 };
 \ nstruct Axis {
@@ -100,7 +100,7 @@ double InterpLinearND(const double* data, const Layout& layout,
 
 // Optional 1D..5D convenience overloads may forward to InterpLinearND(...)
 
-} // namespace WeaklibReader
+} // namespace WeakLibReader
 ```
 
 ## Behavior Details
@@ -113,7 +113,7 @@ double InterpLinearND(const double* data, const Layout& layout,
 ## AMReX Usage Example (Sketch)
 
 ```cpp
-using namespace WeaklibReader;
+using namespace WeakLibReader;
 
 amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
 [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept {
@@ -190,7 +190,7 @@ amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
 
 ## Deliverables (v1)
 
-* `include/WeaklibReader/*` headers.
+* `include/WeakLibReader/*` headers.
 * `examples/amrex/DemoInterp.cpp` runnable example (CUDA).
 * `test/` suite with parity and edge‑case coverage.
 * `ref/weaklib/` Fortran references and notes.
