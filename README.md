@@ -1,2 +1,0 @@
-# WeakLibReader
-Read WeakLib Tables
