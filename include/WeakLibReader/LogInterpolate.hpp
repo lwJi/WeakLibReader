@@ -46,6 +46,17 @@ void PackCoords(const double* src, double* dst) noexcept
   }
 }
 
+inline void StoreSymmetric(double* plane, std::size_t size,
+                           std::size_t i, std::size_t j,
+                           double value) noexcept
+{
+  const std::size_t idxLower = j * size + i;
+  plane[idxLower] = value;
+  if (i != j) {
+    plane[i * size + j] = value;
+  }
+}
+
 } // namespace detail
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -179,6 +190,81 @@ inline int LogInterpolateSingleVariable2DCustom(
   const Layout layout = MakeLayout(extents, 2);
   return LogInterpolateSingleVariable2DCustom(
       x0, x1, count, data, layout, axesLocal, offset, out, cfg);
+}
+
+inline int LogInterpolateSingleVariable2D2DCustomPoint(
+    const double* logE, std::size_t sizeE,
+    double logT, double logX,
+    const double* data, const Layout& layout,
+    const Axis axes[4],
+    double offset,
+    double* out,
+    const InterpConfig& cfg = InterpConfig{}) noexcept
+{
+  if (logE == nullptr || data == nullptr || out == nullptr || axes == nullptr) {
+    return 1;
+  }
+  if (sizeE == 0) {
+    return 0;
+  }
+  if (layout.nd < 4) {
+    return 2;
+  }
+  if (axes[0].grid == nullptr || axes[1].grid == nullptr ||
+      axes[2].grid == nullptr || axes[3].grid == nullptr) {
+    return 3;
+  }
+
+  for (std::size_t j = 0; j < sizeE; ++j) {
+    for (std::size_t i = 0; i <= j; ++i) {
+      const double value = LogInterpolateSingleVariable4DCustomPoint(
+          data, layout, axes, logE[i], logE[j], logT, logX, offset, cfg);
+      detail::StoreSymmetric(out, sizeE, i, j, value);
+    }
+  }
+
+  return 0;
+}
+
+inline int LogInterpolateSingleVariable2D2DCustom(
+    const double* logE, std::size_t sizeE,
+    const double* logT, const double* logX, std::size_t count,
+    const double* data, const Layout& layout,
+    const Axis axes[4],
+    double offset,
+    double* out,
+    const InterpConfig& cfg = InterpConfig{}) noexcept
+{
+  if (logE == nullptr || logT == nullptr || logX == nullptr ||
+      data == nullptr || out == nullptr || axes == nullptr) {
+    return 1;
+  }
+  if (sizeE == 0 || count == 0) {
+    return 0;
+  }
+  if (layout.nd < 4) {
+    return 2;
+  }
+  if (axes[0].grid == nullptr || axes[1].grid == nullptr ||
+      axes[2].grid == nullptr || axes[3].grid == nullptr) {
+    return 3;
+  }
+
+  const std::size_t planeSize = sizeE * sizeE;
+  for (std::size_t l = 0; l < count; ++l) {
+    double* plane = out + l * planeSize;
+    const double tCoord = logT[l];
+    const double xCoord = logX[l];
+    for (std::size_t j = 0; j < sizeE; ++j) {
+      for (std::size_t i = 0; i <= j; ++i) {
+        const double value = LogInterpolateSingleVariable4DCustomPoint(
+            data, layout, axes, logE[i], logE[j], tCoord, xCoord, offset, cfg);
+        detail::StoreSymmetric(plane, sizeE, i, j, value);
+      }
+    }
+  }
+
+  return 0;
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
