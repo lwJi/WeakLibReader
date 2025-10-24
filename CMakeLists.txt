@@ -11,6 +11,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(WeakLibReader INTERFACE)
 target_include_directories(WeakLibReader INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/stub>
   $<INSTALL_INTERFACE:include>)
 
 enable_testing()
