@@ -6,6 +6,8 @@
 namespace WeakLibReader {
 namespace math {
 
+constexpr double Ln10 = 2.302585092994045901093613792909309;
+
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double Floor(double value) noexcept
 {
@@ -13,6 +15,16 @@ double Floor(double value) noexcept
   return ::floor(value);
 #else
   return std::floor(value);
+#endif
+}
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+double Log(double value) noexcept
+{
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+  return ::log(value);
+#else
+  return std::log(value);
 #endif
 }
 
@@ -38,4 +50,3 @@ double Pow10(double value) noexcept
 
 } // namespace math
 } // namespace WeakLibReader
-
