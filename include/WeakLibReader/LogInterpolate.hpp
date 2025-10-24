@@ -1,6 +1,7 @@
 #pragma once
 
 #include <AMReX_GpuQualifiers.H>
+#include <cstddef>
 
 #include "WeakLibReader/Math.hpp"
 #include "WeakLibReader/WeakLibReader.hpp"
@@ -137,6 +138,49 @@ double LogInterpolateSingleVariable5DCustomPoint(
   return detail::LogInterpolatedValue(data, layout, packedAxes, coords, offset, cfg, 5);
 }
 
+inline int LogInterpolateSingleVariable2DCustom(
+    const double* x0, const double* x1, std::size_t count,
+    const double* data, const Layout& layout,
+    const Axis axes[2],
+    double offset,
+    double* out,
+    const InterpConfig& cfg = InterpConfig{}) noexcept
+{
+  if (x0 == nullptr || x1 == nullptr || data == nullptr || out == nullptr ||
+      axes == nullptr) {
+    return 1;
+  }
+  if (layout.nd < 2) {
+    return 2;
+  }
+  if (axes[0].grid == nullptr || axes[1].grid == nullptr) {
+    return 3;
+  }
+  for (std::size_t i = 0; i < count; ++i) {
+    out[i] = LogInterpolateSingleVariable2DCustomPoint(
+        data, layout, axes, x0[i], x1[i], offset, cfg);
+  }
+  return 0;
+}
+
+inline int LogInterpolateSingleVariable2DCustom(
+    const double* x0, const double* x1, std::size_t count,
+    const double* grid0, int n0, AxisScale scale0 = AxisScale::Linear,
+    const double* grid1, int n1, AxisScale scale1 = AxisScale::Linear,
+    const double* data,
+    double offset,
+    double* out,
+    const InterpConfig& cfg = InterpConfig{}) noexcept
+{
+  Axis axesLocal[2] = {
+      MakeAxis(grid0, n0, scale0),
+      MakeAxis(grid1, n1, scale1)};
+  int extents[2] = {n0, n1};
+  const Layout layout = MakeLayout(extents, 2);
+  return LogInterpolateSingleVariable2DCustom(
+      x0, x1, count, data, layout, axesLocal, offset, out, cfg);
+}
+
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LogInterpolateSingleVariable1DCustomPoint(
     double x0,
@@ -207,6 +251,51 @@ double LogInterpolateSingleVariable4DCustomPoint(
   const Layout layout = MakeLayout(extents, 4);
   return LogInterpolateSingleVariable4DCustomPoint(data, layout, axesLocal,
                                                    x0, x1, x2, x3, offset, cfg);
+}
+
+inline int LogInterpolateSingleVariable3DCustom(
+    const double* d, const double* t, const double* y, std::size_t count,
+    const double* data, const Layout& layout,
+    const Axis axes[3],
+    double offset,
+    double* out,
+    const InterpConfig& cfg = InterpConfig{}) noexcept
+{
+  if (d == nullptr || t == nullptr || y == nullptr ||
+      data == nullptr || out == nullptr || axes == nullptr) {
+    return 1;
+  }
+  if (layout.nd < 3) {
+    return 2;
+  }
+  if (axes[0].grid == nullptr || axes[1].grid == nullptr || axes[2].grid == nullptr) {
+    return 3;
+  }
+  for (std::size_t i = 0; i < count; ++i) {
+    out[i] = LogInterpolateSingleVariable3DCustomPoint(
+        data, layout, axes, d[i], t[i], y[i], offset, cfg);
+  }
+  return 0;
+}
+
+inline int LogInterpolateSingleVariable3DCustom(
+    const double* d, const double* t, const double* y, std::size_t count,
+    const double* grid0, int n0, AxisScale scale0,
+    const double* grid1, int n1, AxisScale scale1,
+    const double* grid2, int n2, AxisScale scale2,
+    const double* data,
+    double offset,
+    double* out,
+    const InterpConfig& cfg = InterpConfig{}) noexcept
+{
+  Axis axesLocal[3] = {
+      MakeAxis(grid0, n0, scale0),
+      MakeAxis(grid1, n1, scale1),
+      MakeAxis(grid2, n2, scale2)};
+  int extents[3] = {n0, n1, n2};
+  const Layout layout = MakeLayout(extents, 3);
+  return LogInterpolateSingleVariable3DCustom(
+      d, t, y, count, data, layout, axesLocal, offset, out, cfg);
 }
 
 } // namespace WeakLibReader
