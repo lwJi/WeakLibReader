@@ -19,6 +19,16 @@ struct Axis {
   AxisScale scale = AxisScale::Linear;
 };
 
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Axis MakeAxis(const double* grid, int n, AxisScale scale) noexcept
+{
+  Axis axis{};
+  axis.grid = grid;
+  axis.n = n;
+  axis.scale = scale;
+  return axis;
+}
+
 enum class OutOfRangePolicy : std::uint8_t { Clamp, Error, FillNaN };
 
 struct InterpConfig {
@@ -274,4 +284,3 @@ double InterpLinear5D(const double* data, const Layout& layout,
 }
 
 } // namespace WeakLibReader
-

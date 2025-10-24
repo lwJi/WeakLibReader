@@ -1,7 +1,8 @@
 #pragma once
 
 #include <AMReX_GpuQualifiers.H>
-#include <cmath>
+
+#include "WeakLibReader/Math.hpp"
 
 namespace WeakLibReader {
 namespace detail {
@@ -22,26 +23,6 @@ AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 bool InvalidSpan(double span) noexcept
 {
   return !(span > 0.0);
-}
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double Floor(double value) noexcept
-{
-#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
-  return ::floor(value);
-#else
-  return std::floor(value);
-#endif
-}
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double Log10(double value) noexcept
-{
-#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
-  return ::log10(value);
-#else
-  return std::log10(value);
-#endif
 }
 
 } // namespace detail
@@ -68,7 +49,7 @@ bool IndexAndDeltaLin(double x, const double* grid, int n,
 
   const double scaled = (x - first) / span;
   const double scaledIndex = (n - 1) * scaled;
-  const int rawIndex = static_cast<int>(detail::Floor(scaledIndex));
+  const int rawIndex = static_cast<int>(math::Floor(scaledIndex));
 
   const int maxIndex = n - 2;
   const int clampedIndex = detail::ClampIndex(rawIndex, maxIndex);
@@ -101,7 +82,7 @@ bool IndexAndDeltaLog10(double x, const double* grid, int n,
     return true;
   }
 
-  const double logSpan = detail::Log10(last / first);
+  const double logSpan = math::Log10(last / first);
 
   if (detail::InvalidSpan(logSpan)) {
     i = 0;
@@ -109,9 +90,9 @@ bool IndexAndDeltaLog10(double x, const double* grid, int n,
     return true;
   }
 
-  const double scaled = detail::Log10(x / first) / logSpan;
+  const double scaled = math::Log10(x / first) / logSpan;
   const double scaledIndex = (n - 1) * scaled;
-  const int rawIndex = static_cast<int>(detail::Floor(scaledIndex));
+  const int rawIndex = static_cast<int>(math::Floor(scaledIndex));
 
   const int maxIndex = n - 2;
   const int clampedIndex = detail::ClampIndex(rawIndex, maxIndex);
@@ -124,13 +105,13 @@ bool IndexAndDeltaLog10(double x, const double* grid, int n,
     return true;
   }
 
-  const double logCellRatio = detail::Log10(cellRatio);
+  const double logCellRatio = math::Log10(cellRatio);
   if (detail::InvalidSpan(logCellRatio)) {
     t = 0.0;
     return true;
   }
 
-  t = detail::Log10(x / grid[i]) / logCellRatio;
+  t = math::Log10(x / grid[i]) / logCellRatio;
 
   const bool outside = (x < first) || (x > last);
   return outside || (rawIndex != clampedIndex);
