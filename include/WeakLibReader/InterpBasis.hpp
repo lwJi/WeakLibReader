@@ -1,6 +1,7 @@
 #pragma once
 
 #include <AMReX_GpuQualifiers.H>
+#include <AMReX_Extension.H>
 
 namespace WeakLibReader {
 
@@ -174,4 +175,3 @@ double PentaLinear(double p00000, double p10000, double p01000, double p11000,
 }
 
 } // namespace WeakLibReader
-

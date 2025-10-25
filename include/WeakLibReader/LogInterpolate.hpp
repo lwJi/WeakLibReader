@@ -154,6 +154,16 @@ inline void SetNaN(double& value0, double& value1, double& value2) noexcept
   value2 = nanValue;
 }
 
+inline void SetNaN(double& value0, double& value1,
+                   double& value2, double& value3) noexcept
+{
+  const double nanValue = std::numeric_limits<double>::quiet_NaN();
+  value0 = nanValue;
+  value1 = nanValue;
+  value2 = nanValue;
+  value3 = nanValue;
+}
+
 } // namespace detail
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -433,12 +443,12 @@ inline int LogInterpolateSingleVariable2DCustom(
 
 inline int LogInterpolateSingleVariable2DCustom(
     const double* x0, const double* x1, std::size_t count,
-    const double* grid0, int n0, AxisScale scale0 = AxisScale::Linear,
-    const double* grid1, int n1, AxisScale scale1 = AxisScale::Linear,
+    const double* grid0, int n0, AxisScale scale0,
+    const double* grid1, int n1, AxisScale scale1,
     const double* data,
     double offset,
     double* out,
-    const InterpConfig& cfg = InterpConfig{}) noexcept
+    const InterpConfig& cfg) noexcept
 {
   Axis axesLocal[2] = {
       MakeAxis(grid0, n0, scale0),
@@ -447,6 +457,22 @@ inline int LogInterpolateSingleVariable2DCustom(
   const Layout layout = MakeLayout(extents, 2);
   return LogInterpolateSingleVariable2DCustom(
       x0, x1, count, data, layout, axesLocal, offset, out, cfg);
+}
+
+inline int LogInterpolateSingleVariable2DCustom(
+    const double* x0, const double* x1, std::size_t count,
+    const double* grid0, int n0,
+    const double* grid1, int n1,
+    const double* data,
+    double offset,
+    double* out,
+    const InterpConfig& cfg = InterpConfig{}) noexcept
+{
+  return LogInterpolateSingleVariable2DCustom(
+      x0, x1, count,
+      grid0, n0, AxisScale::Linear,
+      grid1, n1, AxisScale::Linear,
+      data, offset, out, cfg);
 }
 
 inline int LogInterpolateSingleVariable2D2DCustomAlignedPoint(
@@ -505,12 +531,12 @@ inline int LogInterpolateSingleVariable2D2DCustomAlignedPoint(
 inline int LogInterpolateSingleVariable2D2DCustomAlignedPoint(
     std::size_t sizeE,
     double logT, double logX,
-    const double* gridT, int nT, AxisScale scaleT = AxisScale::Linear,
-    const double* gridX, int nX, AxisScale scaleX = AxisScale::Linear,
+    const double* gridT, int nT, AxisScale scaleT,
+    const double* gridX, int nX, AxisScale scaleX,
     const double* data,
     double offset,
     double* out,
-    const InterpConfig& cfg = InterpConfig{}) noexcept
+    const InterpConfig& cfg) noexcept
 {
   Axis axesLocal[2] = {
       MakeAxis(gridT, nT, scaleT),
@@ -523,6 +549,23 @@ inline int LogInterpolateSingleVariable2D2DCustomAlignedPoint(
   const Layout layout = MakeLayout(extents, 4);
   return LogInterpolateSingleVariable2D2DCustomAlignedPoint(
       sizeE, logT, logX, data, layout, axesLocal, offset, out, cfg);
+}
+
+inline int LogInterpolateSingleVariable2D2DCustomAlignedPoint(
+    std::size_t sizeE,
+    double logT, double logX,
+    const double* gridT, int nT,
+    const double* gridX, int nX,
+    const double* data,
+    double offset,
+    double* out,
+    const InterpConfig& cfg = InterpConfig{}) noexcept
+{
+  return LogInterpolateSingleVariable2D2DCustomAlignedPoint(
+      sizeE, logT, logX,
+      gridT, nT, AxisScale::Linear,
+      gridX, nX, AxisScale::Linear,
+      data, offset, out, cfg);
 }
 
 inline int LogInterpolateSingleVariable2D2DCustomPoint(
@@ -598,12 +641,12 @@ inline int LogInterpolateSingleVariable2D2DCustomAligned(
 inline int LogInterpolateSingleVariable2D2DCustomAligned(
     std::size_t sizeE,
     const double* logT, const double* logX, std::size_t count,
-    const double* gridT, int nT, AxisScale scaleT = AxisScale::Linear,
-    const double* gridX, int nX, AxisScale scaleX = AxisScale::Linear,
+    const double* gridT, int nT, AxisScale scaleT,
+    const double* gridX, int nX, AxisScale scaleX,
     const double* data,
     double offset,
     double* out,
-    const InterpConfig& cfg = InterpConfig{}) noexcept
+    const InterpConfig& cfg) noexcept
 {
   Axis axesLocal[2] = {
       MakeAxis(gridT, nT, scaleT),
@@ -616,6 +659,23 @@ inline int LogInterpolateSingleVariable2D2DCustomAligned(
   const Layout layout = MakeLayout(extents, 4);
   return LogInterpolateSingleVariable2D2DCustomAligned(
       sizeE, logT, logX, count, data, layout, axesLocal, offset, out, cfg);
+}
+
+inline int LogInterpolateSingleVariable2D2DCustomAligned(
+    std::size_t sizeE,
+    const double* logT, const double* logX, std::size_t count,
+    const double* gridT, int nT,
+    const double* gridX, int nX,
+    const double* data,
+    double offset,
+    double* out,
+    const InterpConfig& cfg = InterpConfig{}) noexcept
+{
+  return LogInterpolateSingleVariable2D2DCustomAligned(
+      sizeE, logT, logX, count,
+      gridT, nT, AxisScale::Linear,
+      gridX, nX, AxisScale::Linear,
+      data, offset, out, cfg);
 }
 
 inline int LogInterpolateSingleVariable2D2DCustom(
@@ -663,8 +723,8 @@ AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LogInterpolateSingleVariable1DCustomPoint(
     double x0,
     const double* grid0, int n0, AxisScale scale0 = AxisScale::Linear,
-    double offset,
-    const double* data,
+    double offset = 0.0,
+    const double* data = nullptr,
     const InterpConfig& cfg = InterpConfig{}) noexcept
 {
   Axis axesLocal[1] = {MakeAxis(grid0, n0, scale0)};
@@ -677,9 +737,9 @@ AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LogInterpolateSingleVariable2DCustomPoint(
     double x0, double x1,
     const double* grid0, int n0, AxisScale scale0 = AxisScale::Linear,
-    const double* grid1, int n1, AxisScale scale1 = AxisScale::Linear,
-    double offset,
-    const double* data,
+    const double* grid1 = nullptr, int n1 = 0, AxisScale scale1 = AxisScale::Linear,
+    double offset = 0.0,
+    const double* data = nullptr,
     const InterpConfig& cfg = InterpConfig{}) noexcept
 {
   Axis axesLocal[2] = {
@@ -694,10 +754,10 @@ AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LogInterpolateSingleVariable3DCustomPoint(
     double x0, double x1, double x2,
     const double* grid0, int n0, AxisScale scale0 = AxisScale::Linear,
-    const double* grid1, int n1, AxisScale scale1 = AxisScale::Linear,
-    const double* grid2, int n2, AxisScale scale2 = AxisScale::Linear,
-    double offset,
-    const double* data,
+    const double* grid1 = nullptr, int n1 = 0, AxisScale scale1 = AxisScale::Linear,
+    const double* grid2 = nullptr, int n2 = 0, AxisScale scale2 = AxisScale::Linear,
+    double offset = 0.0,
+    const double* data = nullptr,
     const InterpConfig& cfg = InterpConfig{}) noexcept
 {
   Axis axesLocal[3] = {
@@ -713,11 +773,11 @@ AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LogInterpolateSingleVariable4DCustomPoint(
     double x0, double x1, double x2, double x3,
     const double* grid0, int n0, AxisScale scale0 = AxisScale::Linear,
-    const double* grid1, int n1, AxisScale scale1 = AxisScale::Linear,
-    const double* grid2, int n2, AxisScale scale2 = AxisScale::Linear,
-    const double* grid3, int n3, AxisScale scale3 = AxisScale::Linear,
-    double offset,
-    const double* data,
+    const double* grid1 = nullptr, int n1 = 0, AxisScale scale1 = AxisScale::Linear,
+    const double* grid2 = nullptr, int n2 = 0, AxisScale scale2 = AxisScale::Linear,
+    const double* grid3 = nullptr, int n3 = 0, AxisScale scale3 = AxisScale::Linear,
+    double offset = 0.0,
+    const double* data = nullptr,
     const InterpConfig& cfg = InterpConfig{}) noexcept
 {
   Axis axesLocal[4] = {
@@ -1084,12 +1144,12 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
     double logT, double logX,
     const double* gridE, int nE,
     const double* gridT, int nT, AxisScale scaleT = AxisScale::Linear,
-    const double* gridX, int nX, AxisScale scaleX = AxisScale::Linear,
-    const double* data,
-    double offset,
-    double* interpolantPlane,
-    double* derivativeTPlane,
-    double* derivativeXPlane,
+    const double* gridX = nullptr, int nX = 0, AxisScale scaleX = AxisScale::Linear,
+    const double* data = nullptr,
+    double offset = 0.0,
+    double* interpolantPlane = nullptr,
+    double* derivativeTPlane = nullptr,
+    double* derivativeXPlane = nullptr,
     const InterpConfig& cfg = InterpConfig{}) noexcept
 {
   Axis axesLocal[4] = {
@@ -1264,12 +1324,12 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
     std::size_t sizeE,
     double logT, double logX,
     const double* gridT, int nT, AxisScale scaleT = AxisScale::Linear,
-    const double* gridX, int nX, AxisScale scaleX = AxisScale::Linear,
-    const double* data,
-    double offset,
-    double* interpolantPlane,
-    double* derivativeTPlane,
-    double* derivativeXPlane,
+    const double* gridX = nullptr, int nX = 0, AxisScale scaleX = AxisScale::Linear,
+    const double* data = nullptr,
+    double offset = 0.0,
+    double* interpolantPlane = nullptr,
+    double* derivativeTPlane = nullptr,
+    double* derivativeXPlane = nullptr,
     const InterpConfig& cfg = InterpConfig{}) noexcept
 {
   Axis axesLocal[2] = {
@@ -1335,12 +1395,12 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustomAligned(
     std::size_t sizeE,
     const double* logT, const double* logX, std::size_t count,
     const double* gridT, int nT, AxisScale scaleT = AxisScale::Linear,
-    const double* gridX, int nX, AxisScale scaleX = AxisScale::Linear,
-    const double* data,
-    double offset,
-    double* interpolant,
-    double* derivativeT,
-    double* derivativeX,
+    const double* gridX = nullptr, int nX = 0, AxisScale scaleX = AxisScale::Linear,
+    const double* data = nullptr,
+    double offset = 0.0,
+    double* interpolant = nullptr,
+    double* derivativeT = nullptr,
+    double* derivativeX = nullptr,
     const InterpConfig& cfg = InterpConfig{}) noexcept
 {
   Axis axesLocal[2] = {
