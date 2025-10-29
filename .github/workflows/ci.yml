@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    env:
+      AMREX_INSTALL: ${{ github.workspace }}/amrex-install
+      AMREX_ROOT: ${{ github.workspace }}/amrex-install
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout WeakLibReader
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: Checkout AMReX
+        uses: actions/checkout@v4
+        with:
+          repository: AMReX-Codes/amrex
+          path: amrex
+          ref: development
+
+      - name: Configure AMReX
+        run: |
+          cmake -S amrex -B amrex-build \
+            -DCMAKE_INSTALL_PREFIX="${AMREX_INSTALL}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DAMReX_MPI=OFF \
+            -DAMReX_GPU_BACKEND=NONE \
+            -DAMReX_LINEAR_SOLVERS=OFF \
+            -DAMReX_PARTICLES=OFF \
+            -DAMReX_FORTRAN_INTERFACES=OFF \
+            -DAMReX_SENSEI=OFF \
+            -DAMReX_BASE_PROFILE=OFF
+
+      - name: Build and install AMReX
+        run: cmake --build amrex-build --target install -j 4
+
+      - name: Configure WeakLibReader
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DAMREX_ROOT="${AMREX_ROOT}"
+
+      - name: Build WeakLibReader
+        run: cmake --build build -j 4
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
