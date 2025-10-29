@@ -33,9 +33,14 @@ Translate WeakLib’s EOS & opacity **interpolators** from Fortran into **GPU‑
 WeakLibReader/src/WeakLibReader.hpp          # public API (host+device)
 WeakLibReader/src/IndexDelta.hpp             # index/delta (lin/log)
 WeakLibReader/src/Layout.hpp                 # shapes, strides, policies
-examples/amrex/DemoInterp.cpp                # AMReX MultiFab example
-test/                                         # Catch2 tests vs reference
+WeakLibReader/src/InterpBasis.hpp            # linear/tri/tetra basis helpers
+WeakLibReader/src/InterpLogTable.hpp         # log-table kernels & aligned slices
+WeakLibReader/src/LogInterpolate.hpp         # log wrappers & derivatives
+WeakLibReader/src/Math.hpp                   # lightweight math intrinsics
+test/include/catch2/catch_test_macros.hpp    # bundled Catch-style shim
+test/test_log_interpolate.cpp                # regression suite (Catch-style)
 ref/weaklib/                                  # Fortran sources & notes
+examples/amrex/                               # CUDA demo scaffold (TBD)
 ```
 
 > Note: No HDF5 loader files in v1.
@@ -44,9 +49,10 @@ ref/weaklib/                                  # Fortran sources & notes
 
 * Configure & build (library/tests):
 
-  * `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release`
+  * `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAMREX_ROOT=/path/to/amrex`
   * `cmake --build build -j`
 * Run tests: `ctest --test-dir build -j`
+  * If AMReX was built with OpenMP, supply the matching OpenMP flags/libs (e.g. `-DOpenMP_CXX_FLAGS='-Xpreprocessor -fopenmp' -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=$(brew --prefix libomp)/lib/libomp.dylib`).
 * AMReX example (CUDA):
 
   * `cmake -S examples/amrex -B build/amrex -DAMReX_GPU_BACKEND=CUDA`
@@ -149,7 +155,7 @@ amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
 
 ## Tests
 
-* Catch2 unit tests for:
+* Catch-style unit tests (bundled shim) for:
 
   * 1D..5D interior/face/edge/corner cases and out‑of‑range policies.
   * All axis‑scale combinations (Linear/Log10 per axis).
