@@ -5,9 +5,9 @@
 #include <limits>
 #include <vector>
 
-#include "WeakLibReader/InterpLogTable.hpp"
-#include "WeakLibReader/Math.hpp"
-#include "WeakLibReader/WeakLibReader.hpp"
+#include "InterpLogTable.hpp"
+#include "Math.hpp"
+#include "WeakLibReader.hpp"
 
 namespace WeakLibReader {
 namespace detail {

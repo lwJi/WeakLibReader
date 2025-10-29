@@ -5,9 +5,9 @@
 #include <cstdint>
 #include <limits>
 
-#include "WeakLibReader/IndexDelta.hpp"
-#include "WeakLibReader/InterpBasis.hpp"
-#include "WeakLibReader/Layout.hpp"
+#include "IndexDelta.hpp"
+#include "InterpBasis.hpp"
+#include "Layout.hpp"
 
 namespace WeakLibReader {
 
