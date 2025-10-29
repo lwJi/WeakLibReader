@@ -29,30 +29,18 @@ Translate WeakLib’s EOS & opacity **interpolators** from Fortran into **GPU‑
 
 ## Directory Layout (v1)
 
-```
-WeakLibReader/src/WeakLibReader.hpp          # public API (host+device)
-WeakLibReader/src/IndexDelta.hpp             # index/delta (lin/log)
-WeakLibReader/src/Layout.hpp                 # shapes, strides, policies
-examples/amrex/DemoInterp.cpp                # AMReX MultiFab example
-test/                                         # Catch2 tests vs reference
-ref/weaklib/                                  # Fortran sources & notes
-```
+See `README.md` for the full tree. Highlights:
 
-> Note: No HDF5 loader files in v1.
+* Core headers live in `WeakLibReader/src/` (API entry points, interpolation kernels, math helpers).
+* Fortran references remain under `ref/weaklib/`.
+* Regression tests plus the lightweight Catch-style shim live in `test/`.
+* `examples/amrex/` is a placeholder for the CUDA demo.
+
+> No HDF5 loader files in v1.
 
 ## Setup & Build (CUDA first)
 
-* Configure & build (library/tests):
-
-  * `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release`
-  * `cmake --build build -j`
-* Run tests: `ctest --test-dir build -j`
-* AMReX example (CUDA):
-
-  * `cmake -S examples/amrex -B build/amrex -DAMReX_GPU_BACKEND=CUDA`
-  * *(optional)* Set your arch, e.g. `-DAMReX_CUDA_ARCH=86` (A100/Hopper use appropriate values).
-  * `cmake --build build/amrex -j`
-  * `./build/amrex/DemoInterp`
+Refer to `README.md` for build and test commands (including the required `AMREX_ROOT` and OpenMP flags).
 
 ## Public API (Target)
 
@@ -149,7 +137,7 @@ amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
 
 ## Tests
 
-* Catch2 unit tests for:
+* Catch-style unit tests (bundled shim) for:
 
   * 1D..5D interior/face/edge/corner cases and out‑of‑range policies.
   * All axis‑scale combinations (Linear/Log10 per axis).
@@ -190,11 +178,11 @@ amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
 
 ## Deliverables (v1)
 
-* `include/WeakLibReader/*` headers.
-* `examples/amrex/DemoInterp.cpp` runnable example (CUDA).
-* `test/` suite with parity and edge‑case coverage.
+* `WeakLibReader/src/` headers (API + kernels + helpers).
+* `test/` regression suite (Catch-style shim + coverage for log/derivative paths).
 * `ref/weaklib/` Fortran references and notes.
-* `docs/Interop.md` describing AMReX usage patterns.
+* `examples/amrex/` CUDA demo scaffold (fleshed out in Phase 3).
+* `README.md` documenting build/test steps and dependencies.
 
 ## Completion Criteria (v1)
 
