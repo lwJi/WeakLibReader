@@ -33,9 +33,9 @@ endif()
 find_package(OpenMP REQUIRED)
 
 target_include_directories(WeakLibReader INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/WeakLibReader/src>
   $<BUILD_INTERFACE:${AMREX_INCLUDE_DIR}>
-  $<INSTALL_INTERFACE:include>)
+  $<INSTALL_INTERFACE:WeakLibReader/src>)
 target_link_libraries(WeakLibReader INTERFACE OpenMP::OpenMP_CXX)
 
 enable_testing()
