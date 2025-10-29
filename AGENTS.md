@@ -30,9 +30,9 @@ Translate WeakLib’s EOS & opacity **interpolators** from Fortran into **GPU‑
 ## Directory Layout (v1)
 
 ```
-include/WeakLibReader/WeakLibReader.hpp      # public API (host+device)
-include/WeakLibReader/IndexDelta.hpp         # index/delta (lin/log)
-include/WeakLibReader/Layout.hpp             # shapes, strides, policies
+WeakLibReader/src/WeakLibReader.hpp          # public API (host+device)
+WeakLibReader/src/IndexDelta.hpp             # index/delta (lin/log)
+WeakLibReader/src/Layout.hpp                 # shapes, strides, policies
 examples/amrex/DemoInterp.cpp                # AMReX MultiFab example
 test/                                         # Catch2 tests vs reference
 ref/weaklib/                                  # Fortran sources & notes
@@ -207,4 +207,3 @@ amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
 * HDF5/NetCDF readers, table discovery, or I/O pipelines.
 * HIP/DPCPP backend validation.
 * Higher‑order interpolation (e.g., cubic).
-

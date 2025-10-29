@@ -3,7 +3,7 @@
 #include <AMReX_GpuQualifiers.H>
 #include <AMReX_Extension.H>
 
-#include "WeakLibReader/Math.hpp"
+#include "Math.hpp"
 
 namespace WeakLibReader {
 namespace detail {

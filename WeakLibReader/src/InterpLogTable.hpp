@@ -2,9 +2,9 @@
 
 #include <AMReX_GpuQualifiers.H>
 
-#include "WeakLibReader/InterpBasis.hpp"
-#include "WeakLibReader/Layout.hpp"
-#include "WeakLibReader/Math.hpp"
+#include "InterpBasis.hpp"
+#include "Layout.hpp"
+#include "Math.hpp"
 
 namespace WeakLibReader {
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
