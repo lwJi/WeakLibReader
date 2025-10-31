@@ -4,22 +4,7 @@ GPU-friendly C++ reimplementation of WeakLib’s equation-of-state and opacity i
 
 ## Layout
 
-```
-WeakLibReader/
-  src/                        # Core headers (public API + device helpers)
-    WeakLibReader.hpp         # Axis metadata, layout, N-D interpolation entrypoints
-    IndexDelta.hpp            # Linear/log10 indexing helpers
-    InterpBasis.hpp           # Linear/bi-/tri-/tetra-/penta-linear basis routines
-    InterpLogTable.hpp        # Log-space point kernels and aligned slices
-    LogInterpolate.hpp        # Log wrappers, derivatives, weighted sums
-    Layout.hpp                # Row-major stride helpers
-    Math.hpp                  # Minimal math utilities (log10, pow10, etc.)
-ref/weaklib/                  # Fortran reference implementation
-test/
-  include/catch2/             # Minimal Catch2-compatible shim
-  test_log_interpolate.cpp    # Regression tests (aligned planes, derivatives, etc.)
-examples/amrex/               # CUDA/AMReX demo scaffold (TBD)
-```
+See `AGENTS.md` for the current directory map and file responsibilities.
 
 ## Requirements
 
@@ -65,4 +50,3 @@ Original routines live under `ref/weaklib/`. The C++ API mirrors the Fortran fun
 - The AMReX CUDA demo is a placeholder; integrate once the GPU kernels are ready.
 - Headers include `AMReX_GpuQualifiers.H` and `AMReX_Extension.H`; ensure your include path covers `${AMREX_ROOT}/include`.
 - No table I/O is supplied in v1; pass in-memory arrays.
-
