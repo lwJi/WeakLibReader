@@ -29,12 +29,22 @@ Translate WeakLib’s EOS & opacity **interpolators** from Fortran into **GPU‑
 
 ## Directory Layout (v1)
 
-See `README.md` for the full tree. Highlights:
-
-* Core headers live in `WeakLibReader/src/` (API entry points, interpolation kernels, math helpers).
-* Fortran references remain under `ref/weaklib/`.
-* Regression tests plus the lightweight Catch-style shim live in `test/`.
-* `examples/amrex/` is a placeholder for the CUDA demo.
+```
+WeakLibReader/
+  src/                        # Core headers (public API + device helpers)
+    WeakLibReader.hpp         # Axis metadata, layout, N-D interpolation entrypoints
+    IndexDelta.hpp            # Linear/log10 indexing helpers
+    InterpBasis.hpp           # Linear/bi-/tri-/tetra-/penta-linear basis routines
+    InterpLogTable.hpp        # Log-space point kernels and aligned slices
+    LogInterpolate.hpp        # Log wrappers, derivatives, weighted sums
+    Layout.hpp                # Row-major stride helpers
+    Math.hpp                  # Minimal math utilities (log10, pow10, etc.)
+ref/weaklib/                  # Fortran reference implementation
+test/
+  include/catch2/             # Minimal Catch2-compatible shim
+  test_log_interpolate.cpp    # Regression tests (aligned planes, derivatives, etc.)
+examples/amrex/               # CUDA/AMReX demo scaffold (TBD)
+```
 
 > No HDF5 loader files in v1.
 
