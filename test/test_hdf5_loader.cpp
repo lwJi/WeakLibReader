@@ -124,5 +124,28 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
   CHECK(axis2.n == 4);
   CHECK(axis2.grid[3] == Catch::Approx(4.0));
 
+  const auto view = table.View();
+  double coords[5] = {0.3, 1.5, 2.5, 0.0, 0.0};
+  WeakLibReader::InterpConfig cfg;
+  const double interp = WeakLibReader::InterpLinearND(
+      view.data, view.layout, view.axes, coords, cfg, view.nd);
+
+  int idx0 = 0;
+  int idx1 = 0;
+  int idx2 = 0;
+  double frac0 = 0.0;
+  double frac1 = 0.0;
+  double frac2 = 0.0;
+
+  REQUIRE_FALSE(WeakLibReader::detail::IndexAndDelta(view.axes[0], coords[0], idx0, frac0));
+  REQUIRE_FALSE(WeakLibReader::detail::IndexAndDelta(view.axes[1], coords[1], idx1, frac1));
+  REQUIRE_FALSE(WeakLibReader::detail::IndexAndDelta(view.axes[2], coords[2], idx2, frac2));
+
+  const double expected =
+      (static_cast<double>(idx0) + frac0) +
+      10.0 * (static_cast<double>(idx1) + frac1) +
+      100.0 * (static_cast<double>(idx2) + frac2);
+  CHECK(interp == Catch::Approx(expected).margin(1.0e-12));
+
   std::filesystem::remove(filePath);
 }
