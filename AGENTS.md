@@ -62,7 +62,7 @@ Refer to `README.md` for build and test commands (including the required `AMREX_
 namespace WeakLibReader {
 
 enum class AxisScale : uint8_t { Linear, Log10 };
-\ nstruct Axis {
+struct Axis {
   const double* grid;  // length n
   int n;
   AxisScale scale;
@@ -100,6 +100,14 @@ double InterpLinearND(const double* data, const Layout& layout,
 
 } // namespace WeakLibReader
 ```
+
+## Current Implementation Snapshot
+
+- **Layout & Strides:** `WeakLibReader/src/Layout.hpp` provides `Layout` and `MakeLayout` helpers that precompute row-major strides and sub-slice utilities (`SliceLeading`), keeping device functions inline and `noexcept`.
+- **Index Lookup:** `WeakLibReader/src/IndexDelta.hpp` implements `IndexAndDeltaLin/Log10`, returning clamped cell indices and interpolation fractions plus an out-of-range flag to honor the configured policy.
+- **Interpolation Kernels:** `WeakLibReader/src/InterpBasis.hpp` supplies linear through penta-linear blending and partial derivatives, which `WeakLibReader/src/WeakLibReader.hpp` composes in `InterpLinearND` and its 1D–5D overloads.
+- **Log-Wrapped APIs:** `WeakLibReader/src/InterpLogTable.hpp` and `WeakLibReader/src/LogInterpolate.hpp` layer pow10/offset handling, symmetric plane helpers, and derivative evaluators that replicate the Fortran log-table entry points.
+- **Build & Tests:** `CMakeLists.txt` exposes the headers as an INTERFACE target with AMReX/OpenMP includes; `test/test_log_interpolate.cpp` exercises 2D log interpolation, FillNaN policy, symmetric plane fills, and weighted-sum helpers via a bundled Catch-style runner.
 
 ## Behavior Details
 
@@ -149,9 +157,10 @@ amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
 
 * Catch-style unit tests (bundled shim) for:
 
-  * 1D..5D interior/face/edge/corner cases and out‑of‑range policies.
-  * All axis‑scale combinations (Linear/Log10 per axis).
-  * Deterministic parity across CPU/GPU builds.
+  * 2D log interpolation parity with bilinear expectation.
+  * FillNaN out-of-range behavior.
+  * Symmetric plane helpers and weighted-sum accumulators.
+  * Derivative wrappers for log-stored tables (3D cases).
 
 ## Performance Notes
 
