@@ -176,7 +176,9 @@ inline int run_all()
 
 } // namespace simple_catch
 
+#if !defined(SIMPLE_CATCH_NO_MAIN)
 int main()
 {
   return ::simple_catch::run_all();
 }
+#endif

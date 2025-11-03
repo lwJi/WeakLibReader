@@ -22,7 +22,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build
+          sudo apt-get install -y ninja-build libhdf5-dev
 
       - name: Checkout AMReX
         uses: actions/checkout@v4

@@ -2,16 +2,13 @@
 
 GPU-friendly C++ reimplementation of WeakLib’s equation-of-state and opacity interpolators. The library mirrors the original Fortran routines under `ref/weaklib/`, provides AMReX-ready device functions, and ships with a lightweight regression suite.
 
-## Layout
-
-See `AGENTS.md` for the current directory map and file responsibilities.
-
 ## Requirements
 
 - CMake ≥ 3.18
 - C++17-capable compiler
 - AMReX headers (point `AMREX_ROOT` to your installation)
 - OpenMP runtime if AMReX was built with OpenMP (e.g. `libomp` on macOS)
+- HDF5 C library (for table loader + unit tests)
 
 ## Configure & Build
 
@@ -40,6 +37,7 @@ The regression suite runs via a bundled Catch2-style shim. It exercises:
 - FillNaN out-of-range policy
 - Aligned 2D plane symmetry and weighted sums
 - Derivative wrappers (`LogInterpolateDifferentiateSingleVariable*`)
+- HDF5 loader round-trip into `amrex::TableData`
 
 ## Fortran Parity
 
@@ -49,4 +47,4 @@ Original routines live under `ref/weaklib/`. The C++ API mirrors the Fortran fun
 
 - The AMReX CUDA demo is a placeholder; integrate once the GPU kernels are ready.
 - Headers include `AMReX_GpuQualifiers.H` and `AMReX_Extension.H`; ensure your include path covers `${AMREX_ROOT}/include`.
-- No table I/O is supplied in v1; pass in-memory arrays.
+- HDF5 tables load into `amrex::TableData<double,4>`; for 5D datasets the final two axes are flattened when allocating the table storage while preserving the raw row-major layout for interpolation.

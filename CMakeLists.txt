@@ -31,12 +31,26 @@ if (NOT AMREX_INCLUDE_DIR)
 endif()
 
 find_package(OpenMP REQUIRED)
+find_package(HDF5 REQUIRED COMPONENTS C)
+
+find_library(AMREX_LIBRARY
+  NAMES amrex
+  HINTS
+    ${AMREX_ROOT}
+    ${AMREX_ROOT}/lib
+    ${AMREX_ROOT}/lib64)
+if (NOT AMREX_LIBRARY)
+  message(FATAL_ERROR "Failed to locate libamrex. Set AMREX_ROOT to the AMReX installation prefix containing lib/libamrex.")
+endif()
 
 target_include_directories(WeakLibReader INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/WeakLibReader/src>
   $<BUILD_INTERFACE:${AMREX_INCLUDE_DIR}>
   $<INSTALL_INTERFACE:WeakLibReader/src>)
-target_link_libraries(WeakLibReader INTERFACE OpenMP::OpenMP_CXX)
+target_link_libraries(WeakLibReader INTERFACE
+  OpenMP::OpenMP_CXX
+  HDF5::HDF5
+  ${AMREX_LIBRARY})
 
 enable_testing()
 
