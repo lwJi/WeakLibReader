@@ -40,6 +40,13 @@ struct Hdf5LoadConfig {
   std::string axisScaleAttribute = "scale";
 };
 
+struct TableView {
+  int nd = 0;
+  Layout layout{};
+  Axis axes[5]{};
+  const double* data = nullptr;
+};
+
 struct Hdf5Table {
   int nd = 0;
   std::array<int, 5> extents{{1, 1, 1, 1, 1}};
@@ -56,6 +63,18 @@ struct Hdf5Table {
 
   [[nodiscard]] double* DataPtr() noexcept { return values.table().p; }
   [[nodiscard]] const double* DataPtr() const noexcept { return values.const_table().p; }
+
+  [[nodiscard]] TableView View() const noexcept
+  {
+    TableView view{};
+    view.nd = nd;
+    view.layout = layout;
+    view.data = values.const_table().p;
+    for (int dim = 0; dim < 5; ++dim) {
+      view.axes[dim] = axes[dim];
+    }
+    return view;
+  }
 };
 
 namespace detail {
