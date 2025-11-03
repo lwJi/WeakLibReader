@@ -1,6 +1,8 @@
 #pragma once
 
 #include <AMReX_Array.H>
+#include <AMReX_Arena.H>
+#include <AMReX_GpuContainers.H>
 #include <AMReX_TableData.H>
 #include <AMReX_Vector.H>
 
@@ -45,6 +47,26 @@ struct TableView {
   Layout layout{};
   Axis axes[5]{};
   const double* data = nullptr;
+};
+
+struct TableDevice {
+  int nd = 0;
+  Layout layout{};
+  Axis axes[5]{};
+  amrex::TableData<double, 4> values{};
+  std::array<amrex::Gpu::DeviceVector<double>, 5> axisStorage{};
+
+  [[nodiscard]] TableView View() const noexcept
+  {
+    TableView view{};
+    view.nd = nd;
+    view.layout = layout;
+    view.data = values.const_table().p;
+    for (int dim = 0; dim < 5; ++dim) {
+      view.axes[dim] = axes[dim];
+    }
+    return view;
+  }
 };
 
 struct Hdf5Table {
@@ -357,7 +379,7 @@ inline Hdf5LoadStatus LoadHdf5Table(const std::string& filePath,
   if (extentOverflow) {
     return Hdf5LoadStatus::IncompatibleDatasetExtent;
   }
-  result.values.resize(lo, hi);
+  result.values.resize(lo, hi, amrex::The_Pinned_Arena());
 
   if (H5Dread(dataset.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
               result.values.table().p) < 0) {
@@ -372,6 +394,47 @@ inline Hdf5LoadStatus LoadHdf5Table(const std::string& filePath,
   result.layout = MakeLayout(result.extents.data(), result.nd);
   output = std::move(result);
   return Hdf5LoadStatus::Success;
+}
+
+inline TableDevice MakeDeviceCopy(const Hdf5Table& host,
+                                  amrex::Arena* arena = amrex::The_Device_Arena())
+{
+  TableDevice device{};
+  device.nd = host.nd;
+  device.layout = host.layout;
+
+  const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
+  bool overflow = false;
+  const amrex::Array<int, 4> hi = detail::MakeHiArray(host.nd, host.extents, overflow);
+  if (overflow) {
+    return device;
+  }
+
+  device.values.resize(lo, hi, arena);
+  device.values.copy(host.values);
+
+  for (int dim = 0; dim < host.nd; ++dim) {
+    const auto& hostAxis = host.axisStorage[dim];
+    amrex::Gpu::DeviceVector<double>& deviceAxis = device.axisStorage[dim];
+    deviceAxis.resize(hostAxis.size());
+    if (!hostAxis.empty()) {
+      amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                       hostAxis.begin(), hostAxis.end(),
+                       deviceAxis.begin());
+    }
+    Axis axis{};
+    axis.grid = deviceAxis.data();
+    axis.n = static_cast<int>(deviceAxis.size());
+    axis.scale = host.axes[dim].scale;
+    device.axes[dim] = axis;
+  }
+
+  for (int dim = host.nd; dim < 5; ++dim) {
+    device.axisStorage[dim].clear();
+    device.axes[dim] = Axis{};
+  }
+
+  return device;
 }
 
 } // namespace WeakLibReader
