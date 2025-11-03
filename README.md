@@ -4,7 +4,23 @@ GPU-friendly C++ reimplementation of WeakLib’s equation-of-state and opacity i
 
 ## Layout
 
-See `AGENTS.md` for the current directory map and file responsibilities.
+```
+WeakLibReader/
+  src/                        # Core headers (public API + device helpers)
+    WeakLibReader.hpp         # Axis metadata, layout, N-D interpolation entrypoints
+    IndexDelta.hpp            # Linear/log10 indexing helpers
+    InterpBasis.hpp           # Linear/bi-/tri-/tetra-/penta-linear basis routines
+    InterpLogTable.hpp        # Log-space point kernels and aligned slices
+    Hdf5Loader.hpp            # Host-side HDF5 reader via amrex::TableData
+    LogInterpolate.hpp        # Log wrappers, derivatives, weighted sums
+    Layout.hpp                # Row-major stride helpers
+    Math.hpp                  # Minimal math utilities (log10, pow10, etc.)
+ref/weaklib/                  # Fortran reference implementation
+test/
+  include/catch2/             # Minimal Catch2-compatible shim
+  test_log_interpolate.cpp    # Regression tests (aligned planes, derivatives, etc.)
+examples/amrex/               # CUDA/AMReX demo scaffold (TBD)
+```
 
 ## Requirements
 
@@ -12,6 +28,7 @@ See `AGENTS.md` for the current directory map and file responsibilities.
 - C++17-capable compiler
 - AMReX headers (point `AMREX_ROOT` to your installation)
 - OpenMP runtime if AMReX was built with OpenMP (e.g. `libomp` on macOS)
+- HDF5 C library (for table loader + unit tests)
 
 ## Configure & Build
 
@@ -40,6 +57,7 @@ The regression suite runs via a bundled Catch2-style shim. It exercises:
 - FillNaN out-of-range policy
 - Aligned 2D plane symmetry and weighted sums
 - Derivative wrappers (`LogInterpolateDifferentiateSingleVariable*`)
+- HDF5 loader round-trip into `amrex::TableData`
 
 ## Fortran Parity
 
@@ -49,4 +67,4 @@ Original routines live under `ref/weaklib/`. The C++ API mirrors the Fortran fun
 
 - The AMReX CUDA demo is a placeholder; integrate once the GPU kernels are ready.
 - Headers include `AMReX_GpuQualifiers.H` and `AMReX_Extension.H`; ensure your include path covers `${AMREX_ROOT}/include`.
-- No table I/O is supplied in v1; pass in-memory arrays.
+- HDF5 tables load into `amrex::TableData<double,4>`; for 5D datasets the final two axes are flattened when allocating the table storage while preserving the raw row-major layout for interpolation.

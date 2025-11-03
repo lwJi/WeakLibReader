@@ -8,7 +8,7 @@ Translate WeakLib’s EOS & opacity **interpolators** from Fortran into **GPU‑
 
 1. **Out‑of‑range policy:** default **Clamp**.
 2. **Precision:** default **double** throughout (templatable later).
-3. **v1 scope:** **No HDF5 loader** (table loading deferred to a later phase).
+3. **v1 scope:** Ship a host-side **HDF5 table loader** (via `amrex::TableData`).
 4. **Backends to validate:** **CUDA first** (HIP/DPCPP later).
 
 ## Scope (v1)
@@ -16,7 +16,7 @@ Translate WeakLib’s EOS & opacity **interpolators** from Fortran into **GPU‑
 * Generic **N‑D linear interpolation** (1D–5D) with per‑axis **Linear/Log10** spacing.
 * **C++ API** usable in device code (`AMREX_GPU_HOST_DEVICE`) with thin host wrappers.
 * Explicit **row‑major** data layout with precomputed strides and axis metadata.
-* **No** table I/O in v1; assume arrays are already in memory.
+* **HDF5 table I/O** populating `amrex::TableData<double,4>`; last axis flattened when dimensionality exceeds four.
 
 ## Naming & Style (CamelCase)
 
@@ -46,7 +46,7 @@ test/
 examples/amrex/               # CUDA/AMReX demo scaffold (TBD)
 ```
 
-> No HDF5 loader files in v1.
+> HDF5 loader lives alongside core headers under `WeakLibReader/src/`.
 
 ## Setup & Build (CUDA first)
 
@@ -107,7 +107,8 @@ double InterpLinearND(const double* data, const Layout& layout,
 - **Index Lookup:** `WeakLibReader/src/IndexDelta.hpp` implements `IndexAndDeltaLin/Log10`, returning clamped cell indices and interpolation fractions plus an out-of-range flag to honor the configured policy.
 - **Interpolation Kernels:** `WeakLibReader/src/InterpBasis.hpp` supplies linear through penta-linear blending and partial derivatives, which `WeakLibReader/src/WeakLibReader.hpp` composes in `InterpLinearND` and its 1D–5D overloads.
 - **Log-Wrapped APIs:** `WeakLibReader/src/InterpLogTable.hpp` and `WeakLibReader/src/LogInterpolate.hpp` layer pow10/offset handling, symmetric plane helpers, and derivative evaluators that replicate the Fortran log-table entry points.
-- **Build & Tests:** `CMakeLists.txt` exposes the headers as an INTERFACE target with AMReX/OpenMP includes; `test/test_log_interpolate.cpp` exercises 2D log interpolation, FillNaN policy, symmetric plane fills, and weighted-sum helpers via a bundled Catch-style runner.
+- **HDF5 Loader:** `WeakLibReader/src/Hdf5Loader.hpp` reads axis metadata + value datasets, validates monotonicity, and materializes tables into `amrex::TableData<double,4>` while preserving axis storage for interpolation.
+- **Build & Tests:** `CMakeLists.txt` exposes the headers as an INTERFACE target with AMReX/OpenMP/HDF5 includes; `test/test_log_interpolate.cpp` and `test/test_hdf5_loader.cpp` cover interpolation kernels, policies, symmetry helpers, weighted sums, derivatives, and HDF5 round-trips via the bundled Catch shim.
 
 ## Behavior Details
 
@@ -151,7 +152,7 @@ amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
 * Example fills a `MultiFab` by interpolating table values on GPU.
 * **AC:** Runs on CUDA; smoke tests pass.
 
-> **Deferred (post‑v1):** HDF5 table loader and HIP/DPCPP validation.
+> **Deferred (post‑v1):** HIP/DPCPP validation.
 
 ## Tests
 
@@ -161,6 +162,7 @@ amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
   * FillNaN out-of-range behavior.
   * Symmetric plane helpers and weighted-sum accumulators.
   * Derivative wrappers for log-stored tables (3D cases).
+  * HDF5 loader -> `amrex::TableData` round-trip (axes + data).
 
 ## Performance Notes
 
@@ -188,17 +190,18 @@ amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
 * Preserve numerical behavior at boundaries and under mixed Linear/Log10 axes.
 * Keep device code free of STL containers and dynamic allocations.
 * Provide small, `constexpr` helpers; keep functions `AMREX_GPU_HOST_DEVICE`.
+* Ensure HDF5 loader retains axis storage backing the raw pointers returned in `Axis`.
 
 **Don’t**
 
-* Don’t introduce I/O or HDF5 in v1.
+* Don’t add alternate table I/O formats beyond the sanctioned HDF5 loader.
 * Don’t change AMReX build options outside `examples/amrex/`.
 * Don’t add OpenACC or non‑AMReX GPU pragmas.
 
 ## Deliverables (v1)
 
-* `WeakLibReader/src/` headers (API + kernels + helpers).
-* `test/` regression suite (Catch-style shim + coverage for log/derivative paths).
+* `WeakLibReader/src/` headers (API + kernels + helpers + HDF5 loader).
+* `test/` regression suite (Catch-style shim + coverage for log/derivative paths + HDF5 loader).
 * `ref/weaklib/` Fortran references and notes.
 * `examples/amrex/` CUDA demo scaffold (fleshed out in Phase 3).
 * `README.md` documenting build/test steps and dependencies.
@@ -211,6 +214,6 @@ amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
 
 ## Non‑Goals (v1)
 
-* HDF5/NetCDF readers, table discovery, or I/O pipelines.
+* Additional table formats (NetCDF, discovery frameworks) beyond the HDF5 loader.
 * HIP/DPCPP backend validation.
 * Higher‑order interpolation (e.g., cubic).

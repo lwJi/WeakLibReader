@@ -1,5 +1,6 @@
 add_executable(WeakLibReaderTests
-  test_log_interpolate.cpp)
+  test_log_interpolate.cpp
+  test_hdf5_loader.cpp)
 
 target_include_directories(WeakLibReaderTests
   PRIVATE
