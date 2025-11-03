@@ -4,6 +4,10 @@
 #include "Hdf5Loader.hpp"
 
 #include <AMReX.H>
+#include <AMReX_Arena.H>
+#include <AMReX_GpuContainers.H>
+#include <AMReX_GpuDevice.H>
+#include <AMReX_TableData.H>
 #include <hdf5.h>
 
 #include <cstring>
@@ -123,6 +127,42 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
   CHECK(axis2.scale == WeakLibReader::AxisScale::Log10);
   CHECK(axis2.n == 4);
   CHECK(axis2.grid[3] == Catch::Approx(4.0));
+
+  CHECK(table.values.arena() == amrex::The_Pinned_Arena());
+
+  const auto deviceTable = WeakLibReader::MakeDeviceCopy(table);
+  CHECK(deviceTable.values.arena() == amrex::The_Device_Arena());
+
+  amrex::TableData<double, 4> roundtrip;
+  const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
+  bool overflow = false;
+  const amrex::Array<int, 4> hi =
+      WeakLibReader::detail::MakeHiArray(table.nd, table.extents, overflow);
+  REQUIRE_FALSE(overflow);
+  roundtrip.resize(lo, hi, amrex::The_Pinned_Arena());
+  roundtrip.copy(deviceTable.values);
+
+  const double* originalPtr = table.DataPtr();
+  const double* roundtripPtr = roundtrip.const_table().p;
+  std::size_t total = 1;
+  for (int dim = 0; dim < table.nd; ++dim) {
+    total *= static_cast<std::size_t>(table.extents[dim]);
+  }
+  for (std::size_t i = 0; i < total; ++i) {
+    CHECK(roundtripPtr[i] == Catch::Approx(originalPtr[i]).margin(1.0e-12));
+  }
+
+  for (int dim = 0; dim < table.nd; ++dim) {
+    const auto& deviceAxis = deviceTable.axisStorage[dim];
+    std::vector<double> hostAxis(deviceAxis.size());
+    amrex::Gpu::copy(amrex::Gpu::deviceToHost,
+                     deviceAxis.begin(), deviceAxis.end(),
+                     hostAxis.begin());
+    REQUIRE(hostAxis.size() == table.axisStorage[dim].size());
+    for (std::size_t i = 0; i < hostAxis.size(); ++i) {
+      CHECK(hostAxis[i] == Catch::Approx(table.axisStorage[dim][i]).margin(1.0e-12));
+    }
+  }
 
   const auto view = table.View();
   double coords[5] = {0.3, 1.5, 2.5, 0.0, 0.0};
