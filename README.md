@@ -2,26 +2,6 @@
 
 GPU-friendly C++ reimplementation of WeakLib’s equation-of-state and opacity interpolators. The library mirrors the original Fortran routines under `ref/weaklib/`, provides AMReX-ready device functions, and ships with a lightweight regression suite.
 
-## Layout
-
-```
-WeakLibReader/
-  src/                        # Core headers (public API + device helpers)
-    WeakLibReader.hpp         # Axis metadata, layout, N-D interpolation entrypoints
-    IndexDelta.hpp            # Linear/log10 indexing helpers
-    InterpBasis.hpp           # Linear/bi-/tri-/tetra-/penta-linear basis routines
-    InterpLogTable.hpp        # Log-space point kernels and aligned slices
-    Hdf5Loader.hpp            # Host-side HDF5 reader via amrex::TableData
-    LogInterpolate.hpp        # Log wrappers, derivatives, weighted sums
-    Layout.hpp                # Row-major stride helpers
-    Math.hpp                  # Minimal math utilities (log10, pow10, etc.)
-ref/weaklib/                  # Fortran reference implementation
-test/
-  include/catch2/             # Minimal Catch2-compatible shim
-  test_log_interpolate.cpp    # Regression tests (aligned planes, derivatives, etc.)
-examples/amrex/               # CUDA/AMReX demo scaffold (TBD)
-```
-
 ## Requirements
 
 - CMake ≥ 3.18

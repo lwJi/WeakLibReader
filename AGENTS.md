@@ -36,6 +36,7 @@ WeakLibReader/
     IndexDelta.hpp            # Linear/log10 indexing helpers
     InterpBasis.hpp           # Linear/bi-/tri-/tetra-/penta-linear basis routines
     InterpLogTable.hpp        # Log-space point kernels and aligned slices
+    Hdf5Loader.hpp            # Host-side HDF5 reader via amrex::TableData
     LogInterpolate.hpp        # Log wrappers, derivatives, weighted sums
     Layout.hpp                # Row-major stride helpers
     Math.hpp                  # Minimal math utilities (log10, pow10, etc.)
@@ -43,6 +44,7 @@ ref/weaklib/                  # Fortran reference implementation
 test/
   include/catch2/             # Minimal Catch2-compatible shim
   test_log_interpolate.cpp    # Regression tests (aligned planes, derivatives, etc.)
+  test_hdf5_loader.cpp        # HDF5 loader round-trip coverage
 examples/amrex/               # CUDA/AMReX demo scaffold (TBD)
 ```
 
