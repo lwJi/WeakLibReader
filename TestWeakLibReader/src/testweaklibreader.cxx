@@ -11,8 +11,9 @@ extern "C" void TestWeakLibReader_Init(CCTK_ARGUMENTS) {
 
   CCTK_INFO("Initializing grid function");
 
-  grid.loop_all<0, 0, 0>(grid.nghostzones,
-                         [=](const Loop::PointDesc &p) { energy(p.I) = 0.0; });
+  // Launch a kernel on the GPU device
+  grid.loop_all_device<0, 0, 0>(
+      grid.nghostzones, [=](const Loop::PointDesc &p) { energy(p.I) = 0.0; });
 }
 
 } // namespace TestWeakLibReader
