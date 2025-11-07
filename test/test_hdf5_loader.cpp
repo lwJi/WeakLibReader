@@ -199,5 +199,12 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
     CHECK(distributedPtr[i] == Catch::Approx(originalPtr[i]).margin(1.0e-12));
   }
 
+  WeakLibReader::Hdf5Table staggered;
+  const auto staggerStatus =
+      WeakLibReader::LoadHdf5TableStaggered(filePath.string(), staggered, WeakLibReader::Hdf5LoadConfig{}, 2);
+  REQUIRE(staggerStatus == WeakLibReader::Hdf5LoadStatus::Success);
+  REQUIRE(staggered.nd == table.nd);
+  CHECK(staggered.values.size() == table.values.size());
+
   std::filesystem::remove(filePath);
 }
