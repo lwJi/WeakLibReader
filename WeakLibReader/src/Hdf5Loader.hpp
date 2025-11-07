@@ -417,7 +417,9 @@ inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
     status = LoadHdf5Table(filePath, temp, cfg);
   }
 
-  amrex::ParallelDescriptor::Bcast(&status, 1, root);
+  int statusCode = static_cast<int>(status);
+  amrex::ParallelDescriptor::Bcast(&statusCode, 1, root);
+  status = static_cast<Hdf5LoadStatus>(statusCode);
   if (status != Hdf5LoadStatus::Success) {
     return status;
   }
