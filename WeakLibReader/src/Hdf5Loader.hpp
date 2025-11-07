@@ -3,6 +3,7 @@
 #include <AMReX_Array.H>
 #include <AMReX_Arena.H>
 #include <AMReX_GpuContainers.H>
+#include <AMReX_ParallelDescriptor.H>
 #include <AMReX_TableData.H>
 #include <AMReX_Vector.H>
 
@@ -393,6 +394,103 @@ inline Hdf5LoadStatus LoadHdf5Table(const std::string& filePath,
 
   result.layout = MakeLayout(result.extents.data(), result.nd);
   output = std::move(result);
+  return Hdf5LoadStatus::Success;
+}
+
+inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
+                                            Hdf5Table& output,
+                                            const Hdf5LoadConfig& cfg = Hdf5LoadConfig{},
+                                            int root = amrex::ParallelDescriptor::IOProcessorNumber())
+{
+  const int nProcs = amrex::ParallelDescriptor::NProcs();
+  if (nProcs <= 1) {
+    return LoadHdf5Table(filePath, output, cfg);
+  }
+
+  if (root < 0 || root >= nProcs) {
+    root = 0;
+  }
+
+  Hdf5LoadStatus status = Hdf5LoadStatus::Success;
+  Hdf5Table temp;
+  if (amrex::ParallelDescriptor::MyProc() == root) {
+    status = LoadHdf5Table(filePath, temp, cfg);
+  }
+
+  amrex::ParallelDescriptor::Bcast(&status, 1, root);
+  if (status != Hdf5LoadStatus::Success) {
+    return status;
+  }
+
+  int nd = 0;
+  std::array<int, 5> extents{{1, 1, 1, 1, 1}};
+  if (amrex::ParallelDescriptor::MyProc() == root) {
+    nd = temp.nd;
+    extents = temp.extents;
+  }
+  amrex::ParallelDescriptor::Bcast(&nd, 1, root);
+  amrex::ParallelDescriptor::Bcast(extents.data(), 5, root);
+
+  bool overflow = false;
+  const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
+  const amrex::Array<int, 4> hi = detail::MakeHiArray(nd, extents, overflow);
+  if (overflow) {
+    return Hdf5LoadStatus::IncompatibleDatasetExtent;
+  }
+
+  Hdf5Table local;
+  local.nd = nd;
+  local.extents = extents;
+  local.layout = MakeLayout(extents.data(), nd);
+  local.values.resize(lo, hi, amrex::The_Pinned_Arena());
+
+  std::array<int, 5> axisLengths{{0, 0, 0, 0, 0}};
+  std::array<int, 5> axisScales{{0, 0, 0, 0, 0}};
+  if (amrex::ParallelDescriptor::MyProc() == root) {
+    for (int dim = 0; dim < nd; ++dim) {
+      axisLengths[dim] = static_cast<int>(temp.axisStorage[dim].size());
+      axisScales[dim] = static_cast<int>(temp.axes[dim].scale);
+    }
+  }
+  amrex::ParallelDescriptor::Bcast(axisLengths.data(), 5, root);
+  amrex::ParallelDescriptor::Bcast(axisScales.data(), 5, root);
+
+  for (int dim = 0; dim < nd; ++dim) {
+    const int length = axisLengths[dim];
+    amrex::Vector<double>& storage = local.axisStorage[dim];
+    storage.resize(static_cast<std::size_t>(length));
+    double* buffer = storage.data();
+    if (amrex::ParallelDescriptor::MyProc() == root && length > 0) {
+      const double* src = temp.axisStorage[dim].data();
+      std::memcpy(buffer, src, static_cast<std::size_t>(length) * sizeof(double));
+    }
+    amrex::ParallelDescriptor::Bcast(buffer, length, root);
+
+    Axis axis{};
+    axis.grid = buffer;
+    axis.n = length;
+    axis.scale = static_cast<AxisScale>(axisScales[dim]);
+    local.axes[dim] = axis;
+  }
+
+  for (int dim = nd; dim < 5; ++dim) {
+    local.axisStorage[dim].clear();
+    local.axes[dim] = Axis{};
+  }
+
+  const std::size_t totalSize = detail::ComputeTotalSize(nd, extents);
+  if (totalSize == 0 || totalSize > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    return Hdf5LoadStatus::IncompatibleDatasetExtent;
+  }
+
+  double* dest = local.values.table().p;
+  if (amrex::ParallelDescriptor::MyProc() == root) {
+    const double* src = temp.values.const_table().p;
+    std::memcpy(dest, src, totalSize * sizeof(double));
+  }
+  amrex::ParallelDescriptor::Bcast(dest, static_cast<int>(totalSize), root);
+
+  output = std::move(local);
   return Hdf5LoadStatus::Success;
 }
 
