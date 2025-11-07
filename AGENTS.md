@@ -165,6 +165,7 @@ amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
   * Symmetric plane helpers and weighted-sum accumulators.
   * Derivative wrappers for log-stored tables (3D cases).
   * HDF5 loader -> `amrex::TableData` round-trip (axes + data).
+  * Parallel HDF5 loader broadcast path (`LoadHdf5TableParallel`) executed under MPI when `WEAKLIBREADER_ENABLE_MPI_TESTS=ON` (CI runs it via mpich).
 
 ## Performance Notes
 
