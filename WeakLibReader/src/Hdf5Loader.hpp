@@ -455,7 +455,7 @@ inline Hdf5LoadStatus LoadHdf5TableGrouped(const std::string& filePath,
 
   amrex::ParallelDescriptor::Barrier();
   int statusInt = static_cast<int>(status);
-  amrex::ParallelDescriptor::ReduceIntMin(statusInt);
+  amrex::ParallelDescriptor::ReduceIntMax(statusInt);
   status = static_cast<Hdf5LoadStatus>(statusInt);
 #else
   (void)groupSize;
