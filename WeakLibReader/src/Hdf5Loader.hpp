@@ -5,6 +5,7 @@
 #include <AMReX_GpuContainers.H>
 #include <AMReX_TableData.H>
 #include <AMReX_Vector.H>
+#include <AMReX_ParallelDescriptor.H>
 
 #include <array>
 #include <cctype>
@@ -394,6 +395,126 @@ inline Hdf5LoadStatus LoadHdf5Table(const std::string& filePath,
   result.layout = MakeLayout(result.extents.data(), result.nd);
   output = std::move(result);
   return Hdf5LoadStatus::Success;
+}
+
+inline Hdf5LoadStatus LoadHdf5TableDistributed(const std::string& filePath,
+                                               Hdf5Table& output,
+                                               const Hdf5LoadConfig& cfg = Hdf5LoadConfig{},
+                                               int readerRank = 0)
+{
+  int myRank = 0;
+  int nProcs = 1;
+#ifdef AMREX_PARALLEL
+  myRank = amrex::ParallelDescriptor::MyProc();
+  nProcs = amrex::ParallelDescriptor::NProcs();
+#endif
+
+  if (nProcs == 1) {
+    return LoadHdf5Table(filePath, output, cfg);
+  }
+
+  Hdf5LoadStatus status = Hdf5LoadStatus::Success;
+
+  if (myRank == readerRank) {
+    status = LoadHdf5Table(filePath, output, cfg);
+  }
+
+#ifdef AMREX_PARALLEL
+  int statusInt = static_cast<int>(status);
+  amrex::ParallelDescriptor::Bcast(&statusInt, 1, readerRank);
+  status = static_cast<Hdf5LoadStatus>(statusInt);
+  if (status != Hdf5LoadStatus::Success) {
+    return status;
+  }
+
+  if (myRank == readerRank) {
+    const std::size_t metaSize = sizeof(int) * (1 + 5) + sizeof(Layout);
+    const std::size_t axisCounts = static_cast<std::size_t>(output.nd);
+    std::size_t axisTotal = 0;
+    for (int dim = 0; dim < output.nd; ++dim) {
+      axisTotal += static_cast<std::size_t>(output.axisStorage[dim].size());
+    }
+    const std::size_t payloadSize =
+        (axisTotal + output.values.size()) * sizeof(double) + metaSize;
+
+    amrex::Vector<char> buffer(payloadSize);
+    char* cursor = buffer.data();
+
+    std::memcpy(cursor, &output.nd, sizeof(int));
+    cursor += sizeof(int);
+    std::memcpy(cursor, output.extents.data(), sizeof(int) * 5);
+    cursor += sizeof(int) * 5;
+    std::memcpy(cursor, &output.layout, sizeof(Layout));
+    cursor += sizeof(Layout);
+
+    for (int dim = 0; dim < output.nd; ++dim) {
+      const int count = output.axisStorage[dim].empty()
+                            ? output.axes[dim].n
+                            : static_cast<int>(output.axisStorage[dim].size());
+      std::memcpy(cursor, &count, sizeof(int));
+      cursor += sizeof(int);
+      const double* dataPtr = output.axisStorage[dim].empty()
+                                  ? output.axes[dim].grid
+                                  : output.axisStorage[dim].data();
+      std::memcpy(cursor, dataPtr, sizeof(double) * count);
+      cursor += sizeof(double) * count;
+      const auto scale = output.axes[dim].scale;
+      std::memcpy(cursor, &scale, sizeof(scale));
+      cursor += sizeof(scale);
+    }
+
+    const double* valuesPtr = output.DataPtr();
+    std::memcpy(cursor, valuesPtr, sizeof(double) * output.values.size());
+    cursor += sizeof(double) * output.values.size();
+
+    const int byteCount = static_cast<int>(payloadSize);
+    amrex::ParallelDescriptor::Bcast(&byteCount, 1, readerRank);
+    amrex::ParallelDescriptor::Bcast(buffer.data(), byteCount, readerRank);
+  } else {
+    int byteCount = 0;
+    amrex::ParallelDescriptor::Bcast(&byteCount, 1, readerRank);
+    amrex::Vector<char> buffer(byteCount);
+    amrex::ParallelDescriptor::Bcast(buffer.data(), byteCount, readerRank);
+
+    const char* cursor = buffer.data();
+    Hdf5Table incoming;
+    std::memcpy(&incoming.nd, cursor, sizeof(int));
+    cursor += sizeof(int);
+    std::memcpy(incoming.extents.data(), cursor, sizeof(int) * 5);
+    cursor += sizeof(int) * 5;
+    std::memcpy(&incoming.layout, cursor, sizeof(Layout));
+    cursor += sizeof(Layout);
+
+    for (int dim = 0; dim < incoming.nd; ++dim) {
+      int count = 0;
+      std::memcpy(&count, cursor, sizeof(int));
+      cursor += sizeof(int);
+      incoming.axisStorage[dim].resize(count);
+      std::memcpy(incoming.axisStorage[dim].data(), cursor, sizeof(double) * count);
+      cursor += sizeof(double) * count;
+      Axis axis{};
+      axis.grid = incoming.axisStorage[dim].data();
+      axis.n = count;
+      std::memcpy(&axis.scale, cursor, sizeof(axis.scale));
+      cursor += sizeof(axis.scale);
+      incoming.axes[dim] = axis;
+    }
+
+    const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
+    bool overflow = false;
+    const amrex::Array<int, 4> hi = detail::MakeHiArray(incoming.nd, incoming.extents, overflow);
+    if (overflow) {
+      return Hdf5LoadStatus::IncompatibleDatasetExtent;
+    }
+    incoming.values.resize(lo, hi, amrex::The_Pinned_Arena());
+    std::memcpy(incoming.values.table().p, cursor,
+                sizeof(double) * incoming.values.size());
+
+    output = std::move(incoming);
+  }
+#endif
+
+  return status;
 }
 
 inline TableDevice MakeDeviceCopy(const Hdf5Table& host,

@@ -109,7 +109,7 @@ double InterpLinearND(const double* data, const Layout& layout,
 - **Index Lookup:** `WeakLibReader/src/IndexDelta.hpp` implements `IndexAndDeltaLin/Log10`, returning clamped cell indices and interpolation fractions plus an out-of-range flag to honor the configured policy.
 - **Interpolation Kernels:** `WeakLibReader/src/InterpBasis.hpp` supplies linear through penta-linear blending and partial derivatives, which `WeakLibReader/src/WeakLibReader.hpp` composes in `InterpLinearND` and its 1D–5D overloads.
 - **Log-Wrapped APIs:** `WeakLibReader/src/InterpLogTable.hpp` and `WeakLibReader/src/LogInterpolate.hpp` layer pow10/offset handling, symmetric plane helpers, and derivative evaluators that replicate the Fortran log-table entry points.
-- **HDF5 Loader:** `WeakLibReader/src/Hdf5Loader.hpp` reads axis metadata + value datasets, validates monotonicity, and materializes tables into `amrex::TableData<double,4>` while preserving axis storage for interpolation.
+- **HDF5 Loader:** `WeakLibReader/src/Hdf5Loader.hpp` reads axis metadata + value datasets, validates monotonicity, materializes tables into pinned `amrex::TableData<double,4>`, supports device copies, and includes a rank-0 broadcast helper for MPI setups.
 - **Build & Tests:** `CMakeLists.txt` exposes the headers as an INTERFACE target with AMReX/OpenMP/HDF5 includes; `test/test_log_interpolate.cpp` and `test/test_hdf5_loader.cpp` cover interpolation kernels, policies, symmetry helpers, weighted sums, derivatives, and HDF5 round-trips via the bundled Catch shim.
 
 ## Behavior Details
@@ -171,6 +171,7 @@ amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
 * Precompute strides; pass compact axis/layout structs by value.
 * Avoid branching in weight calc; coalesce reads; no dynamic allocations in kernels.
 * Keep device functions `noexcept`; return status flags when needed.
+* Use `LoadHdf5TableDistributed` to limit HDF5 I/O to a single rank and broadcast to peers when running with MPI.
 
 ## Security & Quality Guardrails
 

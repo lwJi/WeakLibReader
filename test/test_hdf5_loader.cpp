@@ -187,5 +187,17 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
       100.0 * (static_cast<double>(idx2) + frac2);
   CHECK(interp == Catch::Approx(expected).margin(1.0e-12));
 
+  WeakLibReader::Hdf5Table distributed;
+  const auto distStatus =
+      WeakLibReader::LoadHdf5TableDistributed(filePath.string(), distributed);
+  REQUIRE(distStatus == WeakLibReader::Hdf5LoadStatus::Success);
+  CHECK(distributed.nd == table.nd);
+  CHECK(distributed.extents[0] == table.extents[0]);
+  CHECK(distributed.values.size() == table.values.size());
+  const double* distributedPtr = distributed.DataPtr();
+  for (std::size_t i = 0; i < total; ++i) {
+    CHECK(distributedPtr[i] == Catch::Approx(originalPtr[i]).margin(1.0e-12));
+  }
+
   std::filesystem::remove(filePath);
 }
