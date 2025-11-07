@@ -3,9 +3,11 @@
 #include <AMReX_Array.H>
 #include <AMReX_Arena.H>
 #include <AMReX_GpuContainers.H>
+#include <AMReX_ParallelDescriptor.H>
 #include <AMReX_TableData.H>
 #include <AMReX_Vector.H>
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cstdint>
@@ -324,6 +326,32 @@ inline Hdf5LoadStatus LoadAxes(hid_t file,
   return Hdf5LoadStatus::Success;
 }
 
+#if defined(AMREX_USE_MPI)
+
+constexpr int kReleaseTagBase = 500;
+
+inline void SignalNextGroup(int myProc, int groupSize, int nProcs)
+{
+  const int target = myProc + groupSize;
+  if (target < nProcs) {
+    const int tag = kReleaseTagBase + (myProc % groupSize);
+    int dummy = 0;
+    amrex::ParallelDescriptor::Send(&dummy, 1, target, tag);
+  }
+}
+
+inline void WaitForGroupTurn(int myProc, int groupSize)
+{
+  if (myProc >= groupSize) {
+    const int source = myProc - groupSize;
+    const int tag = kReleaseTagBase + (myProc % groupSize);
+    int dummy = 0;
+    amrex::ParallelDescriptor::Recv(&dummy, 1, source, tag);
+  }
+}
+
+#endif // AMREX_USE_MPI
+
 } // namespace detail
 
 inline Hdf5LoadStatus LoadHdf5Table(const std::string& filePath,
@@ -394,6 +422,50 @@ inline Hdf5LoadStatus LoadHdf5Table(const std::string& filePath,
   result.layout = MakeLayout(result.extents.data(), result.nd);
   output = std::move(result);
   return Hdf5LoadStatus::Success;
+}
+
+inline Hdf5LoadStatus LoadHdf5TableGrouped(const std::string& filePath,
+                                           Hdf5Table& output,
+                                           int groupSize,
+                                           const Hdf5LoadConfig& cfg = Hdf5LoadConfig{})
+{
+  Hdf5Table local;
+  Hdf5LoadStatus status = Hdf5LoadStatus::Success;
+#if defined(AMREX_USE_MPI)
+  const int nProcs = amrex::ParallelDescriptor::NProcs();
+  const int clampedGroup = (groupSize <= 0) ? nProcs : groupSize;
+  const int actualGroup = std::max(1, std::min(clampedGroup, nProcs));
+  const int myProc = amrex::ParallelDescriptor::MyProc();
+  const int mySet = myProc / actualGroup;
+  const int nSets = (nProcs + actualGroup - 1) / actualGroup;
+
+  for (int iSet = 0; iSet < nSets; ++iSet) {
+    if (mySet == iSet + 1) {
+      detail::WaitForGroupTurn(myProc, actualGroup);
+    }
+
+    if (mySet == iSet) {
+      status = LoadHdf5Table(filePath, local, cfg);
+    }
+
+    if (mySet == iSet) {
+      detail::SignalNextGroup(myProc, actualGroup, nProcs);
+    }
+  }
+
+  amrex::ParallelDescriptor::Barrier();
+  int statusInt = static_cast<int>(status);
+  amrex::ParallelDescriptor::ReduceIntMax(statusInt);
+  status = static_cast<Hdf5LoadStatus>(statusInt);
+#else
+  (void)groupSize;
+  status = LoadHdf5Table(filePath, local, cfg);
+#endif
+
+  if (status == Hdf5LoadStatus::Success) {
+    output = std::move(local);
+  }
+  return status;
 }
 
 inline TableDevice MakeDeviceCopy(const Hdf5Table& host,
