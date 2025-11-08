@@ -52,7 +52,7 @@ examples/amrex/               # CUDA/AMReX demo scaffold (TBD)
 
 ## Setup & Build (CUDA first)
 
-Refer to `README.md` for build and test commands (including the required `AMREX_ROOT` and OpenMP flags).
+Refer to `README.md` for build and test commands. If `AMREX_ROOT` is unset the CMake project will auto-fetch AMReX (configurable via `WeakLibReader_FETCH_AMREX`).
 
 ## Public API (Target)
 

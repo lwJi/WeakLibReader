@@ -10,12 +10,75 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(WeakLibReader INTERFACE)
 
+# Allow building AMReX automatically when a pre-installed tree is not provided.
 set(AMREX_ROOT "" CACHE PATH "Root directory of the AMReX installation")
+set(WeakLibReader_AMREX_GIT_TAG "development" CACHE STRING "Git tag/branch of AMReX to fetch when auto-building")
+
 if (NOT AMREX_ROOT AND DEFINED ENV{AMREX_ROOT})
   set(AMREX_ROOT "$ENV{AMREX_ROOT}")
 endif()
 if (NOT AMREX_ROOT AND DEFINED ENV{AMREX_HOME})
   set(AMREX_ROOT "$ENV{AMREX_HOME}")
+endif()
+
+if (NOT AMREX_ROOT)
+  set(_weaklibreader_fetch_amrex_default ON)
+else()
+  set(_weaklibreader_fetch_amrex_default OFF)
+endif()
+
+if (NOT DEFINED WeakLibReader_FETCH_AMREX)
+  set(WeakLibReader_FETCH_AMREX ${_weaklibreader_fetch_amrex_default})
+endif()
+set(WeakLibReader_FETCH_AMREX "${WeakLibReader_FETCH_AMREX}" CACHE BOOL
+    "Download and build AMReX automatically if AMREX_ROOT is empty" FORCE)
+
+if (WeakLibReader_FETCH_AMREX)
+  include(FetchContent)
+  set(_weaklibreader_amrex_install "${CMAKE_BINARY_DIR}/amrex-install")
+
+  FetchContent_Declare(WeakLibReader_AMReX
+    GIT_REPOSITORY https://github.com/AMReX-Codes/amrex.git
+    GIT_TAG ${WeakLibReader_AMREX_GIT_TAG}
+    GIT_SHALLOW TRUE)
+  FetchContent_GetProperties(WeakLibReader_AMReX)
+  if (NOT WeakLibReader_AMReX_POPULATED)
+    message(STATUS "Fetching AMReX from ${WeakLibReader_AMREX_GIT_TAG}")
+    FetchContent_Populate(WeakLibReader_AMReX)
+  endif()
+
+  set(_weaklibreader_amrex_build "${CMAKE_BINARY_DIR}/amrex-build")
+  set(_weaklibreader_amrex_stamp "${_weaklibreader_amrex_build}/WeakLibReader_amrex_stamp")
+
+  if (NOT EXISTS "${_weaklibreader_amrex_stamp}")
+    file(MAKE_DIRECTORY "${_weaklibreader_amrex_build}")
+    set(_weaklibreader_configure_cmd
+        ${CMAKE_COMMAND} -S "${WeakLibReader_AMReX_SOURCE_DIR}" -B "${_weaklibreader_amrex_build}"
+        -DCMAKE_INSTALL_PREFIX="${_weaklibreader_amrex_install}"
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        -DAMReX_MPI=OFF
+        -DAMReX_GPU_BACKEND=NONE
+        -DAMReX_LINEAR_SOLVERS=OFF
+        -DAMReX_PARTICLES=OFF
+        -DAMReX_FORTRAN_INTERFACES=OFF
+        -DAMReX_SENSEI=OFF
+        -DAMReX_BASE_PROFILE=OFF)
+    execute_process(COMMAND ${_weaklibreader_configure_cmd}
+                    RESULT_VARIABLE _weaklibreader_amrex_configure_result)
+    if (_weaklibreader_amrex_configure_result)
+      message(FATAL_ERROR "Failed to configure AMReX (error ${_weaklibreader_amrex_configure_result}).")
+    endif()
+
+    execute_process(COMMAND ${CMAKE_COMMAND} --build "${_weaklibreader_amrex_build}" --target install --parallel
+                    RESULT_VARIABLE _weaklibreader_amrex_build_result)
+    if (_weaklibreader_amrex_build_result)
+      message(FATAL_ERROR "Failed to build/install AMReX (error ${_weaklibreader_amrex_build_result}).")
+    endif()
+
+    file(WRITE "${_weaklibreader_amrex_stamp}" "built")
+  endif()
+
+  set(AMREX_ROOT "${_weaklibreader_amrex_install}" CACHE PATH "Root directory of the AMReX installation" FORCE)
 endif()
 
 find_path(AMREX_INCLUDE_DIR

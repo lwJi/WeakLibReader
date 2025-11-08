@@ -6,14 +6,15 @@ GPU-friendly C++ reimplementation of WeakLib’s equation-of-state and opacity i
 
 - CMake ≥ 3.18
 - C++17-capable compiler
-- AMReX headers (point `AMREX_ROOT` to your installation)
-- OpenMP runtime if AMReX was built with OpenMP (e.g. `libomp` on macOS)
 - HDF5 C library (for table loader + unit tests)
+- AMReX headers/libraries  
+  *WeakLibReader can auto-fetch and build AMReX if `AMREX_ROOT` is unset (pass `-DWeakLibReader_FETCH_AMREX=OFF` to disable).*
+- OpenMP runtime if AMReX was built with OpenMP (e.g. `libomp` on macOS)
 
 ## Configure & Build
 
 ```bash
-# Configure (fill in your AMReX path)
+# Configure (set AMREX_ROOT if you want to reuse an existing AMReX install)
 cmake -S . -B build \
       -DCMAKE_BUILD_TYPE=Release \
       -DAMREX_ROOT=/path/to/amrex \
