@@ -58,7 +58,8 @@ jobs:
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DAMREX_ROOT="${AMREX_ROOT}" \
-            -DWEAKLIBREADER_ENABLE_MPI_TESTS=ON
+            -DWEAKLIBREADER_ENABLE_MPI_TESTS=ON \
+            -DWeakLibReader_FETCH_AMREX=OFF
 
       - name: Build WeakLibReader
         run: cmake --build build -j 4
