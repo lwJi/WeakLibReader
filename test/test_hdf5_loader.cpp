@@ -187,5 +187,15 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
       100.0 * (static_cast<double>(idx2) + frac2);
   CHECK(interp == Catch::Approx(expected).margin(1.0e-12));
 
+  WeakLibReader::Hdf5Table parallelTable;
+  const auto parallelStatus =
+      WeakLibReader::LoadHdf5TableParallel(filePath.string(), parallelTable);
+  REQUIRE(parallelStatus == WeakLibReader::Hdf5LoadStatus::Success);
+  CHECK(parallelTable.nd == table.nd);
+  CHECK(parallelTable.layout.n[0] == table.layout.n[0]);
+  CHECK(parallelTable.axes[2].scale == table.axes[2].scale);
+  const double* parallelData = parallelTable.DataPtr();
+  CHECK(parallelData[idx] == Catch::Approx(data[idx]).margin(1.0e-12));
+
   std::filesystem::remove(filePath);
 }

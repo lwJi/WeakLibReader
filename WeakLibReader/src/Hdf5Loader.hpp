@@ -3,6 +3,7 @@
 #include <AMReX_Array.H>
 #include <AMReX_Arena.H>
 #include <AMReX_GpuContainers.H>
+#include <AMReX_ParallelDescriptor.H>
 #include <AMReX_TableData.H>
 #include <AMReX_Vector.H>
 
@@ -435,6 +436,128 @@ inline TableDevice MakeDeviceCopy(const Hdf5Table& host,
   }
 
   return device;
+}
+
+inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
+                                            Hdf5Table& output,
+                                            const Hdf5LoadConfig& cfg = Hdf5LoadConfig{},
+                                            int readerRank = amrex::ParallelDescriptor::IOProcessorNumber())
+{
+  const int nProcs = amrex::ParallelDescriptor::NProcs();
+  if (nProcs <= 1) {
+    return LoadHdf5Table(filePath, output, cfg);
+  }
+
+  int root = readerRank;
+  if (root < 0 || root >= nProcs) {
+    root = amrex::ParallelDescriptor::IOProcessorNumber();
+  }
+
+  const int myRank = amrex::ParallelDescriptor::MyProc();
+
+  Hdf5Table localTable;
+  Hdf5LoadStatus status = Hdf5LoadStatus::Success;
+  if (myRank == root) {
+    status = LoadHdf5Table(filePath, localTable, cfg);
+  }
+
+  int statusInt = static_cast<int>(status);
+  amrex::ParallelDescriptor::Bcast(&statusInt, 1, root);
+  status = static_cast<Hdf5LoadStatus>(statusInt);
+  if (status != Hdf5LoadStatus::Success) {
+    return status;
+  }
+
+  int header[6] = {0, 1, 1, 1, 1, 1};
+  if (myRank == root) {
+    header[0] = localTable.nd;
+    for (int dim = 0; dim < 5; ++dim) {
+      header[1 + dim] = localTable.extents[dim];
+    }
+  }
+  amrex::ParallelDescriptor::Bcast(header, 6, root);
+
+  const int nd = header[0];
+  std::array<int, 5> extents{{1, 1, 1, 1, 1}};
+  for (int dim = 0; dim < 5; ++dim) {
+    extents[dim] = header[1 + dim];
+  }
+
+  int axisCounts[5] = {0, 0, 0, 0, 0};
+  int axisScales[5] = {static_cast<int>(AxisScale::Linear),
+                       static_cast<int>(AxisScale::Linear),
+                       static_cast<int>(AxisScale::Linear),
+                       static_cast<int>(AxisScale::Linear),
+                       static_cast<int>(AxisScale::Linear)};
+
+  if (myRank == root) {
+    for (int dim = 0; dim < 5; ++dim) {
+      axisCounts[dim] = localTable.axes[dim].n;
+      axisScales[dim] = static_cast<int>(localTable.axes[dim].scale);
+    }
+  }
+
+  amrex::ParallelDescriptor::Bcast(axisCounts, 5, root);
+  amrex::ParallelDescriptor::Bcast(axisScales, 5, root);
+
+  const std::size_t totalSize = detail::ComputeTotalSize(nd, extents);
+  if (totalSize > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+    return Hdf5LoadStatus::IncompatibleDatasetExtent;
+  }
+
+  if (myRank != root) {
+    output = Hdf5Table{};
+    output.nd = nd;
+    output.extents = extents;
+    bool overflow = false;
+    const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
+    const amrex::Array<int, 4> hi = detail::MakeHiArray(nd, output.extents, overflow);
+    if (overflow || totalSize == 0) {
+      return Hdf5LoadStatus::IncompatibleDatasetExtent;
+    }
+    output.values.resize(lo, hi, amrex::The_Pinned_Arena());
+    output.layout = MakeLayout(output.extents.data(), output.nd);
+    for (int dim = 0; dim < 5; ++dim) {
+      amrex::Vector<double>& storage = output.axisStorage[dim];
+      storage.resize(static_cast<std::size_t>(axisCounts[dim]));
+      if (!storage.empty()) {
+        output.axes[dim].grid = storage.data();
+      } else {
+        output.axes[dim].grid = nullptr;
+      }
+      output.axes[dim].n = axisCounts[dim];
+      output.axes[dim].scale = static_cast<AxisScale>(axisScales[dim]);
+    }
+  }
+
+  double* dataPtr = (myRank == root)
+                        ? localTable.values.table().p
+                        : output.values.table().p;
+  if (totalSize > 0) {
+    amrex::ParallelDescriptor::Bcast(dataPtr,
+                                     static_cast<int>(totalSize),
+                                     root);
+  }
+
+  for (int dim = 0; dim < 5; ++dim) {
+    const int count = axisCounts[dim];
+    if (count <= 0) {
+      continue;
+    }
+    double* axisPtr = (myRank == root)
+                          ? localTable.axisStorage[dim].data()
+                          : output.axisStorage[dim].data();
+    amrex::ParallelDescriptor::Bcast(axisPtr, count, root);
+    if (myRank != root) {
+      output.axes[dim].grid = axisPtr;
+    }
+  }
+
+  if (myRank == root) {
+    output = std::move(localTable);
+  }
+
+  return status;
 }
 
 } // namespace WeakLibReader
