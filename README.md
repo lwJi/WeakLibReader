@@ -48,3 +48,4 @@ Original routines live under `ref/weaklib/`. The C++ API mirrors the Fortran fun
 - The AMReX CUDA demo is a placeholder; integrate once the GPU kernels are ready.
 - Headers include `AMReX_GpuQualifiers.H` and `AMReX_Extension.H`; ensure your include path covers `${AMREX_ROOT}/include`.
 - HDF5 tables load into `amrex::TableData<double,4>`; for 5D datasets the final two axes are flattened when allocating the table storage while preserving the raw row-major layout for interpolation.
+- Use `LoadHdf5TableParallel` when running under MPI to let a single rank hit the filesystem and broadcast the loaded table to peers.
