@@ -193,6 +193,7 @@ amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
 * Keep device code free of STL containers and dynamic allocations.
 * Provide small, `constexpr` helpers; keep functions `AMREX_GPU_HOST_DEVICE`.
 * Ensure HDF5 loader retains axis storage backing the raw pointers returned in `Axis`.
+* Use `LoadHdf5TableParallel` (single-rank I/O + broadcast) whenever MPI jobs would otherwise have every rank reading the same file.
 
 **Don’t**
 
