@@ -124,7 +124,7 @@ inline bool ComputeLogAxisScale(const Axis& axis, int idx, double coord,
 inline bool ComputeAxisScale(const Axis& axis, int idx, double coord,
                              double& scale) noexcept
 {
-  if (axis.grid == nullptr) {
+  if (axis.grid == nullptr || idx < 0 || axis.n < 2 || idx + 1 >= axis.n) {
     scale = std::numeric_limits<double>::quiet_NaN();
     return false;
   }

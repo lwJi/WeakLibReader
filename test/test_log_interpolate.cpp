@@ -308,6 +308,38 @@ TEST_CASE("Log derivative wrapper matches direct kernel for 3D tables", "[logint
   CHECK(std::isnan(nanDeriv[2]));
 }
 
+TEST_CASE("Derivative wrapper reports invalid axes for undersized grids", "[loginterp][derivative][3d][invalid]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 1> grid{1.0};
+  const int extents[3] = {1, 1, 1};
+  const Layout layout = MakeLayout(extents, 3);
+
+  std::array<double, 1> table{std::log10(2.0)};
+
+  Axis axes[3] = {
+      MakeAxis(grid.data(), 1, AxisScale::Linear),
+      MakeAxis(grid.data(), 1, AxisScale::Linear),
+      MakeAxis(grid.data(), 1, AxisScale::Linear)};
+
+  double interpolated = 0.0;
+  double deriv[3] = {0.0, 0.0, 0.0};
+
+  const int rc = LogInterpolateDifferentiateSingleVariable3DCustomPoint(
+      1.0, 1.0, 1.0,
+      table.data(), layout, axes,
+      0.0,
+      interpolated,
+      deriv);
+
+  CHECK(rc == 5);
+  CHECK(std::isnan(interpolated));
+  CHECK(std::isnan(deriv[0]));
+  CHECK(std::isnan(deriv[1]));
+  CHECK(std::isnan(deriv[2]));
+}
+
 TEST_CASE("Aligned derivative wrapper mirrors kernel output", "[loginterp][derivative][2d2d]")
 {
   using namespace WeakLibReader;
