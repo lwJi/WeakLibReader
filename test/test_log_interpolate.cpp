@@ -37,7 +37,10 @@ TEST_CASE("2D log interpolation matches bilinear expectation", "[loginterp][2d]"
   const double x = 1.5;
   const double y = 2.0;
   const double result = LogInterpolateSingleVariable2DCustomPoint(
-      table.data(), layout, axes, x, y, 0.0);
+      x, y,
+      gridX.data(), 2,
+      gridY.data(), 2,
+      table.data(), 0.0);
 
   const double dX = (x - gridX[0]) / (gridX[1] - gridX[0]);
   const double dY = (y - gridY[0]) / (gridY[1] - gridY[0]);
@@ -75,7 +78,10 @@ TEST_CASE("Out-of-range clamp FillNaN policy returns NaN", "[loginterp][2d][nan]
   cfg.outOfRange = OutOfRangePolicy::FillNaN;
 
   const double value = LogInterpolateSingleVariable2DCustomPoint(
-      table.data(), layout, axes, 0.5, 2.0, 0.0, cfg);
+      0.5, 2.0,
+      gridX.data(), 2,
+      gridY.data(), 2,
+      table.data(), 0.0, cfg);
 
   CHECK(std::isnan(value));
 }
@@ -116,7 +122,10 @@ TEST_CASE("Aligned 2D plane interpolation mirrors underlying kernel", "[loginter
   const double logX = 2.0;
 
   const int rc = LogInterpolateSingleVariable2D2DCustomAlignedPoint(
-      sizeE, logT, logX, table.data(), layout, axes, 0.0, plane.data());
+      sizeE, logT, logX,
+      gridT.data(), 2,
+      gridX.data(), 2,
+      table.data(), 0.0, plane.data());
   REQUIRE(rc == 0);
 
   int idxT = 0;
@@ -186,8 +195,10 @@ TEST_CASE("Weighted sum aligned helper reproduces manual accumulation", "[logint
       sizeE,
       logD.data(), nAlpha,
       logT.data(), count,
-      table.data(), layout, axes,
+      gridD.data(), 2,
+      gridT.data(), 2,
       alpha.data(),
+      table.data(),
       0.0,
       out.data());
   REQUIRE(rc == 0);
@@ -284,7 +295,10 @@ TEST_CASE("Log derivative wrapper matches direct kernel for 3D tables", "[logint
   double deriv[3] = {0.0, 0.0, 0.0};
   const int rc = LogInterpolateDifferentiateSingleVariable3DCustomPoint(
       dCoord, tCoord, yCoord,
-      table.data(), layout, axes,
+      gridD.data(), 2,
+      gridT.data(), 2,
+      gridY.data(), 2,
+      table.data(),
       0.0, interpolated, deriv);
   REQUIRE(rc == 0);
 
@@ -299,7 +313,10 @@ TEST_CASE("Log derivative wrapper matches direct kernel for 3D tables", "[logint
   double nanDeriv[3] = {0.0, 0.0, 0.0};
   const int nanRc = LogInterpolateDifferentiateSingleVariable3DCustomPoint(
       0.1, tCoord, yCoord,
-      table.data(), layout, axes,
+      gridD.data(), 2,
+      gridT.data(), 2,
+      gridY.data(), 2,
+      table.data(),
       0.0, nanInterp, nanDeriv, cfg);
   REQUIRE(nanRc == 0);
   CHECK(std::isnan(nanInterp));
@@ -363,7 +380,9 @@ TEST_CASE("Aligned derivative wrapper mirrors kernel output", "[loginterp][deriv
 
   const int rc = LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
       sizeE, logTCoord, logXCoord,
-      table.data(), layout, axes,
+      gridT.data(), 2,
+      gridX.data(), 2,
+      table.data(),
       0.0,
       planeInterp.data(),
       planeDerivT.data(),
