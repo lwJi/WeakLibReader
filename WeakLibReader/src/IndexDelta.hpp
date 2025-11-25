@@ -61,7 +61,8 @@ bool IndexAndDeltaLin(double x, const double* grid, int n,
   t = detail::InvalidSpan(cellSpan) ? 0.0 : (x - grid[i]) / cellSpan;
 
   const bool outside = (x < first) || (x > last);
-  return outside || (rawIndex != clampedIndex);
+  const bool clampedInsideUpper = (rawIndex != clampedIndex) && (x < last);
+  return outside || clampedInsideUpper;
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -115,7 +116,8 @@ bool IndexAndDeltaLog10(double x, const double* grid, int n,
   t = math::Log10(x / grid[i]) / logCellRatio;
 
   const bool outside = (x < first) || (x > last);
-  return outside || (rawIndex != clampedIndex);
+  const bool clampedInsideUpper = (rawIndex != clampedIndex) && (x < last);
+  return outside || clampedInsideUpper;
 }
 
 } // namespace WeakLibReader
