@@ -140,7 +140,7 @@ struct ScopedHandle {
   [[nodiscard]] bool Valid() const noexcept { return id >= 0; }
 };
 
-inline AxisScale ParseAxisScale(const std::string& raw)
+inline bool ParseAxisScale(const std::string& raw, AxisScale& scale)
 {
   std::string lower;
   lower.reserve(raw.size());
@@ -148,12 +148,14 @@ inline AxisScale ParseAxisScale(const std::string& raw)
     lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
   }
   if (lower == "linear") {
-    return AxisScale::Linear;
+    scale = AxisScale::Linear;
+    return true;
   }
   if (lower == "log10" || lower == "log") {
-    return AxisScale::Log10;
+    scale = AxisScale::Log10;
+    return true;
   }
-  return AxisScale::Linear;
+  return false;
 }
 
 inline bool ReadStringAttribute(hid_t parent, const std::string& name, std::string& out)
@@ -303,7 +305,9 @@ inline Hdf5LoadStatus LoadAxes(hid_t file,
     std::string scaleAttr;
     AxisScale scale = AxisScale::Linear;
     if (ReadStringAttribute(axisDataset.Get(), cfg.axisScaleAttribute, scaleAttr)) {
-      scale = ParseAxisScale(scaleAttr);
+      if (!ParseAxisScale(scaleAttr, scale)) {
+        return Hdf5LoadStatus::AxisInvalidScale;
+      }
     }
 
     if (!ValidateAxis(storage, scale)) {
