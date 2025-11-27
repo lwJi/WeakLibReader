@@ -86,6 +86,28 @@ TEST_CASE("Out-of-range clamp FillNaN policy returns NaN", "[loginterp][2d][nan]
   CHECK(std::isnan(value));
 }
 
+TEST_CASE("Upper-endpoint queries are treated as in-range", "[interp][boundary]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 2> grid{1.0, 2.0};
+  const std::array<double, 2> values{10.0, 20.0};
+
+  const int extents[1] = {2};
+  const Layout layout = MakeLayout(extents, 1);
+
+  Axis axes[5] = {};
+  axes[0] = MakeAxis(grid.data(), 2, AxisScale::Linear);
+
+  InterpConfig cfg;
+  cfg.outOfRange = OutOfRangePolicy::FillNaN;
+
+  double coords[5] = {2.0, 0.0, 0.0, 0.0, 0.0};
+  const double result = InterpLinearND(values.data(), layout, axes, coords, cfg, 1);
+
+  CHECK(result == Catch::Approx(values[1]).margin(kTol));
+}
+
 TEST_CASE("Aligned 2D plane interpolation mirrors underlying kernel", "[loginterp][2d2d]")
 {
   using namespace WeakLibReader;
