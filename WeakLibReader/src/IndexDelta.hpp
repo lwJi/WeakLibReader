@@ -118,6 +118,8 @@ bool IndexAndDeltaLog10(double x, const double* grid, int n,
   t = math::Log10(x / grid[i]) / logCellRatio;
 
   const bool outside = (x < first) || (x > last);
+  // Treat an upper-endpoint query (x == last) as in-range so FillNaN/error
+  // policies do not override the exact boundary value.
   const bool clampedInsideUpper = (rawIndex != clampedIndex) && (x < last);
   return outside || clampedInsideUpper;
 }
