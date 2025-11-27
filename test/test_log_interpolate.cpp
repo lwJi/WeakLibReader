@@ -251,6 +251,110 @@ TEST_CASE("Weighted sum aligned helper reproduces manual accumulation", "[logint
   }
 }
 
+TEST_CASE("3D log interpolation uses straight-line kernel", "[loginterp][3d]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 2> gridX{1.0, 3.0};
+  const std::array<double, 2> gridY{2.0, 6.0};
+  const std::array<double, 2> gridZ{1.0, 5.0};
+  const double offset = 0.5;
+
+  std::array<double, 8> table{};
+  std::size_t idx = 0;
+  for (int k = 0; k < 2; ++k) {
+    for (int j = 0; j < 2; ++j) {
+      for (int i = 0; i < 2; ++i) {
+        const double actual = 1.0 + 0.1 * i + 0.2 * j + 0.3 * k;
+        table[idx++] = std::log10(actual + offset);
+      }
+    }
+  }
+
+  const int extents[3] = {2, 2, 2};
+  const Layout layout = MakeLayout(extents, 3);
+
+  const double x = 2.0;
+  const double y = 4.0;
+  const double z = 3.0;
+
+  const double interp = LogInterpolateSingleVariable3DCustomPoint(
+      x, y, z,
+      gridX.data(), 2,
+      gridY.data(), 2,
+      gridZ.data(), 2,
+      table.data(),
+      offset);
+
+  int ix = 0, iy = 0, iz = 0;
+  double dx = 0.0, dy = 0.0, dz = 0.0;
+  REQUIRE_FALSE(IndexAndDeltaLin(x, gridX.data(), 2, ix, dx));
+  REQUIRE_FALSE(IndexAndDeltaLin(y, gridY.data(), 2, iy, dy));
+  REQUIRE_FALSE(IndexAndDeltaLin(z, gridZ.data(), 2, iz, dz));
+
+  const double expected = LinearInterp3DPoint(
+      ix, iy, iz, dx, dy, dz, offset, table.data(), layout);
+
+  CHECK(interp == Catch::Approx(expected).margin(kTol));
+}
+
+TEST_CASE("4D log interpolation uses straight-line kernel", "[loginterp][4d]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 2> gridA{1.0, 2.0};
+  const std::array<double, 2> gridB{1.0, 4.0};
+  const std::array<double, 2> gridC{0.5, 1.5};
+  const std::array<double, 2> gridD{3.0, 5.0};
+  const double offset = 0.3;
+
+  std::array<double, 16> table{};
+  std::size_t idx = 0;
+  for (int d = 0; d < 2; ++d) {
+    for (int c = 0; c < 2; ++c) {
+      for (int b = 0; b < 2; ++b) {
+        for (int a = 0; a < 2; ++a) {
+          const double actual = 1.0 + 0.05 * a + 0.07 * b + 0.09 * c + 0.11 * d;
+          table[idx++] = std::log10(actual + offset);
+        }
+      }
+    }
+  }
+
+  const int extents[4] = {2, 2, 2, 2};
+  const Layout layout = MakeLayout(extents, 4);
+
+  const double a = 1.6;
+  const double b = 2.5;
+  const double c = 1.0;
+  const double d = 3.8;
+
+  const double interp = LogInterpolateSingleVariable4DCustomPoint(
+      a, b, c, d,
+      gridA.data(), 2,
+      gridB.data(), 2,
+      gridC.data(), 2,
+      gridD.data(), 2,
+      table.data(),
+      offset);
+
+  int ia = 0, ib = 0, ic = 0, id = 0;
+  double da = 0.0, db = 0.0, dc = 0.0, dd = 0.0;
+  REQUIRE_FALSE(IndexAndDeltaLin(a, gridA.data(), 2, ia, da));
+  REQUIRE_FALSE(IndexAndDeltaLin(b, gridB.data(), 2, ib, db));
+  REQUIRE_FALSE(IndexAndDeltaLin(c, gridC.data(), 2, ic, dc));
+  REQUIRE_FALSE(IndexAndDeltaLin(d, gridD.data(), 2, id, dd));
+
+  const double expected = LinearInterp4DPoint(
+      ia, ib, ic, id,
+      da, db, dc, dd,
+      offset,
+      table.data(),
+      layout);
+
+  CHECK(interp == Catch::Approx(expected).margin(kTol));
+}
+
 TEST_CASE("Log derivative wrapper matches direct kernel for 3D tables", "[loginterp][derivative][3d]")
 {
   using namespace WeakLibReader;

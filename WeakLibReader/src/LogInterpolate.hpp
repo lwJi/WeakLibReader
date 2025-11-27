@@ -12,17 +12,58 @@
 namespace WeakLibReader {
 namespace detail {
 
+template <int ND>
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double LogInterpolatedValue(const double* data,
-                            const Layout& layout,
-                            const Axis axes[5],
-                            const double coords[5],
-                            double offset,
-                            const InterpConfig& cfg,
-                            int nd) noexcept
+double LogInterpolatedValueND(const double* data,
+                              const Layout& layout,
+                              const Axis axes[5],
+                              const double coords[5],
+                              double offset,
+                              const InterpConfig& cfg) noexcept
 {
-  const double logValue = InterpLinearND(data, layout, axes, coords, cfg, nd);
-  return math::Pow10(logValue) - offset;
+  static_assert(ND >= 1 && ND <= 5, "ND must be in [1,5]");
+
+  int idx[5] = {0, 0, 0, 0, 0};
+  double frac[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
+  bool outOfRange = false;
+
+  for (int dim = 0; dim < ND; ++dim) {
+    const bool axisOut = detail::IndexAndDelta(axes[dim], coords[dim], idx[dim], frac[dim]);
+    if (axisOut) {
+      outOfRange = true;
+      if (cfg.outOfRange == OutOfRangePolicy::Error) {
+        return detail::NaN();
+      }
+      if (cfg.outOfRange == OutOfRangePolicy::FillNaN) {
+        return detail::NaN();
+      }
+      frac[dim] = detail::Clamp01(frac[dim]);
+    }
+  }
+
+  if (outOfRange && cfg.outOfRange == OutOfRangePolicy::FillNaN) {
+    return detail::NaN();
+  }
+
+  if constexpr (ND == 1) {
+    return LinearInterp1DPoint(idx[0], frac[0], offset, data, layout);
+  }
+  if constexpr (ND == 2) {
+    return LinearInterp2DPoint(idx[0], idx[1], frac[0], frac[1], offset, data, layout);
+  }
+  if constexpr (ND == 3) {
+    return LinearInterp3DPoint(idx[0], idx[1], idx[2],
+                               frac[0], frac[1], frac[2],
+                               offset, data, layout);
+  }
+  if constexpr (ND == 4) {
+    return LinearInterp4DPoint(idx[0], idx[1], idx[2], idx[3],
+                               frac[0], frac[1], frac[2], frac[3],
+                               offset, data, layout);
+  }
+  return LinearInterp5DPoint(idx[0], idx[1], idx[2], idx[3], idx[4],
+                             frac[0], frac[1], frac[2], frac[3], frac[4],
+                             offset, data, layout);
 }
 
 inline void StoreSymmetric(double* plane, std::size_t size,
@@ -208,7 +249,7 @@ double LogInterpolateSingleVariable2DCustomPoint(
   int extents[2] = {n0, n1};
   const Layout layout = MakeLayout(extents, 2);
   double coords[5] = {x0, x1, 0.0, 0.0, 0.0};
-  return detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 2);
+  return detail::LogInterpolatedValueND<2>(data, layout, axes, coords, offset, cfg);
 }
 
 inline int LogInterpolateSingleVariable2DCustom(
@@ -231,7 +272,7 @@ inline int LogInterpolateSingleVariable2DCustom(
   const Layout layout = MakeLayout(extents, 2);
   for (std::size_t i = 0; i < count; ++i) {
     double coords[5] = {x0[i], x1[i], 0.0, 0.0, 0.0};
-    out[i] = detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 2);
+    out[i] = detail::LogInterpolatedValueND<2>(data, layout, axes, coords, offset, cfg);
   }
   return 0;
 }
@@ -256,7 +297,7 @@ double LogInterpolateSingleVariable3DCustomPoint(
   int extents[3] = {n0, n1, n2};
   const Layout layout = MakeLayout(extents, 3);
   double coords[5] = {x0, x1, x2, 0.0, 0.0};
-  return detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 3);
+  return detail::LogInterpolatedValueND<3>(data, layout, axes, coords, offset, cfg);
 }
 
 inline int LogInterpolateSingleVariable3DCustom(
@@ -282,7 +323,7 @@ inline int LogInterpolateSingleVariable3DCustom(
   const Layout layout = MakeLayout(extents, 3);
   for (std::size_t i = 0; i < count; ++i) {
     double coords[5] = {x0[i], x1[i], x2[i], 0.0, 0.0};
-    out[i] = detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 3);
+    out[i] = detail::LogInterpolatedValueND<3>(data, layout, axes, coords, offset, cfg);
   }
   return 0;
 }
@@ -310,7 +351,7 @@ double LogInterpolateSingleVariable4DCustomPoint(
   int extents[4] = {n0, n1, n2, n3};
   const Layout layout = MakeLayout(extents, 4);
   double coords[5] = {x0, x1, x2, x3, 0.0};
-  return detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 4);
+  return detail::LogInterpolatedValueND<4>(data, layout, axes, coords, offset, cfg);
 }
 
 inline int LogInterpolateSingleVariable4DCustom(
@@ -339,7 +380,7 @@ inline int LogInterpolateSingleVariable4DCustom(
   const Layout layout = MakeLayout(extents, 4);
   for (std::size_t i = 0; i < count; ++i) {
     double coords[5] = {x0[i], x1[i], x2[i], x3[i], 0.0};
-    out[i] = detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 4);
+    out[i] = detail::LogInterpolatedValueND<4>(data, layout, axes, coords, offset, cfg);
   }
   return 0;
 }
@@ -374,7 +415,7 @@ inline int LogInterpolateSingleVariable1D3DCustomPoint(
 
   for (std::size_t i = 0; i < sizeE; ++i) {
     double coords[5] = {logE[i], logD, logT, y, 0.0};
-    out[i] = detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 4);
+    out[i] = detail::LogInterpolatedValueND<4>(data, layout, axes, coords, offset, cfg);
   }
 
   return 0;
@@ -413,7 +454,7 @@ inline int LogInterpolateSingleVariable1D3DCustom(
     double* row = out + j * sizeE;
     for (std::size_t i = 0; i < sizeE; ++i) {
       double coords[5] = {logE[i], logD[j], logT[j], y[j], 0.0};
-      row[i] = detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 4);
+      row[i] = detail::LogInterpolatedValueND<4>(data, layout, axes, coords, offset, cfg);
     }
   }
 
@@ -450,7 +491,7 @@ inline int LogInterpolateSingleVariable2D2DCustomPoint(
   for (std::size_t j = 0; j < sizeE; ++j) {
     for (std::size_t i = 0; i <= j; ++i) {
       double coords[5] = {logE[i], logE[j], logT, logX, 0.0};
-      const double value = detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 4);
+      const double value = detail::LogInterpolatedValueND<4>(data, layout, axes, coords, offset, cfg);
       detail::StoreSymmetric(out, sizeE, i, j, value);
     }
   }
@@ -492,7 +533,7 @@ inline int LogInterpolateSingleVariable2D2DCustom(
     for (std::size_t j = 0; j < sizeE; ++j) {
       for (std::size_t i = 0; i <= j; ++i) {
         double coords[5] = {logE[i], logE[j], logT[l], logX[l], 0.0};
-        const double value = detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 4);
+        const double value = detail::LogInterpolatedValueND<4>(data, layout, axes, coords, offset, cfg);
         detail::StoreSymmetric(plane, sizeE, i, j, value);
       }
     }
