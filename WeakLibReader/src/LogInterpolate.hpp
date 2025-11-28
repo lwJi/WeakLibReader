@@ -198,14 +198,15 @@ inline void SetNaN(double& interpolant, double derivatives[ND]) noexcept
 /// @param[out] derivatives Partial derivatives w.r.t. each dimension (array of size ND)
 /// @return true if successful, false if error occurred
 template<int ND>
-inline bool LogInterpolatedDerivativeDirect(const double* data,
-                                            const Layout& layout,
-                                            const Axis axes[ND],
-                                            const double coords[ND],
-                                            double offset,
-                                            const InterpConfig& cfg,
-                                            double& interpolant,
-                                            double derivatives[ND]) noexcept
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+bool LogInterpolatedDerivativeDirect(const double* data,
+                                     const Layout& layout,
+                                     const Axis axes[ND],
+                                     const double coords[ND],
+                                     double offset,
+                                     const InterpConfig& cfg,
+                                     double& interpolant,
+                                     double derivatives[ND]) noexcept
 {
   // Fixed-size arrays for indices, fractions, and scales
   int indices[ND];
