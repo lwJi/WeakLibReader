@@ -44,7 +44,12 @@ double LogInterpolatedValueDirect(const double* data,
   double fractions[ND];
   bool outOfRange = false;
 
-  // Index lookup for each dimension (fixed iteration count enables unrolling)
+  // Index lookup for each dimension
+  // Note: Loop used intentionally (not explicit unrolling) because:
+  // 1. Compile-time ND means loop fully unrolls automatically (zero overhead)
+  // 2. Keeps code maintainable across all dimensions (1D-5D)
+  // 3. Modern compilers generate identical code to hand-unrolled version
+  // 4. GPU: All threads execute same unrolled instructions (no divergence)
   for (int d = 0; d < ND; ++d) {
     bool out = IndexAndDelta(axes[d], coords[d], indices[d], fractions[d]);
     if (out) {
@@ -209,6 +214,7 @@ inline bool LogInterpolatedDerivativeDirect(const double* data,
   bool outOfRange = false;
 
   // Index lookup and scale computation for each dimension
+  // Note: Loop fully unrolls at compile time (ND known), ensuring optimal GPU performance
   for (int d = 0; d < ND; ++d) {
     bool out = IndexAndDelta(axes[d], coords[d], indices[d], fractions[d]);
     if (out) {
