@@ -443,6 +443,9 @@ void LinearInterpDerivPointDirect(const int indices[ND],
                                   double& interpolant,
                                   double derivatives[ND]) noexcept
 {
+  // Compile-time check: derivatives only implemented for 2D, 3D, 4D
+  static_assert(ND >= 2 && ND <= 4, "Derivatives only supported for 2D-4D");
+
   // Compile-time dispatch for derivative functions (2D, 3D, 4D only)
   if constexpr (ND == 2) {
     LinearInterpDeriv2DPoint(indices[0], indices[1],
