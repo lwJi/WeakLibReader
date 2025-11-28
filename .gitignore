@@ -10,3 +10,29 @@ CTestTestfile.cmake
 
 # Compilation database
 compile_commands.json
+
+# IDE and editor files
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.project
+.cproject
+.settings/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Backup files
+*.bak
+*.orig
