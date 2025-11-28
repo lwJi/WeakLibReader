@@ -400,6 +400,9 @@ double LinearInterpPointDirect(const int indices[ND],
                                const double* data,
                                const Layout& layout) noexcept
 {
+  // Compile-time check: interpolation only implemented for 1D-5D
+  static_assert(ND >= 1 && ND <= 5, "Interpolation only supported for 1D-5D");
+
   // Compile-time dispatch: branches eliminated at compile time, zero runtime overhead
   if constexpr (ND == 1) {
     return LinearInterp1DPoint(indices[0], fractions[0], offset, data, layout);
