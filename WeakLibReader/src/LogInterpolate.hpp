@@ -12,6 +12,63 @@
 namespace WeakLibReader {
 namespace detail {
 
+// ============================================================================
+// GPU-Optimized Template-Based Interpolation Core Functions
+// ============================================================================
+// These templates use compile-time dimensionality (ND) to eliminate all
+// runtime branching, improving GPU performance by avoiding warp divergence.
+// The 'if constexpr' statements are resolved at compile time, generating
+// specialized code for each dimension with zero runtime overhead.
+// ============================================================================
+
+/// GPU-optimized log-interpolation using compile-time dimension dispatch
+/// @tparam ND Number of dimensions (1-5), known at compile time
+/// @param data Raw data array in row-major order (log10-stored values)
+/// @param layout Layout describing array dimensions and strides
+/// @param axes Array of Axis descriptors (length ND)
+/// @param coords Query coordinates (length ND)
+/// @param offset Offset to subtract after converting from log space
+/// @param cfg Interpolation configuration (out-of-range policy)
+/// @return Interpolated value: 10^(interp_log_value) - offset
+template<int ND>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+double LogInterpolatedValueDirect(const double* data,
+                                  const Layout& layout,
+                                  const Axis axes[ND],
+                                  const double coords[ND],
+                                  double offset,
+                                  const InterpConfig& cfg) noexcept
+{
+  // Fixed-size arrays: compiler can optimize/unroll the loop below
+  int indices[ND];
+  double fractions[ND];
+  bool outOfRange = false;
+
+  // Index lookup for each dimension
+  // Note: Loop used intentionally (not explicit unrolling) because:
+  // 1. Compile-time ND means loop fully unrolls automatically (zero overhead)
+  // 2. Keeps code maintainable across all dimensions (1D-5D)
+  // 3. Modern compilers generate identical code to hand-unrolled version
+  // 4. GPU: All threads execute same unrolled instructions (no divergence)
+  for (int d = 0; d < ND; ++d) {
+    bool out = IndexAndDelta(axes[d], coords[d], indices[d], fractions[d]);
+    if (out) {
+      outOfRange = true;
+      // Early exit for FillNaN policy
+      if (cfg.outOfRange == OutOfRangePolicy::FillNaN) {
+        return std::numeric_limits<double>::quiet_NaN();
+      }
+      // Clamp fraction for Clamp policy
+      fractions[d] = Clamp01(fractions[d]);
+    }
+  }
+
+  // Compile-time dispatch to dimension-specific kernel (zero runtime branching!)
+  return LinearInterpPointDirect<ND>(indices, fractions, offset, data, layout);
+}
+
+// Legacy runtime-dispatch version (kept for backward compatibility, but inefficient on GPU)
+// Prefer using LogInterpolatedValueDirect<ND> with compile-time ND when possible
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LogInterpolatedValue(const double* data,
                             const Layout& layout,
@@ -118,6 +175,76 @@ inline void SetNaN(double& value0, double& value1,
   value3 = nanValue;
 }
 
+/// Helper: Set interpolant and derivative array to NaN
+template<int ND>
+inline void SetNaN(double& interpolant, double derivatives[ND]) noexcept
+{
+  const double nanValue = std::numeric_limits<double>::quiet_NaN();
+  interpolant = nanValue;
+  for (int d = 0; d < ND; ++d) {
+    derivatives[d] = nanValue;
+  }
+}
+
+/// GPU-optimized log-interpolation with derivatives using compile-time dimension dispatch
+/// @tparam ND Number of dimensions (2-4), known at compile time
+/// @param data Raw data array in row-major order (log10-stored values)
+/// @param layout Layout describing array dimensions and strides
+/// @param axes Array of Axis descriptors (length ND)
+/// @param coords Query coordinates (length ND)
+/// @param offset Offset to subtract after converting from log space
+/// @param cfg Interpolation configuration (out-of-range policy)
+/// @param[out] interpolant Interpolated value: 10^(interp_log_value) - offset
+/// @param[out] derivatives Partial derivatives w.r.t. each dimension (array of size ND)
+/// @return true if successful, false if error occurred
+template<int ND>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+bool LogInterpolatedDerivativeDirect(const double* data,
+                                     const Layout& layout,
+                                     const Axis axes[ND],
+                                     const double coords[ND],
+                                     double offset,
+                                     const InterpConfig& cfg,
+                                     double& interpolant,
+                                     double derivatives[ND]) noexcept
+{
+  // Fixed-size arrays for indices, fractions, and scales
+  int indices[ND];
+  double fractions[ND];
+  double scales[ND];
+  bool outOfRange = false;
+
+  // Index lookup and scale computation for each dimension
+  // Note: Loop fully unrolls at compile time (ND known), ensuring optimal GPU performance
+  for (int d = 0; d < ND; ++d) {
+    bool out = IndexAndDelta(axes[d], coords[d], indices[d], fractions[d]);
+    if (out) {
+      outOfRange = true;
+      if (cfg.outOfRange == OutOfRangePolicy::Error) {
+        return false;
+      }
+      if (cfg.outOfRange == OutOfRangePolicy::FillNaN) {
+        SetNaN<ND>(interpolant, derivatives);
+        return true;
+      }
+      fractions[d] = Clamp01(fractions[d]);
+    }
+
+    // Compute axis scale for derivative calculation
+    if (!ComputeAxisScale(axes[d], indices[d], coords[d], scales[d])) {
+      SetNaN<ND>(interpolant, derivatives);
+      return false;
+    }
+  }
+
+  // Compile-time dispatch to dimension-specific derivative kernel
+  LinearInterpDerivPointDirect<ND>(indices, fractions, scales, offset,
+                                   data, layout, interpolant, derivatives);
+  return true;
+}
+
+/// GPU-optimized 3D log-interpolation with derivatives (implementation)
+/// Uses compile-time dimensionality for zero runtime branching
 inline int LogInterpolateDifferentiateSingleVariable3DCustomPointImpl(
     double d, double t, double y,
     const double* data, const Layout& layout,
@@ -137,59 +264,24 @@ inline int LogInterpolateDifferentiateSingleVariable3DCustomPointImpl(
     return 3;
   }
 
-  const double coords[3] = {d, t, y};
-  int indices[3] = {0, 0, 0};
-  double fractions[3] = {0.0, 0.0, 0.0};
-  bool outOfRange = false;
+  constexpr int ND = 3;
+  const double coords[ND] = {d, t, y};
 
-  for (int dim = 0; dim < 3; ++dim) {
-    bool axisOut = detail::IndexAndDelta(axes[dim], coords[dim], indices[dim], fractions[dim]);
-    if (axisOut) {
-      outOfRange = true;
-      fractions[dim] = detail::Clamp01(fractions[dim]);
-    }
+  // Use the templated version for GPU optimization
+  bool success = detail::LogInterpolatedDerivativeDirect<ND>(
+      data, layout, axes, coords, offset, cfg, interpolant, derivatives);
+
+  if (!success) {
+    return 4;  // Error occurred
   }
-
-  if (outOfRange) {
-    if (cfg.outOfRange == OutOfRangePolicy::Error) {
-      return 4;
-    }
-    if (cfg.outOfRange == OutOfRangePolicy::FillNaN) {
-      detail::SetNaN(interpolant, derivatives[0], derivatives[1], derivatives[2]);
-      return 0;
-    }
-  }
-
-  double scales[3] = {0.0, 0.0, 0.0};
-  bool ok =
-      detail::ComputeAxisScale(axes[0], indices[0], coords[0], scales[0]) &&
-      detail::ComputeAxisScale(axes[1], indices[1], coords[1], scales[1]) &&
-      detail::ComputeAxisScale(axes[2], indices[2], coords[2], scales[2]);
-
-  if (!ok) {
-    detail::SetNaN(interpolant, derivatives[0], derivatives[1], derivatives[2]);
-    return 5;
-  }
-
-  double dIdX0 = 0.0;
-  double dIdX1 = 0.0;
-  double dIdX2 = 0.0;
-
-  LinearInterpDeriv3DPoint(indices[0], indices[1], indices[2],
-                           fractions[0], fractions[1], fractions[2],
-                           scales[0], scales[1], scales[2],
-                           offset, data, layout,
-                           interpolant, dIdX0, dIdX1, dIdX2);
-
-  derivatives[0] = dIdX0;
-  derivatives[1] = dIdX1;
-  derivatives[2] = dIdX2;
 
   return 0;
 }
 
 } // namespace detail
 
+/// GPU-optimized 2D log-interpolation (single point)
+/// Uses compile-time dimensionality for zero runtime branching
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LogInterpolateSingleVariable2DCustomPoint(
     double x0, double x1,
@@ -202,15 +294,20 @@ double LogInterpolateSingleVariable2DCustomPoint(
   if (data == nullptr || grid0 == nullptr || grid1 == nullptr) {
     return std::numeric_limits<double>::quiet_NaN();
   }
-  Axis axes[5] = {
+  // Compile-time known dimensionality (eliminates runtime branching!)
+  constexpr int ND = 2;
+  Axis axes[ND] = {
       MakeAxis(grid0, n0, AxisScale::Linear),
       MakeAxis(grid1, n1, AxisScale::Linear)};
-  int extents[2] = {n0, n1};
-  const Layout layout = MakeLayout(extents, 2);
-  double coords[5] = {x0, x1, 0.0, 0.0, 0.0};
-  return detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 2);
+  int extents[ND] = {n0, n1};
+  const Layout layout = MakeLayout(extents, ND);
+  double coords[ND] = {x0, x1};
+  // Template parameter known at compile time - zero branching!
+  return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset, cfg);
 }
 
+/// GPU-optimized 2D log-interpolation (batch)
+/// Uses compile-time dimensionality for zero runtime branching
 inline int LogInterpolateSingleVariable2DCustom(
     const double* x0, const double* x1, std::size_t count,
     const double* grid0, int n0,
@@ -224,18 +321,21 @@ inline int LogInterpolateSingleVariable2DCustom(
       data == nullptr || grid0 == nullptr || grid1 == nullptr) {
     return 1;
   }
-  Axis axes[5] = {
+  constexpr int ND = 2;
+  Axis axes[ND] = {
       MakeAxis(grid0, n0, AxisScale::Linear),
       MakeAxis(grid1, n1, AxisScale::Linear)};
-  int extents[2] = {n0, n1};
-  const Layout layout = MakeLayout(extents, 2);
+  int extents[ND] = {n0, n1};
+  const Layout layout = MakeLayout(extents, ND);
   for (std::size_t i = 0; i < count; ++i) {
-    double coords[5] = {x0[i], x1[i], 0.0, 0.0, 0.0};
-    out[i] = detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 2);
+    double coords[ND] = {x0[i], x1[i]};
+    out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset, cfg);
   }
   return 0;
 }
 
+/// GPU-optimized 3D log-interpolation (single point)
+/// Uses compile-time dimensionality for zero runtime branching
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LogInterpolateSingleVariable3DCustomPoint(
     double x0, double x1, double x2,
@@ -249,16 +349,19 @@ double LogInterpolateSingleVariable3DCustomPoint(
   if (data == nullptr || grid0 == nullptr || grid1 == nullptr || grid2 == nullptr) {
     return std::numeric_limits<double>::quiet_NaN();
   }
-  Axis axes[5] = {
+  constexpr int ND = 3;
+  Axis axes[ND] = {
       MakeAxis(grid0, n0, AxisScale::Linear),
       MakeAxis(grid1, n1, AxisScale::Linear),
       MakeAxis(grid2, n2, AxisScale::Linear)};
-  int extents[3] = {n0, n1, n2};
-  const Layout layout = MakeLayout(extents, 3);
-  double coords[5] = {x0, x1, x2, 0.0, 0.0};
-  return detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 3);
+  int extents[ND] = {n0, n1, n2};
+  const Layout layout = MakeLayout(extents, ND);
+  double coords[ND] = {x0, x1, x2};
+  return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset, cfg);
 }
 
+/// GPU-optimized 3D log-interpolation (batch)
+/// Uses compile-time dimensionality for zero runtime branching
 inline int LogInterpolateSingleVariable3DCustom(
     const double* x0, const double* x1, const double* x2, std::size_t count,
     const double* grid0, int n0,
@@ -274,19 +377,22 @@ inline int LogInterpolateSingleVariable3DCustom(
       grid0 == nullptr || grid1 == nullptr || grid2 == nullptr) {
     return 1;
   }
-  Axis axes[5] = {
+  constexpr int ND = 3;
+  Axis axes[ND] = {
       MakeAxis(grid0, n0, AxisScale::Linear),
       MakeAxis(grid1, n1, AxisScale::Linear),
       MakeAxis(grid2, n2, AxisScale::Linear)};
-  int extents[3] = {n0, n1, n2};
-  const Layout layout = MakeLayout(extents, 3);
+  int extents[ND] = {n0, n1, n2};
+  const Layout layout = MakeLayout(extents, ND);
   for (std::size_t i = 0; i < count; ++i) {
-    double coords[5] = {x0[i], x1[i], x2[i], 0.0, 0.0};
-    out[i] = detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 3);
+    double coords[ND] = {x0[i], x1[i], x2[i]};
+    out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset, cfg);
   }
   return 0;
 }
 
+/// GPU-optimized 4D log-interpolation (single point)
+/// Uses compile-time dimensionality for zero runtime branching
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LogInterpolateSingleVariable4DCustomPoint(
     double x0, double x1, double x2, double x3,
@@ -302,17 +408,20 @@ double LogInterpolateSingleVariable4DCustomPoint(
       grid2 == nullptr || grid3 == nullptr) {
     return std::numeric_limits<double>::quiet_NaN();
   }
-  Axis axes[5] = {
+  constexpr int ND = 4;
+  Axis axes[ND] = {
       MakeAxis(grid0, n0, AxisScale::Linear),
       MakeAxis(grid1, n1, AxisScale::Linear),
       MakeAxis(grid2, n2, AxisScale::Linear),
       MakeAxis(grid3, n3, AxisScale::Linear)};
-  int extents[4] = {n0, n1, n2, n3};
-  const Layout layout = MakeLayout(extents, 4);
-  double coords[5] = {x0, x1, x2, x3, 0.0};
-  return detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 4);
+  int extents[ND] = {n0, n1, n2, n3};
+  const Layout layout = MakeLayout(extents, ND);
+  double coords[ND] = {x0, x1, x2, x3};
+  return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset, cfg);
 }
 
+/// GPU-optimized 4D log-interpolation (batch)
+/// Uses compile-time dimensionality for zero runtime branching
 inline int LogInterpolateSingleVariable4DCustom(
     const double* x0, const double* x1, const double* x2, const double* x3,
     std::size_t count,
@@ -330,20 +439,23 @@ inline int LogInterpolateSingleVariable4DCustom(
       grid0 == nullptr || grid1 == nullptr || grid2 == nullptr || grid3 == nullptr) {
     return 1;
   }
-  Axis axes[5] = {
+  constexpr int ND = 4;
+  Axis axes[ND] = {
       MakeAxis(grid0, n0, AxisScale::Linear),
       MakeAxis(grid1, n1, AxisScale::Linear),
       MakeAxis(grid2, n2, AxisScale::Linear),
       MakeAxis(grid3, n3, AxisScale::Linear)};
-  int extents[4] = {n0, n1, n2, n3};
-  const Layout layout = MakeLayout(extents, 4);
+  int extents[ND] = {n0, n1, n2, n3};
+  const Layout layout = MakeLayout(extents, ND);
   for (std::size_t i = 0; i < count; ++i) {
-    double coords[5] = {x0[i], x1[i], x2[i], x3[i], 0.0};
-    out[i] = detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 4);
+    double coords[ND] = {x0[i], x1[i], x2[i], x3[i]};
+    out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset, cfg);
   }
   return 0;
 }
 
+/// GPU-optimized 4D log-interpolation with 1D sweep (single point, multiple E values)
+/// Uses compile-time dimensionality for zero runtime branching
 inline int LogInterpolateSingleVariable1D3DCustomPoint(
     const double* logE, std::size_t sizeE,
     double logD, double logT, double y,
@@ -364,22 +476,25 @@ inline int LogInterpolateSingleVariable1D3DCustomPoint(
     return 0;
   }
 
-  Axis axes[5] = {
+  constexpr int ND = 4;
+  Axis axes[ND] = {
       MakeAxis(gridE, nE, AxisScale::Linear),
       MakeAxis(gridD, nD, AxisScale::Linear),
       MakeAxis(gridT, nT, AxisScale::Linear),
       MakeAxis(gridY, nY, AxisScale::Linear)};
-  int extents[4] = {nE, nD, nT, nY};
-  const Layout layout = MakeLayout(extents, 4);
+  int extents[ND] = {nE, nD, nT, nY};
+  const Layout layout = MakeLayout(extents, ND);
 
   for (std::size_t i = 0; i < sizeE; ++i) {
-    double coords[5] = {logE[i], logD, logT, y, 0.0};
-    out[i] = detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 4);
+    double coords[ND] = {logE[i], logD, logT, y};
+    out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset, cfg);
   }
 
   return 0;
 }
 
+/// GPU-optimized 4D log-interpolation with 1D sweep (batch)
+/// Uses compile-time dimensionality for zero runtime branching
 inline int LogInterpolateSingleVariable1D3DCustom(
     const double* logE, std::size_t sizeE,
     const double* logD, const double* logT, const double* y, std::size_t count,
@@ -401,25 +516,28 @@ inline int LogInterpolateSingleVariable1D3DCustom(
     return 0;
   }
 
-  Axis axes[5] = {
+  constexpr int ND = 4;
+  Axis axes[ND] = {
       MakeAxis(gridE, nE, AxisScale::Linear),
       MakeAxis(gridD, nD, AxisScale::Linear),
       MakeAxis(gridT, nT, AxisScale::Linear),
       MakeAxis(gridY, nY, AxisScale::Linear)};
-  int extents[4] = {nE, nD, nT, nY};
-  const Layout layout = MakeLayout(extents, 4);
+  int extents[ND] = {nE, nD, nT, nY};
+  const Layout layout = MakeLayout(extents, ND);
 
   for (std::size_t j = 0; j < count; ++j) {
     double* row = out + j * sizeE;
     for (std::size_t i = 0; i < sizeE; ++i) {
-      double coords[5] = {logE[i], logD[j], logT[j], y[j], 0.0};
-      row[i] = detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 4);
+      double coords[ND] = {logE[i], logD[j], logT[j], y[j]};
+      row[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset, cfg);
     }
   }
 
   return 0;
 }
 
+/// GPU-optimized 4D log-interpolation with 2D symmetric sweep (single point)
+/// Uses compile-time dimensionality for zero runtime branching
 inline int LogInterpolateSingleVariable2D2DCustomPoint(
     const double* logE, std::size_t sizeE,
     double logT, double logX,
@@ -439,18 +557,19 @@ inline int LogInterpolateSingleVariable2D2DCustomPoint(
     return 0;
   }
 
-  Axis axes[5] = {
+  constexpr int ND = 4;
+  Axis axes[ND] = {
       MakeAxis(gridE, nE, AxisScale::Linear),
       MakeAxis(gridE, nE, AxisScale::Linear),
       MakeAxis(gridT, nT, AxisScale::Linear),
       MakeAxis(gridX, nX, AxisScale::Linear)};
-  int extents[4] = {nE, nE, nT, nX};
-  const Layout layout = MakeLayout(extents, 4);
+  int extents[ND] = {nE, nE, nT, nX};
+  const Layout layout = MakeLayout(extents, ND);
 
   for (std::size_t j = 0; j < sizeE; ++j) {
     for (std::size_t i = 0; i <= j; ++i) {
-      double coords[5] = {logE[i], logE[j], logT, logX, 0.0};
-      const double value = detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 4);
+      double coords[ND] = {logE[i], logE[j], logT, logX};
+      const double value = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset, cfg);
       detail::StoreSymmetric(out, sizeE, i, j, value);
     }
   }
@@ -458,6 +577,8 @@ inline int LogInterpolateSingleVariable2D2DCustomPoint(
   return 0;
 }
 
+/// GPU-optimized 4D log-interpolation with 2D symmetric sweep (batch)
+/// Uses compile-time dimensionality for zero runtime branching
 inline int LogInterpolateSingleVariable2D2DCustom(
     const double* logE, std::size_t sizeE,
     const double* logT, const double* logX, std::size_t count,
@@ -478,21 +599,22 @@ inline int LogInterpolateSingleVariable2D2DCustom(
     return 0;
   }
 
-  Axis axes[5] = {
+  constexpr int ND = 4;
+  Axis axes[ND] = {
       MakeAxis(gridE, nE, AxisScale::Linear),
       MakeAxis(gridE, nE, AxisScale::Linear),
       MakeAxis(gridT, nT, AxisScale::Linear),
       MakeAxis(gridX, nX, AxisScale::Linear)};
-  int extents[4] = {nE, nE, nT, nX};
-  const Layout layout = MakeLayout(extents, 4);
+  int extents[ND] = {nE, nE, nT, nX};
+  const Layout layout = MakeLayout(extents, ND);
 
   const std::size_t planeSize = sizeE * sizeE;
   for (std::size_t l = 0; l < count; ++l) {
     double* plane = out + l * planeSize;
     for (std::size_t j = 0; j < sizeE; ++j) {
       for (std::size_t i = 0; i <= j; ++i) {
-        double coords[5] = {logE[i], logE[j], logT[l], logX[l], 0.0};
-        const double value = detail::LogInterpolatedValue(data, layout, axes, coords, offset, cfg, 4);
+        double coords[ND] = {logE[i], logE[j], logT[l], logX[l]};
+        const double value = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset, cfg);
         detail::StoreSymmetric(plane, sizeE, i, j, value);
       }
     }
@@ -601,6 +723,8 @@ inline int LogInterpolateSingleVariable2D2DCustomAligned(
   return 0;
 }
 
+/// GPU-optimized 3D log-interpolation with derivatives (single point)
+/// Uses compile-time dimensionality for zero runtime branching
 inline int LogInterpolateDifferentiateSingleVariable3DCustomPoint(
     double d, double t, double y,
     const double* gridD, int nD,
@@ -622,6 +746,8 @@ inline int LogInterpolateDifferentiateSingleVariable3DCustomPoint(
       d, t, y, data, layout, axesLocal, offset, interpolant, derivatives, cfg);
 }
 
+/// GPU-optimized 3D log-interpolation with derivatives (batch)
+/// Uses compile-time dimensionality for zero runtime branching
 inline int LogInterpolateDifferentiateSingleVariable3DCustom(
     const double* d, const double* t, const double* y, std::size_t count,
     const double* gridD, int nD,

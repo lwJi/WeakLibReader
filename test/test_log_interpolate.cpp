@@ -437,3 +437,50 @@ TEST_CASE("Aligned derivative wrapper mirrors kernel output", "[loginterp][deriv
     }
   }
 }
+
+TEST_CASE("Template instantiation compiles for all dimensions", "[compile-time]")
+{
+  using namespace WeakLibReader;
+
+  // This test verifies that our templated functions instantiate correctly
+  // for all supported dimensions. The actual function calls don't execute
+  // (they're in unreachable code), but the compiler still instantiates the
+  // templates, ensuring they compile without errors.
+
+  if (false) {  // Never executed, but forces template instantiation
+    double dummy_data[32] = {};
+    int dummy_indices[5] = {};
+    double dummy_fractions[5] = {};
+    double dummy_scales[5] = {};
+    double dummy_offset = 0.0;
+    Layout dummy_layout{};
+
+    // Test LinearInterpPointDirect for 1D-5D
+    (void)LinearInterpPointDirect<1>(dummy_indices, dummy_fractions, dummy_offset,
+                                     dummy_data, dummy_layout);
+    (void)LinearInterpPointDirect<2>(dummy_indices, dummy_fractions, dummy_offset,
+                                     dummy_data, dummy_layout);
+    (void)LinearInterpPointDirect<3>(dummy_indices, dummy_fractions, dummy_offset,
+                                     dummy_data, dummy_layout);
+    (void)LinearInterpPointDirect<4>(dummy_indices, dummy_fractions, dummy_offset,
+                                     dummy_data, dummy_layout);
+    (void)LinearInterpPointDirect<5>(dummy_indices, dummy_fractions, dummy_offset,
+                                     dummy_data, dummy_layout);
+
+    // Test LinearInterpDerivPointDirect for 2D-4D (derivatives only)
+    double dummy_interp = 0.0;
+    double dummy_derivs[4] = {};
+    LinearInterpDerivPointDirect<2>(dummy_indices, dummy_fractions, dummy_scales,
+                                    dummy_offset, dummy_data, dummy_layout,
+                                    dummy_interp, dummy_derivs);
+    LinearInterpDerivPointDirect<3>(dummy_indices, dummy_fractions, dummy_scales,
+                                    dummy_offset, dummy_data, dummy_layout,
+                                    dummy_interp, dummy_derivs);
+    LinearInterpDerivPointDirect<4>(dummy_indices, dummy_fractions, dummy_scales,
+                                    dummy_offset, dummy_data, dummy_layout,
+                                    dummy_interp, dummy_derivs);
+  }
+
+  // If we get here, all templates instantiated successfully
+  CHECK(true);
+}

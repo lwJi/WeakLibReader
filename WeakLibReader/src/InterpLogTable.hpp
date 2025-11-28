@@ -376,4 +376,99 @@ void LinearInterpDeriv2D4DArray2DAlignedPoint(int iFixed0, int iFixed1,
                            interpolant, dIdX0, dIdX1);
 }
 
+// ============================================================================
+// Template-based compile-time dispatch wrappers for GPU optimization
+// ============================================================================
+// These templates eliminate runtime branching by dispatching to the correct
+// dimension-specific function at compile time using 'if constexpr' (C++17).
+// This improves GPU performance by avoiding warp divergence.
+// ============================================================================
+
+/// Template wrapper for dimension-specific log-interpolation (compile-time dispatch)
+/// @tparam ND Number of dimensions (1-5), known at compile time
+/// @param indices Cell indices for each dimension (output from IndexAndDelta*)
+/// @param fractions Interpolation fractions [0,1] for each dimension
+/// @param offset Offset to subtract after converting from log space
+/// @param data Raw data array in row-major order
+/// @param layout Layout describing array dimensions and strides
+/// @return Interpolated value: 10^(interp_log_value) - offset
+template<int ND>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+double LinearInterpPointDirect(const int indices[ND],
+                               const double fractions[ND],
+                               double offset,
+                               const double* data,
+                               const Layout& layout) noexcept
+{
+  // Compile-time check: interpolation only implemented for 1D-5D
+  static_assert(ND >= 1 && ND <= 5, "Interpolation only supported for 1D-5D");
+
+  // Compile-time dispatch: branches eliminated at compile time, zero runtime overhead
+  if constexpr (ND == 1) {
+    return LinearInterp1DPoint(indices[0], fractions[0], offset, data, layout);
+  } else if constexpr (ND == 2) {
+    return LinearInterp2DPoint(indices[0], indices[1],
+                               fractions[0], fractions[1],
+                               offset, data, layout);
+  } else if constexpr (ND == 3) {
+    return LinearInterp3DPoint(indices[0], indices[1], indices[2],
+                               fractions[0], fractions[1], fractions[2],
+                               offset, data, layout);
+  } else if constexpr (ND == 4) {
+    return LinearInterp4DPoint(indices[0], indices[1], indices[2], indices[3],
+                               fractions[0], fractions[1], fractions[2], fractions[3],
+                               offset, data, layout);
+  } else if constexpr (ND == 5) {
+    return LinearInterp5DPoint(indices[0], indices[1], indices[2], indices[3], indices[4],
+                               fractions[0], fractions[1], fractions[2], fractions[3], fractions[4],
+                               offset, data, layout);
+  }
+}
+
+/// Template wrapper for dimension-specific log-interpolation with derivatives (compile-time dispatch)
+/// @tparam ND Number of dimensions (2-4), known at compile time
+/// @param indices Cell indices for each dimension
+/// @param fractions Interpolation fractions [0,1] for each dimension
+/// @param scales Axis-dependent scaling factors for derivative computation
+/// @param offset Offset to subtract after converting from log space
+/// @param data Raw data array in row-major order
+/// @param layout Layout describing array dimensions and strides
+/// @param[out] interpolant Interpolated value: 10^(interp_log_value) - offset
+/// @param[out] derivatives Partial derivatives w.r.t. each dimension (array of size ND)
+template<int ND>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+void LinearInterpDerivPointDirect(const int indices[ND],
+                                  const double fractions[ND],
+                                  const double scales[ND],
+                                  double offset,
+                                  const double* data,
+                                  const Layout& layout,
+                                  double& interpolant,
+                                  double derivatives[ND]) noexcept
+{
+  // Compile-time check: derivatives only implemented for 2D, 3D, 4D
+  static_assert(ND >= 2 && ND <= 4, "Derivatives only supported for 2D-4D");
+
+  // Compile-time dispatch for derivative functions (2D, 3D, 4D only)
+  if constexpr (ND == 2) {
+    LinearInterpDeriv2DPoint(indices[0], indices[1],
+                             fractions[0], fractions[1],
+                             scales[0], scales[1],
+                             offset, data, layout,
+                             interpolant, derivatives[0], derivatives[1]);
+  } else if constexpr (ND == 3) {
+    LinearInterpDeriv3DPoint(indices[0], indices[1], indices[2],
+                             fractions[0], fractions[1], fractions[2],
+                             scales[0], scales[1], scales[2],
+                             offset, data, layout,
+                             interpolant, derivatives[0], derivatives[1], derivatives[2]);
+  } else if constexpr (ND == 4) {
+    LinearInterpDeriv4DPoint(indices[0], indices[1], indices[2], indices[3],
+                             fractions[0], fractions[1], fractions[2], fractions[3],
+                             scales[0], scales[1], scales[2], scales[3],
+                             offset, data, layout,
+                             interpolant, derivatives[0], derivatives[1], derivatives[2], derivatives[3]);
+  }
+}
+
 } // namespace WeakLibReader
