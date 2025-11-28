@@ -1,6 +1,8 @@
 # WeakLibReader
 
-GPU-friendly C++ reimplementation of WeakLib’s equation-of-state and opacity interpolators. The library mirrors the original Fortran routines under `ref/weaklib/`, provides AMReX-ready device functions, and ships with a lightweight regression suite.
+![CI](https://github.com/lwJi/WeakLibReader/actions/workflows/ci.yml/badge.svg)
+
+GPU-friendly C++ reimplementation of WeakLib's equation-of-state and opacity interpolators. The library mirrors the original Fortran routines under `ref/weaklib/`, provides AMReX-ready device functions, and ships with a lightweight regression suite.
 
 ## Requirements
 
