@@ -18,39 +18,52 @@ if (NOT AMREX_ROOT AND DEFINED ENV{AMREX_HOME})
   set(AMREX_ROOT "$ENV{AMREX_HOME}")
 endif()
 
-find_path(AMREX_INCLUDE_DIR
-  NAMES AMReX_GpuQualifiers.H
+# Prefer an installed AMReX CMake package when available.
+find_package(AMReX QUIET CONFIG
   HINTS
     ${AMREX_ROOT}
-    ${AMREX_ROOT}/include
-  PATH_SUFFIXES
-    include)
-
-if (NOT AMREX_INCLUDE_DIR)
-  message(FATAL_ERROR "Failed to locate AMReX headers. Set AMREX_ROOT (or cache variable AMREX_INCLUDE_DIR) to the AMReX installation path containing AMReX_GpuQualifiers.H.")
-endif()
+    ${AMREX_ROOT}/lib/cmake
+    ${AMREX_ROOT}/lib64/cmake)
 
 find_package(OpenMP REQUIRED)
 find_package(HDF5 REQUIRED COMPONENTS C)
 
-find_library(AMREX_LIBRARY
-  NAMES amrex
-  HINTS
-    ${AMREX_ROOT}
-    ${AMREX_ROOT}/lib
-    ${AMREX_ROOT}/lib64)
-if (NOT AMREX_LIBRARY)
-  message(FATAL_ERROR "Failed to locate libamrex. Set AMREX_ROOT to the AMReX installation prefix containing lib/libamrex.")
+if (AMREX_FOUND)
+  set(AMREX_TARGET AMReX::amrex)
+else()
+  find_path(AMREX_INCLUDE_DIR
+    NAMES AMReX_GpuQualifiers.H
+    HINTS
+      ${AMREX_ROOT}
+      ${AMREX_ROOT}/include
+    PATH_SUFFIXES
+      include)
+
+  if (NOT AMREX_INCLUDE_DIR)
+    message(FATAL_ERROR "Failed to locate AMReX headers. Set AMREX_ROOT (or cache variable AMREX_INCLUDE_DIR) to the AMReX installation path containing AMReX_GpuQualifiers.H.")
+  endif()
+
+  find_library(AMREX_LIBRARY
+    NAMES amrex
+    HINTS
+      ${AMREX_ROOT}
+      ${AMREX_ROOT}/lib
+      ${AMREX_ROOT}/lib64)
+  if (NOT AMREX_LIBRARY)
+    message(FATAL_ERROR "Failed to locate libamrex. Set AMREX_ROOT to the AMReX installation prefix containing lib/libamrex.")
+  endif()
+
+  set(AMREX_TARGET ${AMREX_LIBRARY})
 endif()
 
 target_include_directories(WeakLibReader INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/WeakLibReader/src>
-  $<BUILD_INTERFACE:${AMREX_INCLUDE_DIR}>
-  $<INSTALL_INTERFACE:WeakLibReader/src>)
+  $<INSTALL_INTERFACE:WeakLibReader/src>
+  $<$<NOT:$<BOOL:${AMREX_FOUND}>>:$<BUILD_INTERFACE:${AMREX_INCLUDE_DIR}>>)
 target_link_libraries(WeakLibReader INTERFACE
   OpenMP::OpenMP_CXX
   HDF5::HDF5
-  ${AMREX_LIBRARY})
+  ${AMREX_TARGET})
 
 enable_testing()
 

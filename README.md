@@ -15,7 +15,7 @@ GPU-friendly C++ reimplementation of WeakLib's equation-of-state and opacity int
 ## Configure & Build
 
 ```bash
-# Configure (fill in your AMReX path)
+# Configure (fill in your AMReX path; an installed AMReX CMake package is used when available)
 cmake -S . -B build \
       -DCMAKE_BUILD_TYPE=Release \
       -DAMREX_ROOT=/path/to/amrex \
