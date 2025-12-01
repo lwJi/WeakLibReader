@@ -26,7 +26,7 @@ find_package(AMReX QUIET CONFIG
 find_package(OpenMP REQUIRED)
 find_package(HDF5 REQUIRED COMPONENTS C)
 
-if (AMREX_FOUND)
+if (AMReX_FOUND)
   set(AMREX_TARGET AMReX::amrex)
 else()
   find_path(AMREX_INCLUDE_DIR
