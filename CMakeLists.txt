@@ -8,8 +8,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_library(WeakLibReader INTERFACE)
-
 set(AMREX_ROOT "" CACHE PATH "Root directory of the AMReX installation")
 if (NOT AMREX_ROOT AND DEFINED ENV{AMREX_ROOT})
   set(AMREX_ROOT "$ENV{AMREX_ROOT}")
@@ -53,13 +51,17 @@ else()
     message(FATAL_ERROR "Failed to locate libamrex. Set AMREX_ROOT to the AMReX installation prefix containing lib/libamrex.")
   endif()
 
-  set(AMREX_TARGET ${AMREX_LIBRARY})
+  add_library(AMReX::amrex UNKNOWN IMPORTED)
+  set_target_properties(AMReX::amrex PROPERTIES
+    IMPORTED_LOCATION ${AMREX_LIBRARY}
+    INTERFACE_INCLUDE_DIRECTORIES ${AMREX_INCLUDE_DIR})
+  set(AMREX_TARGET AMReX::amrex)
 endif()
 
+add_library(WeakLibReader INTERFACE)
 target_include_directories(WeakLibReader INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/WeakLibReader/src>
-  $<INSTALL_INTERFACE:WeakLibReader/src>
-  $<$<NOT:$<BOOL:${AMREX_FOUND}>>:$<BUILD_INTERFACE:${AMREX_INCLUDE_DIR}>>)
+  $<INSTALL_INTERFACE:WeakLibReader/src>)
 target_link_libraries(WeakLibReader INTERFACE
   OpenMP::OpenMP_CXX
   HDF5::HDF5
