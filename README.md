@@ -6,7 +6,7 @@ GPU-friendly C++ reimplementation of WeakLib's equation-of-state and opacity int
 
 ## Requirements
 
-- CMake ≥ 3.18
+- CMake ≥ 3.19
 - C++17-capable compiler
 - AMReX headers (point `AMREX_ROOT` to your installation)
 - OpenMP runtime if AMReX was built with OpenMP (e.g. `libomp` on macOS)

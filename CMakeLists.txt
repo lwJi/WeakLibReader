@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.19 FATAL_ERROR)
 
 project(WeakLibReader
   VERSION 0.1.0
@@ -64,7 +64,7 @@ target_include_directories(WeakLibReader INTERFACE
   $<INSTALL_INTERFACE:WeakLibReader/src>)
 target_link_libraries(WeakLibReader INTERFACE
   OpenMP::OpenMP_CXX
-  HDF5::HDF5
+  HDF5::C
   ${AMREX_TARGET})
 
 enable_testing()
