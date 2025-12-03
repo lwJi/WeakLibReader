@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+option(WEAKLIBREADER_ENABLE_HDF5 "Build HDF5 loader and related tests" ON)
+
 set(AMREX_ROOT "" CACHE PATH "Root directory of the AMReX installation")
 if (NOT AMREX_ROOT AND DEFINED ENV{AMREX_ROOT})
   set(AMREX_ROOT "$ENV{AMREX_ROOT}")
@@ -24,7 +26,10 @@ find_package(AMReX QUIET CONFIG
     ${AMREX_ROOT}/lib64/cmake)
 
 find_package(OpenMP REQUIRED)
-find_package(HDF5 REQUIRED COMPONENTS C)
+
+if (WEAKLIBREADER_ENABLE_HDF5)
+  find_package(HDF5 REQUIRED COMPONENTS C)
+endif()
 
 if (AMReX_FOUND)
   set(AMREX_TARGET AMReX::amrex)
@@ -64,8 +69,11 @@ target_include_directories(WeakLibReader INTERFACE
   $<INSTALL_INTERFACE:WeakLibReader/src>)
 target_link_libraries(WeakLibReader INTERFACE
   OpenMP::OpenMP_CXX
-  HDF5::HDF5
   ${AMREX_TARGET})
+
+if (WEAKLIBREADER_ENABLE_HDF5 AND TARGET HDF5::HDF5)
+  target_link_libraries(WeakLibReader INTERFACE HDF5::HDF5)
+endif()
 
 enable_testing()
 

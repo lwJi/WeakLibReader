@@ -1,6 +1,11 @@
-add_executable(WeakLibReaderTests
-  test_log_interpolate.cpp
-  test_hdf5_loader.cpp)
+set(TEST_SOURCES
+  test_log_interpolate.cpp)
+
+if (WEAKLIBREADER_ENABLE_HDF5 AND TARGET HDF5::HDF5)
+  list(APPEND TEST_SOURCES test_hdf5_loader.cpp)
+endif()
+
+add_executable(WeakLibReaderTests ${TEST_SOURCES})
 
 target_include_directories(WeakLibReaderTests
   PRIVATE
