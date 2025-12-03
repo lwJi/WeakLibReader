@@ -48,60 +48,9 @@ test/
 examples/amrex/               # CUDA/AMReX demo scaffold (TBD)
 ```
 
-> HDF5 loader lives alongside core headers under `WeakLibReader/src/`.
-
 ## Setup & Build (CUDA first)
 
 Refer to `README.md` for build and test commands (including the required `AMREX_ROOT` and OpenMP flags).
-
-## Public API (Target)
-
-```cpp
-#pragma once
-#include <cstddef>
-#include <AMReX_GpuQualifiers.H>
-
-namespace WeakLibReader {
-
-enum class AxisScale : uint8_t { Linear, Log10 };
-struct Axis {
-  const double* grid;  // length n
-  int n;
-  AxisScale scale;
-};
-
-struct Layout {
-  int nd;                  // 1..5
-  int n[5];                // extents
-  std::size_t stride[5];   // row-major strides (data[k] * stride[k])
-};
-
-enum class OutOfRangePolicy : uint8_t { Clamp, Error, FillNaN };
-
-struct InterpConfig {
-  OutOfRangePolicy outOfRange = OutOfRangePolicy::Clamp;
-};
-
-// Index and interpolation fraction for linearly spaced axis
-AMREX_GPU_HOST_DEVICE
-bool IndexAndDeltaLin(double x, const double* grid, int n,
-                      int& i, double& t) noexcept;
-
-// Index and interpolation fraction for log10-spaced axis
-AMREX_GPU_HOST_DEVICE
-bool IndexAndDeltaLog10(double x, const double* grid, int n,
-                        int& i, double& t) noexcept;
-
-// N-D linear interpolation (row-major data, up to 5D)
-AMREX_GPU_HOST_DEVICE
-double InterpLinearND(const double* data, const Layout& layout,
-                      const Axis axes[5], const double x[5],
-                      const InterpConfig& cfg, int nd) noexcept;
-
-// Optional 1D..5D convenience overloads may forward to InterpLinearND(...)
-
-} // namespace WeakLibReader
-```
 
 ## Current Implementation Snapshot
 
@@ -118,19 +67,6 @@ double InterpLinearND(const double* data, const Layout& layout,
 * **Out‑of‑range:** default **Clamp** to domain; other policies via `InterpConfig`.
 * **Precision:** default `double`; can template later if required.
 * **Parity target:** match Fortran edge handling for indices/weights (lower/upper bounds).
-
-## AMReX Usage Example (Sketch)
-
-```cpp
-using namespace WeakLibReader;
-
-amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
-[=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept {
-  double X[3] = {/* rho, T, Ye, etc. */};
-  double value = InterpLinearND(deviceDataPtr, layout, axes, X, InterpConfig{}, 3);
-  mf.array(i,j,k,n) = value;
-});
-```
 
 ## Agent Task Plan / Phases (v1)
 
@@ -153,8 +89,6 @@ amrex::ParallelFor(mf.boxArray(), mf.DistributionMap(), mf.nComp(),
 
 * Example fills a `MultiFab` by interpolating table values on GPU.
 * **AC:** Runs on CUDA; smoke tests pass.
-
-> **Deferred (post‑v1):** HIP/DPCPP validation.
 
 ## Tests
 

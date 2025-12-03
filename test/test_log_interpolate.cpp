@@ -438,6 +438,213 @@ TEST_CASE("Aligned derivative wrapper mirrors kernel output", "[loginterp][deriv
   }
 }
 
+TEST_CASE("4D mixed axes log interpolation respects offset", "[loginterp][4d][offset]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 2> gridA{1.0, 10.0};   // log10 axis
+  const std::array<double, 2> gridB{2.0, 20.0};   // log10 axis
+  const std::array<double, 2> gridC{0.0, 1.0};    // linear axis
+  const std::array<double, 2> gridD{5.0, 9.0};    // linear axis
+
+  const int extents[4] = {2, 2, 2, 2};
+  const Layout layout = MakeLayout(extents, 4);
+
+  const double offset = 1.5;
+  std::array<double, 16> table{};
+  for (int ia = 0; ia < 2; ++ia) {
+    for (int ib = 0; ib < 2; ++ib) {
+      for (int ic = 0; ic < 2; ++ic) {
+        for (int id = 0; id < 2; ++id) {
+          const double actual = 2.0 + 0.1 * ia + 0.2 * ib + 0.3 * ic + 0.4 * id;
+          table[layout.Offset(ia, ib, ic, id)] = std::log10(actual + offset);
+        }
+      }
+    }
+  }
+
+  Axis axes[4] = {
+      MakeAxis(gridA.data(), 2, AxisScale::Log10),
+      MakeAxis(gridB.data(), 2, AxisScale::Log10),
+      MakeAxis(gridC.data(), 2, AxisScale::Linear),
+      MakeAxis(gridD.data(), 2, AxisScale::Linear)};
+
+  double coords[4] = {3.0, 5.0, 0.25, 6.0};
+
+  int idxA = 0, idxB = 0, idxC = 0, idxD = 0;
+  double fracA = 0.0, fracB = 0.0, fracC = 0.0, fracD = 0.0;
+  REQUIRE_FALSE(IndexAndDeltaLog10(coords[0], gridA.data(), 2, idxA, fracA));
+  REQUIRE_FALSE(IndexAndDeltaLog10(coords[1], gridB.data(), 2, idxB, fracB));
+  REQUIRE_FALSE(IndexAndDeltaLin(coords[2], gridC.data(), 2, idxC, fracC));
+  REQUIRE_FALSE(IndexAndDeltaLin(coords[3], gridD.data(), 2, idxD, fracD));
+
+  const double expected = LinearInterp4DPoint(
+      idxA, idxB, idxC, idxD,
+      fracA, fracB, fracC, fracD,
+      offset, table.data(), layout);
+
+  const double result = detail::LogInterpolatedValueDirect<4>(
+      table.data(), layout, axes, coords, offset, InterpConfig{});
+
+  CHECK(result == Catch::Approx(expected).margin(kTol));
+}
+
+TEST_CASE("4D mixed axes derivative matches kernel", "[loginterp][4d][derivative]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 2> gridA{1.0, 10.0};   // log10 axis
+  const std::array<double, 2> gridB{2.0, 20.0};   // log10 axis
+  const std::array<double, 2> gridC{0.0, 1.0};    // linear axis
+  const std::array<double, 2> gridD{5.0, 9.0};    // linear axis
+
+  const int extents[4] = {2, 2, 2, 2};
+  const Layout layout = MakeLayout(extents, 4);
+
+  const double offset = 0.75;
+  std::array<double, 16> table{};
+  for (int ia = 0; ia < 2; ++ia) {
+    for (int ib = 0; ib < 2; ++ib) {
+      for (int ic = 0; ic < 2; ++ic) {
+        for (int id = 0; id < 2; ++id) {
+          const double actual = 1.5 + 0.15 * ia + 0.25 * ib + 0.35 * ic + 0.45 * id;
+          table[layout.Offset(ia, ib, ic, id)] = std::log10(actual + offset);
+        }
+      }
+    }
+  }
+
+  Axis axes[4] = {
+      MakeAxis(gridA.data(), 2, AxisScale::Log10),
+      MakeAxis(gridB.data(), 2, AxisScale::Log10),
+      MakeAxis(gridC.data(), 2, AxisScale::Linear),
+      MakeAxis(gridD.data(), 2, AxisScale::Linear)};
+
+  double coords[4] = {4.0, 6.0, 0.4, 7.0};
+
+  int idxA = 0, idxB = 0, idxC = 0, idxD = 0;
+  double fracA = 0.0, fracB = 0.0, fracC = 0.0, fracD = 0.0;
+  REQUIRE_FALSE(IndexAndDeltaLog10(coords[0], gridA.data(), 2, idxA, fracA));
+  REQUIRE_FALSE(IndexAndDeltaLog10(coords[1], gridB.data(), 2, idxB, fracB));
+  REQUIRE_FALSE(IndexAndDeltaLin(coords[2], gridC.data(), 2, idxC, fracC));
+  REQUIRE_FALSE(IndexAndDeltaLin(coords[3], gridD.data(), 2, idxD, fracD));
+
+  const double aA = 1.0 / (coords[0] * WeakLibReader::math::Log10(gridA[1] / gridA[0]));
+  const double aB = 1.0 / (coords[1] * WeakLibReader::math::Log10(gridB[1] / gridB[0]));
+  const double aC = WeakLibReader::math::Ln10 / (gridC[1] - gridC[0]);
+  const double aD = WeakLibReader::math::Ln10 / (gridD[1] - gridD[0]);
+
+  double expectedInterp = 0.0;
+  double expectedDA = 0.0;
+  double expectedDB = 0.0;
+  double expectedDC = 0.0;
+  double expectedDD = 0.0;
+  LinearInterpDeriv4DPoint(
+      idxA, idxB, idxC, idxD,
+      fracA, fracB, fracC, fracD,
+      aA, aB, aC, aD,
+      offset, table.data(), layout,
+      expectedInterp, expectedDA, expectedDB, expectedDC, expectedDD);
+
+  double interpolant = 0.0;
+  double deriv[4] = {0.0, 0.0, 0.0, 0.0};
+  const bool success = detail::LogInterpolatedDerivativeDirect<4>(
+      table.data(), layout, axes, coords, offset, InterpConfig{}, interpolant, deriv);
+  REQUIRE(success);
+
+  CHECK(interpolant == Catch::Approx(expectedInterp).margin(kTol));
+  CHECK(deriv[0] == Catch::Approx(expectedDA).margin(kTol));
+  CHECK(deriv[1] == Catch::Approx(expectedDB).margin(kTol));
+  CHECK(deriv[2] == Catch::Approx(expectedDC).margin(kTol));
+  CHECK(deriv[3] == Catch::Approx(expectedDD).margin(kTol));
+}
+
+TEST_CASE("Out-of-range policies on mixed axes", "[loginterp][policy]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 2> gridLog{1.0, 10.0};
+  const std::array<double, 2> gridLin{2.0, 4.0};
+
+  const int extents[2] = {2, 2};
+  const Layout layout = MakeLayout(extents, 2);
+  const double offset = 0.3;
+
+  std::array<double, 4> table{};
+  for (int i = 0; i < 2; ++i) {
+    for (int j = 0; j < 2; ++j) {
+      const double actual = 1.0 + 0.2 * i + 0.4 * j;
+      table[layout.Offset(i, j)] = std::log10(actual + offset);
+    }
+  }
+
+  Axis axes[2] = {
+      MakeAxis(gridLog.data(), 2, AxisScale::Log10),
+      MakeAxis(gridLin.data(), 2, AxisScale::Linear)};
+
+  double coords[2] = {0.5, 1.5};  // below both grids but positive
+
+  int idxLog = 0;
+  int idxLin = 0;
+  double fracLog = 0.0;
+  double fracLin = 0.0;
+  const bool outLog = IndexAndDeltaLog10(coords[0], gridLog.data(), 2, idxLog, fracLog);
+  const bool outLin = IndexAndDeltaLin(coords[1], gridLin.data(), 2, idxLin, fracLin);
+  REQUIRE(outLog);
+  REQUIRE(outLin);
+
+  // Clamp policy should return clamped interpolation/derivatives
+  {
+    const double aLog = 1.0 / (coords[0] * WeakLibReader::math::Log10(gridLog[1] / gridLog[0]));
+    const double aLin = WeakLibReader::math::Ln10 / (gridLin[1] - gridLin[0]);
+
+    double expectedInterp = 0.0;
+    double expectedDLog = 0.0;
+    double expectedDLin = 0.0;
+    LinearInterpDeriv2DPoint(
+        idxLog, idxLin,
+        detail::Clamp01(fracLog), detail::Clamp01(fracLin),
+        aLog, aLin,
+        offset, table.data(), layout,
+        expectedInterp, expectedDLog, expectedDLin);
+
+    double interpolant = 0.0;
+    double deriv[2] = {0.0, 0.0};
+    const bool ok = detail::LogInterpolatedDerivativeDirect<2>(
+        table.data(), layout, axes, coords, offset, InterpConfig{}, interpolant, deriv);
+    REQUIRE(ok);
+
+    CHECK(interpolant == Catch::Approx(expectedInterp).margin(kTol));
+    CHECK(deriv[0] == Catch::Approx(expectedDLog).margin(kTol));
+    CHECK(deriv[1] == Catch::Approx(expectedDLin).margin(kTol));
+  }
+
+  // FillNaN policy should propagate NaN
+  {
+    InterpConfig cfg;
+    cfg.outOfRange = OutOfRangePolicy::FillNaN;
+    double interpolant = 0.0;
+    double deriv[2] = {0.0, 0.0};
+    const bool ok = detail::LogInterpolatedDerivativeDirect<2>(
+        table.data(), layout, axes, coords, offset, cfg, interpolant, deriv);
+    REQUIRE(ok);
+    CHECK(std::isnan(interpolant));
+    CHECK(std::isnan(deriv[0]));
+    CHECK(std::isnan(deriv[1]));
+  }
+
+  // Error policy should report failure
+  {
+    InterpConfig cfg;
+    cfg.outOfRange = OutOfRangePolicy::Error;
+    double interpolant = 0.0;
+    double deriv[2] = {0.0, 0.0};
+    const bool ok = detail::LogInterpolatedDerivativeDirect<2>(
+        table.data(), layout, axes, coords, offset, cfg, interpolant, deriv);
+    CHECK_FALSE(ok);
+  }
+}
+
 TEST_CASE("Template instantiation compiles for all dimensions", "[compile-time]")
 {
   using namespace WeakLibReader;
