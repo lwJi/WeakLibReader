@@ -86,6 +86,42 @@ TEST_CASE("Out-of-range clamp FillNaN policy returns NaN", "[loginterp][2d][nan]
   CHECK(std::isnan(value));
 }
 
+TEST_CASE("Batch 2D log interpolation matches point wrapper", "[loginterp][2d][batch]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 2> gridX{1.0, 2.0};
+  const std::array<double, 2> gridY{1.0, 3.0};
+  const std::array<double, 4> table{
+      std::log10(2.0),
+      std::log10(3.0),
+      std::log10(4.0),
+      std::log10(5.0)};
+
+  std::array<double, 3> x0{1.0, 1.5, 2.0};
+  std::array<double, 3> x1{1.0, 2.0, 3.0};
+  std::array<double, 3> out{};
+
+  const int rc = LogInterpolateSingleVariable2DCustom(
+      x0.data(), x1.data(), x0.size(),
+      gridX.data(), 2,
+      gridY.data(), 2,
+      table.data(),
+      0.0,
+      out.data());
+  REQUIRE(rc == 0);
+
+  for (std::size_t i = 0; i < x0.size(); ++i) {
+    const double point = LogInterpolateSingleVariable2DCustomPoint(
+        x0[i], x1[i],
+        gridX.data(), 2,
+        gridY.data(), 2,
+        table.data(),
+        0.0);
+    CHECK(out[i] == Catch::Approx(point).margin(kTol));
+  }
+}
+
 TEST_CASE("Upper-endpoint queries are treated as in-range", "[interp][boundary]")
 {
   using namespace WeakLibReader;
@@ -247,6 +283,72 @@ TEST_CASE("Weighted sum aligned helper reproduces manual accumulation", "[logint
       const std::size_t upper = i * sizeE + j;
       CHECK(out[lower] == Catch::Approx(expected).margin(kTol));
       CHECK(out[upper] == Catch::Approx(expected).margin(kTol));
+    }
+  }
+}
+
+TEST_CASE("1D3D sweep batch matches direct interpolation", "[loginterp][4d][batch]")
+{
+  using namespace WeakLibReader;
+
+  constexpr std::size_t sizeE = 2;
+  constexpr std::size_t count = 2;
+
+  const std::array<double, 2> gridE{1.0, 2.0};
+  const std::array<double, 2> gridD{1.0, 3.0};
+  const std::array<double, 2> gridT{10.0, 20.0};
+  const std::array<double, 2> gridY{0.0, 1.0};
+
+  const int extents[4] = {2, 2, 2, 2};
+  const Layout layout = MakeLayout(extents, 4);
+
+  std::array<double, 16> table{};
+  auto actual = [](double e, double d, double t, double y) {
+    return 1.0 + 0.2 * e + 0.3 * d + 0.4 * t + 0.5 * y;
+  };
+
+  for (int ie = 0; ie < 2; ++ie) {
+    for (int id = 0; id < 2; ++id) {
+      for (int it = 0; it < 2; ++it) {
+        for (int iy = 0; iy < 2; ++iy) {
+          table[layout.Offset(ie, id, it, iy)] =
+              std::log10(actual(gridE[ie], gridD[id], gridT[it], gridY[iy]));
+        }
+      }
+    }
+  }
+
+  std::array<double, sizeE> logE{1.2, 1.8};
+  std::array<double, count> logD{1.1, 2.5};
+  std::array<double, count> logT{12.0, 18.0};
+  std::array<double, count> y{0.25, 0.75};
+  std::array<double, sizeE * count> out{};
+
+  const int rc = LogInterpolateSingleVariable1D3DCustom(
+      logE.data(), sizeE,
+      logD.data(), logT.data(), y.data(), count,
+      gridE.data(), 2,
+      gridD.data(), 2,
+      gridT.data(), 2,
+      gridY.data(), 2,
+      table.data(),
+      0.0,
+      out.data());
+  REQUIRE(rc == 0);
+
+  Axis axes[4] = {
+      MakeAxis(gridE.data(), 2, AxisScale::Linear),
+      MakeAxis(gridD.data(), 2, AxisScale::Linear),
+      MakeAxis(gridT.data(), 2, AxisScale::Linear),
+      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
+
+  for (std::size_t j = 0; j < count; ++j) {
+    for (std::size_t i = 0; i < sizeE; ++i) {
+      double coords[4] = {logE[i], logD[j], logT[j], y[j]};
+      const double expected = detail::LogInterpolatedValueDirect<4>(
+          table.data(), layout, axes, coords, 0.0, InterpConfig{});
+      const std::size_t idx = j * sizeE + i;
+      CHECK(out[idx] == Catch::Approx(expected).margin(kTol));
     }
   }
 }
