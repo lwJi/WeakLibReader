@@ -1,5 +1,6 @@
 # CMake build artifacts
 build/
+_deps/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
@@ -7,12 +8,39 @@ Makefile
 install_manifest.txt
 Testing/
 CTestTestfile.cmake
+CMakeUserPresets.json
+.cmake/
 
 # Compilation database
 compile_commands.json
 
+# C/C++ build artifacts
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+bin/
+lib/
+lib64/
+
+# Test and coverage artifacts
+*.gcov
+*.gcda
+*.gcno
+*.gcinfo
+coverage/
+*.lcov
+*.profdata
+*.profraw
+
 # IDE and editor files
 .vscode/
+.vscode-server/
+*.code-workspace
 .idea/
 *.iml
 *.swp
@@ -21,10 +49,16 @@ compile_commands.json
 .project
 .cproject
 .settings/
+.clangd/
+.cache/
+compile_flags.txt
 
 # OS-specific files
 .DS_Store
+.AppleDouble
+.LSOverride
 Thumbs.db
+Desktop.ini
 
 # Python
 __pycache__/
