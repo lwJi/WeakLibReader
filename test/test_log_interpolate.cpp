@@ -353,7 +353,7 @@ TEST_CASE("1D3D sweep batch matches direct interpolation", "[loginterp][4d][batc
   }
 }
 
-TEST_CASE("Invalid log inputs return errors/NaN as expected", "[loginterp][invalid]")
+TEST_CASE("Invalid log coordinate triggers error code", "[loginterp][invalid]")
 {
   using namespace WeakLibReader;
 
@@ -373,47 +373,60 @@ TEST_CASE("Invalid log inputs return errors/NaN as expected", "[loginterp][inval
     }
   }
 
-  SECTION("Negative log coordinate triggers error code")
-  {
-    double interpolant = 0.0;
-    double deriv[3] = {0.0, 0.0, 0.0};
-    const int rc = LogInterpolateDifferentiateSingleVariable3DCustomPoint(
-        -1.0, 2.0, 0.3,   // invalid log axis coord
-        gridD.data(), 2,
-        gridT.data(), 2,
-        gridY.data(), 2,
-        table.data(),
-        0.0,
-        interpolant, deriv);
-    CHECK(rc == 4);
-    CHECK(std::isnan(interpolant));
-    CHECK(std::isnan(deriv[0]));
-    CHECK(std::isnan(deriv[1]));
-    CHECK(std::isnan(deriv[2]));
+  double interpolant = 0.0;
+  double deriv[3] = {0.0, 0.0, 0.0};
+  const int rc = LogInterpolateDifferentiateSingleVariable3DCustomPoint(
+      -1.0, 2.0, 0.3,   // invalid log axis coord
+      gridD.data(), 2,
+      gridT.data(), 2,
+      gridY.data(), 2,
+      table.data(),
+      0.0,
+      interpolant, deriv);
+  CHECK(rc == 4);
+  CHECK(std::isnan(interpolant));
+  CHECK(std::isnan(deriv[0]));
+  CHECK(std::isnan(deriv[1]));
+  CHECK(std::isnan(deriv[2]));
+}
+
+TEST_CASE("Zero-span axis yields NaN under FillNaN policy", "[loginterp][invalid]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 2> gridD{1.0, 10.0};
+  const std::array<double, 2> gridT{1.0, 100.0};
+  const std::array<double, 2> badGridY{0.5, 0.5}; // degenerate span
+
+  const int extents[3] = {2, 2, 2};
+  const Layout layout = MakeLayout(extents, 3);
+
+  std::array<double, 8> table{};
+  for (int id = 0; id < 2; ++id) {
+    for (int it = 0; it < 2; ++it) {
+      for (int iy = 0; iy < 2; ++iy) {
+        table[layout.Offset(id, it, iy)] = std::log10(1.0 + 0.1 * id + 0.2 * it + 0.3 * iy);
+      }
+    }
   }
 
-  SECTION("Zero-span linear axis yields NaN under FillNaN policy")
-  {
-    const std::array<double, 2> badGridY{0.5, 0.5}; // degenerate span
-
-    double interpolant = 0.0;
-    double deriv[3] = {0.0, 0.0, 0.0};
-    InterpConfig cfg;
-    cfg.outOfRange = OutOfRangePolicy::FillNaN;
-    const int rc = LogInterpolateDifferentiateSingleVariable3DCustomPoint(
-        2.0, 2.0, 0.4,
-        gridD.data(), 2,
-        gridT.data(), 2,
-        badGridY.data(), 2,
-        table.data(),
-        0.0,
-        interpolant, deriv, cfg);
-    CHECK(rc == 0);
-    CHECK(std::isnan(interpolant));
-    CHECK(std::isnan(deriv[0]));
-    CHECK(std::isnan(deriv[1]));
-    CHECK(std::isnan(deriv[2]));
-  }
+  double interpolant = 0.0;
+  double deriv[3] = {0.0, 0.0, 0.0};
+  InterpConfig cfg;
+  cfg.outOfRange = OutOfRangePolicy::FillNaN;
+  const int rc = LogInterpolateDifferentiateSingleVariable3DCustomPoint(
+      2.0, 2.0, 0.4,
+      gridD.data(), 2,
+      gridT.data(), 2,
+      badGridY.data(), 2,
+      table.data(),
+      0.0,
+      interpolant, deriv, cfg);
+  CHECK(rc == 0);
+  CHECK(std::isnan(interpolant));
+  CHECK(std::isnan(deriv[0]));
+  CHECK(std::isnan(deriv[1]));
+  CHECK(std::isnan(deriv[2]));
 }
 
 TEST_CASE("Log derivative wrapper matches direct kernel for 3D tables", "[loginterp][derivative][3d]")
