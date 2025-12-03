@@ -86,6 +86,30 @@ TEST_CASE("Out-of-range clamp FillNaN policy returns NaN", "[loginterp][2d][nan]
   CHECK(std::isnan(value));
 }
 
+TEST_CASE("Out-of-range error policy returns NaN", "[loginterp][2d][nan][error]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 2> gridX{1.0, 2.0};
+  const std::array<double, 2> gridY{1.0, 3.0};
+  const std::array<double, 4> table{
+      std::log10(2.0),
+      std::log10(3.0),
+      std::log10(4.0),
+      std::log10(5.0)};
+
+  InterpConfig cfg;
+  cfg.outOfRange = OutOfRangePolicy::Error;
+
+  const double value = LogInterpolateSingleVariable2DCustomPoint(
+      0.5, 2.0,
+      gridX.data(), 2,
+      gridY.data(), 2,
+      table.data(), 0.0, cfg);
+
+  CHECK(std::isnan(value));
+}
+
 TEST_CASE("Batch 2D log interpolation matches point wrapper", "[loginterp][2d][batch]")
 {
   using namespace WeakLibReader;

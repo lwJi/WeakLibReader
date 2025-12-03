@@ -42,7 +42,6 @@ double LogInterpolatedValueDirect(const double* data,
   // Fixed-size arrays: compiler can optimize/unroll the loop below
   int indices[ND];
   double fractions[ND];
-  bool outOfRange = false;
 
   // Index lookup for each dimension
   // Note: Loop used intentionally (not explicit unrolling) because:
@@ -53,7 +52,9 @@ double LogInterpolatedValueDirect(const double* data,
   for (int d = 0; d < ND; ++d) {
     bool out = IndexAndDelta(axes[d], coords[d], indices[d], fractions[d]);
     if (out) {
-      outOfRange = true;
+      if (cfg.outOfRange == OutOfRangePolicy::Error) {
+        return std::numeric_limits<double>::quiet_NaN();
+      }
       // Early exit for FillNaN policy
       if (cfg.outOfRange == OutOfRangePolicy::FillNaN) {
         return std::numeric_limits<double>::quiet_NaN();
