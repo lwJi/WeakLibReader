@@ -200,7 +200,7 @@ inline bool ReadStringAttribute(hid_t parent, const std::string& name, std::stri
 
 inline bool ValidateAxis(const amrex::Vector<double>& values, AxisScale scale)
 {
-  if (values.empty()) {
+  if (values.size() < 2) {
     return false;
   }
   if (values.size() >= 2) {
