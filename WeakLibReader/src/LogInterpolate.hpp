@@ -137,7 +137,7 @@ inline bool ComputeLogAxisScale(const Axis& axis, int idx, double coord,
     return false;
   }
   const double denom = math::Log10(ratio);
-  if (denom == 0.0) {
+  if (!(denom > 0.0)) {
     scale = std::numeric_limits<double>::quiet_NaN();
     return false;
   }
