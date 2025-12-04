@@ -349,7 +349,7 @@ inline Hdf5LoadStatus LoadHdf5Table(const std::string& filePath,
 
   detail::ScopedHandle dataspace(H5Dget_space(dataset.Get()), H5Sclose);
   if (!dataspace.Valid()) {
-    return Hdf5LoadStatus::DatasetOpenFailed;
+    return Hdf5LoadStatus::DatasetReadFailed;
   }
 
   const int rank = H5Sget_simple_extent_ndims(dataspace.Get());
