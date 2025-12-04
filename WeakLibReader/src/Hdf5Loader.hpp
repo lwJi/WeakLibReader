@@ -203,11 +203,10 @@ inline bool ValidateAxis(const amrex::Vector<double>& values, AxisScale scale)
   if (values.size() < 2) {
     return false;
   }
-  if (values.size() >= 2) {
-    for (std::size_t i = 1; i < values.size(); ++i) {
-      if (!(values[i] > values[i - 1])) {
-        return false;
-      }
+  // Verify strict monotonicity
+  for (std::size_t i = 1; i < values.size(); ++i) {
+    if (!(values[i] > values[i - 1])) {
+      return false;
     }
   }
   if (scale == AxisScale::Log10) {
