@@ -80,12 +80,6 @@ ctest --test-dir build --output-on-failure
 4. **Device safety:** Ensure new functions are `noexcept`, inline, and use `AMREX_GPU_HOST_DEVICE`
 5. **Documentation:** Update `AGENTS.md` if changing scope/design; update `README.md` for user-facing changes
 
-## Performance Notes
-
-- Precompute strides; pass compact axis/layout structs by value.
-- Avoid branching in weight calc; coalesce reads; no dynamic allocations in kernels.
-- Keep device functions `noexcept`; return status flags when needed.
-
 ## Integration Points
 
 ### AMReX
@@ -118,6 +112,21 @@ ctest --test-dir build --output-on-failure
 4. **GPU backend:** CUDA first, HIP/DPCPP later
 5. **Memory layout:** Explicit row-major with precomputed strides
 6. **Device qualification:** All interpolation kernels are `AMREX_GPU_HOST_DEVICE`
+
+## Current Implementation Snapshot
+
+- **Layout & Strides:** `WeakLibReader/src/Layout.hpp` provides `Layout` and `MakeLayout` helpers that precompute row-major strides and sub-slice utilities (`SliceLeading`), keeping device functions inline and `noexcept`.
+- **Index Lookup:** `WeakLibReader/src/IndexDelta.hpp` implements `IndexAndDeltaLin/Log10`, returning clamped cell indices and interpolation fractions plus an out-of-range flag to honor the configured policy.
+- **Interpolation Kernels:** `WeakLibReader/src/InterpBasis.hpp` supplies linear through penta-linear blending and partial derivatives, which `WeakLibReader/src/WeakLibReader.hpp` composes in `InterpLinearND` and its 1D–5D overloads.
+- **Log-Wrapped APIs:** `WeakLibReader/src/InterpLogTable.hpp` and `WeakLibReader/src/LogInterpolate.hpp` layer pow10/offset handling, symmetric plane helpers, and derivative evaluators that replicate the Fortran log-table entry points.
+- **HDF5 Loader:** `WeakLibReader/src/Hdf5Loader.hpp` reads axis metadata + value datasets, validates monotonicity, and materializes tables into `amrex::TableData<double,4>` while preserving axis storage for interpolation.
+- **Build & Tests:** `CMakeLists.txt` exposes the headers as an INTERFACE target with AMReX/OpenMP/HDF5 includes; `test/test_log_interpolate.cpp` and `test/test_hdf5_loader.cpp` cover interpolation kernels, policies, symmetry helpers, weighted sums, derivatives, and HDF5 round-trips via the bundled Catch shim.
+
+## Performance Notes
+
+- Precompute strides; pass compact axis/layout structs by value.
+- Avoid branching in weight calc; coalesce reads; no dynamic allocations in kernels.
+- Keep device functions `noexcept`; return status flags when needed.
 
 ## Security & Quality
 
