@@ -61,6 +61,10 @@ AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Layout MakeLayout(const int* extents, int nd) noexcept
 {
   Layout layout{};
+  if (extents == nullptr || nd < 1 || nd > 5) {
+    return layout;
+  }
+
   layout.nd = nd;
   std::size_t stride = 1;
   for (int dim = 0; dim < nd; ++dim) {
