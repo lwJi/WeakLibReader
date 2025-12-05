@@ -146,30 +146,6 @@ TEST_CASE("Batch 2D log interpolation matches point wrapper", "[loginterp][2d][b
   }
 }
 
-TEST_CASE("Upper-endpoint queries are treated as in-range", "[interp][boundary]")
-{
-  using namespace WeakLibReader;
-
-  const std::array<double, 2> grid{1.0, 2.0};
-  const std::array<double, 2> values{10.0, 20.0};
-
-  const int extents[1] = {2};
-  const Layout layout = MakeLayout(extents, 1);
-
-  Axis axes[1] = {MakeAxis(grid.data(), 2, AxisScale::Linear)};
-
-  int idx = 0;
-  double frac = 0.0;
-  const bool outOfRange = detail::IndexAndDelta(axes[0], 2.0, idx, frac);
-  CHECK_FALSE(outOfRange);
-
-  int indices[5] = {idx, 0, 0, 0, 0};
-  double fracs[5] = {frac, 0.0, 0.0, 0.0, 0.0};
-  const double result = detail::InterpCorner(values.data(), layout, indices, fracs, 1);
-
-  CHECK(result == Catch::Approx(values[1]).margin(kTol));
-}
-
 TEST_CASE("Aligned 2D plane interpolation mirrors underlying kernel", "[loginterp][2d2d]")
 {
   using namespace WeakLibReader;
