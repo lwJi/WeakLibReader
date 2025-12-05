@@ -156,14 +156,16 @@ TEST_CASE("Upper-endpoint queries are treated as in-range", "[interp][boundary]"
   const int extents[1] = {2};
   const Layout layout = MakeLayout(extents, 1);
 
-  Axis axes[5] = {};
-  axes[0] = MakeAxis(grid.data(), 2, AxisScale::Linear);
+  Axis axes[1] = {MakeAxis(grid.data(), 2, AxisScale::Linear)};
 
-  InterpConfig cfg;
-  cfg.outOfRange = OutOfRangePolicy::FillNaN;
+  int idx = 0;
+  double frac = 0.0;
+  const bool outOfRange = detail::IndexAndDelta(axes[0], 2.0, idx, frac);
+  CHECK_FALSE(outOfRange);
 
-  double coords[5] = {2.0, 0.0, 0.0, 0.0, 0.0};
-  const double result = InterpLinearND(values.data(), layout, axes, coords, cfg, 1);
+  int indices[5] = {idx, 0, 0, 0, 0};
+  double fracs[5] = {frac, 0.0, 0.0, 0.0, 0.0};
+  const double result = detail::InterpCorner(values.data(), layout, indices, fracs, 1);
 
   CHECK(result == Catch::Approx(values[1]).margin(kTol));
 }

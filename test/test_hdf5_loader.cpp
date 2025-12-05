@@ -166,9 +166,6 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
 
   const auto view = table.View();
   double coords[5] = {0.3, 1.5, 2.5, 0.0, 0.0};
-  WeakLibReader::InterpConfig cfg;
-  const double interp = WeakLibReader::InterpLinearND(
-      view.data, view.layout, view.axes, coords, cfg, view.nd);
 
   int idx0 = 0;
   int idx1 = 0;
@@ -180,6 +177,11 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
   REQUIRE_FALSE(WeakLibReader::detail::IndexAndDelta(view.axes[0], coords[0], idx0, frac0));
   REQUIRE_FALSE(WeakLibReader::detail::IndexAndDelta(view.axes[1], coords[1], idx1, frac1));
   REQUIRE_FALSE(WeakLibReader::detail::IndexAndDelta(view.axes[2], coords[2], idx2, frac2));
+
+  int indices[5] = {idx0, idx1, idx2, 0, 0};
+  double frac[5] = {frac0, frac1, frac2, 0.0, 0.0};
+  const double interp = WeakLibReader::detail::InterpCorner(
+      view.data, view.layout, indices, frac, view.nd);
 
   const double expected =
       (static_cast<double>(idx0) + frac0) +
