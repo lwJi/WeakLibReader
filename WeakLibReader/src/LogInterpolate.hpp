@@ -7,7 +7,7 @@
 
 #include "InterpLogTable.hpp"
 #include "Math.hpp"
-#include "WeakLibReader.hpp"
+#include "AxisTypes.hpp"
 
 namespace WeakLibReader {
 namespace detail {

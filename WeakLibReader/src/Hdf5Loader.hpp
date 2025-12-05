@@ -17,7 +17,7 @@
 #include <vector>
 
 #include "Layout.hpp"
-#include "WeakLibReader.hpp"
+#include "AxisTypes.hpp"
 
 #include <hdf5.h>
 

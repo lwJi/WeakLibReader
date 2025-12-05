@@ -3,7 +3,7 @@
 #include "LogInterpolate.hpp"
 #include "InterpLogTable.hpp"
 #include "Layout.hpp"
-#include "WeakLibReader.hpp"
+#include "AxisTypes.hpp"
 
 #include <array>
 #include <cmath>
