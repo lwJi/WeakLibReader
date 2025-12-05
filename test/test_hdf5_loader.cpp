@@ -199,3 +199,36 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
 
   std::filesystem::remove(filePath);
 }
+
+TEST_CASE("HDF5 loader rejects single-point axes", "[hdf5][loader][validation]")
+{
+  AmrexGuard amrex{};
+
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_hdf5_single_axis.h5";
+
+  const hsize_t dims[1] = {1};
+  const double payload = 3.14;
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  hid_t space = H5Screate_simple(1, dims, nullptr);
+  hid_t dataset = H5Dcreate(file, "values", H5T_IEEE_F64LE, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(dataset >= 0);
+  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &payload);
+  H5Dclose(dataset);
+  H5Sclose(space);
+
+  CreateAxisDataset(file, "axis0", {0.0}, "Linear");
+
+  H5Fclose(file);
+
+  WeakLibReader::Hdf5Table table;
+  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+
+  CHECK(status == WeakLibReader::Hdf5LoadStatus::AxisNotMonotone);
+
+  std::filesystem::remove(filePath);
+}
