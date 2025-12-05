@@ -68,21 +68,6 @@ double LogInterpolatedValueDirect(const double* data,
   return LinearInterpPointDirect<ND>(indices, fractions, offset, data, layout);
 }
 
-// Legacy runtime-dispatch version (kept for backward compatibility, but inefficient on GPU)
-// Prefer using LogInterpolatedValueDirect<ND> with compile-time ND when possible
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double LogInterpolatedValue(const double* data,
-                            const Layout& layout,
-                            const Axis axes[5],
-                            const double coords[5],
-                            double offset,
-                            const InterpConfig& cfg,
-                            int nd) noexcept
-{
-  const double logValue = InterpLinearND(data, layout, axes, coords, cfg, nd);
-  return math::Pow10(logValue) - offset;
-}
-
 inline void StoreSymmetric(double* plane, std::size_t size,
                            std::size_t i, std::size_t j,
                            double value) noexcept
