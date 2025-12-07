@@ -223,3 +223,266 @@ TEST_CASE("HDF5 loader rejects single-point axes", "[hdf5][loader][validation]")
 
   std::filesystem::remove(filePath);
 }
+
+TEST_CASE("HDF5 loader returns FileOpenFailed for non-existent file", "[hdf5][loader][error]")
+{
+  AmrexGuard amrex{};
+
+  WeakLibReader::Hdf5Table table;
+  const auto status = WeakLibReader::LoadHdf5Table("/nonexistent/path/to/file.h5", table);
+
+  CHECK(status == WeakLibReader::Hdf5LoadStatus::FileOpenFailed);
+}
+
+TEST_CASE("HDF5 loader returns DatasetOpenFailed for missing values dataset", "[hdf5][loader][error]")
+{
+  AmrexGuard amrex{};
+
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_hdf5_no_values.h5";
+
+  // Create file with no "values" dataset
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  // Just create an axis dataset, no values
+  CreateAxisDataset(file, "axis0", {0.0, 1.0}, "Linear");
+
+  H5Fclose(file);
+
+  WeakLibReader::Hdf5Table table;
+  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+
+  CHECK(status == WeakLibReader::Hdf5LoadStatus::DatasetOpenFailed);
+
+  std::filesystem::remove(filePath);
+}
+
+TEST_CASE("HDF5 loader returns AxisDatasetOpenFailed for missing axis", "[hdf5][loader][error]")
+{
+  AmrexGuard amrex{};
+
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_hdf5_missing_axis.h5";
+
+  // Create file with values dataset but missing axis1
+  const hsize_t dims[2] = {3, 2}; // 2D dataset needs axis0 and axis1
+  std::vector<double> rawData(6, 1.0);
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  hid_t space = H5Screate_simple(2, dims, nullptr);
+  hid_t dataset = H5Dcreate(file, "values", H5T_IEEE_F64LE, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, rawData.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+
+  // Only create axis0, not axis1
+  CreateAxisDataset(file, "axis0", {0.0, 1.0}, "Linear");
+
+  H5Fclose(file);
+
+  WeakLibReader::Hdf5Table table;
+  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+
+  CHECK(status == WeakLibReader::Hdf5LoadStatus::AxisDatasetOpenFailed);
+
+  std::filesystem::remove(filePath);
+}
+
+TEST_CASE("HDF5 loader returns AxisExtentMismatch when axis size differs from values", "[hdf5][loader][error]")
+{
+  AmrexGuard amrex{};
+
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_hdf5_extent_mismatch.h5";
+
+  const hsize_t dims[2] = {3, 2}; // values has shape 3x2
+  std::vector<double> rawData(6, 1.0);
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  hid_t space = H5Screate_simple(2, dims, nullptr);
+  hid_t dataset = H5Dcreate(file, "values", H5T_IEEE_F64LE, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, rawData.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+
+  // axis0 should have 2 elements, but we create 3
+  CreateAxisDataset(file, "axis0", {0.0, 1.0, 2.0}, "Linear"); // Wrong size!
+  CreateAxisDataset(file, "axis1", {0.0, 1.0, 2.0}, "Linear");
+
+  H5Fclose(file);
+
+  WeakLibReader::Hdf5Table table;
+  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+
+  CHECK(status == WeakLibReader::Hdf5LoadStatus::AxisExtentMismatch);
+
+  std::filesystem::remove(filePath);
+}
+
+TEST_CASE("HDF5 loader returns AxisInvalidScale for unknown scale attribute", "[hdf5][loader][error]")
+{
+  AmrexGuard amrex{};
+
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_hdf5_invalid_scale.h5";
+
+  const hsize_t dims[1] = {3};
+  std::vector<double> rawData(3, 1.0);
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  hid_t space = H5Screate_simple(1, dims, nullptr);
+  hid_t dataset = H5Dcreate(file, "values", H5T_IEEE_F64LE, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, rawData.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+
+  // Use invalid scale attribute
+  CreateAxisDataset(file, "axis0", {0.0, 1.0, 2.0}, "InvalidScaleType");
+
+  H5Fclose(file);
+
+  WeakLibReader::Hdf5Table table;
+  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+
+  CHECK(status == WeakLibReader::Hdf5LoadStatus::AxisInvalidScale);
+
+  std::filesystem::remove(filePath);
+}
+
+TEST_CASE("HDF5 loader returns AxisNotMonotone for non-monotonic axis", "[hdf5][loader][error]")
+{
+  AmrexGuard amrex{};
+
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_hdf5_nonmonotonic.h5";
+
+  const hsize_t dims[1] = {3};
+  std::vector<double> rawData(3, 1.0);
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  hid_t space = H5Screate_simple(1, dims, nullptr);
+  hid_t dataset = H5Dcreate(file, "values", H5T_IEEE_F64LE, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, rawData.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+
+  // Non-monotonic axis (1.0, 3.0, 2.0) - not ascending
+  CreateAxisDataset(file, "axis0", {1.0, 3.0, 2.0}, "Linear");
+
+  H5Fclose(file);
+
+  WeakLibReader::Hdf5Table table;
+  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+
+  CHECK(status == WeakLibReader::Hdf5LoadStatus::AxisNotMonotone);
+
+  std::filesystem::remove(filePath);
+}
+
+TEST_CASE("HDF5 loader returns AxisNotMonotone for descending axis", "[hdf5][loader][error]")
+{
+  AmrexGuard amrex{};
+
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_hdf5_descending.h5";
+
+  const hsize_t dims[1] = {3};
+  std::vector<double> rawData(3, 1.0);
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  hid_t space = H5Screate_simple(1, dims, nullptr);
+  hid_t dataset = H5Dcreate(file, "values", H5T_IEEE_F64LE, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, rawData.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+
+  // Descending axis (3.0, 2.0, 1.0) - not ascending
+  CreateAxisDataset(file, "axis0", {3.0, 2.0, 1.0}, "Linear");
+
+  H5Fclose(file);
+
+  WeakLibReader::Hdf5Table table;
+  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+
+  CHECK(status == WeakLibReader::Hdf5LoadStatus::AxisNotMonotone);
+
+  std::filesystem::remove(filePath);
+}
+
+TEST_CASE("HDF5 loader returns AxisNotMonotone for Log10 axis with non-positive values", "[hdf5][loader][error]")
+{
+  AmrexGuard amrex{};
+
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_hdf5_log_nonpositive.h5";
+
+  const hsize_t dims[1] = {3};
+  std::vector<double> rawData(3, 1.0);
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  hid_t space = H5Screate_simple(1, dims, nullptr);
+  hid_t dataset = H5Dcreate(file, "values", H5T_IEEE_F64LE, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, rawData.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+
+  // Log10 axis with non-positive value (includes 0)
+  CreateAxisDataset(file, "axis0", {0.0, 1.0, 2.0}, "Log10");
+
+  H5Fclose(file);
+
+  WeakLibReader::Hdf5Table table;
+  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+
+  CHECK(status == WeakLibReader::Hdf5LoadStatus::AxisNotMonotone);
+
+  std::filesystem::remove(filePath);
+}
+
+TEST_CASE("HDF5 loader returns DatasetRankInvalid for 0D dataset", "[hdf5][loader][error]")
+{
+  AmrexGuard amrex{};
+
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_hdf5_0d.h5";
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  // Create scalar (0D) dataset
+  hid_t space = H5Screate(H5S_SCALAR);
+  hid_t dataset = H5Dcreate(file, "values", H5T_IEEE_F64LE, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  double scalar = 1.0;
+  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &scalar);
+  H5Dclose(dataset);
+  H5Sclose(space);
+
+  H5Fclose(file);
+
+  WeakLibReader::Hdf5Table table;
+  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+
+  CHECK(status == WeakLibReader::Hdf5LoadStatus::DatasetRankInvalid);
+
+  std::filesystem::remove(filePath);
+}
