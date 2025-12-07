@@ -871,3 +871,490 @@ TEST_CASE("Template instantiation compiles for all dimensions", "[compile-time]"
   // If we get here, all templates instantiated successfully
   CHECK(true);
 }
+
+TEST_CASE("3D log interpolation matches trilinear expectation", "[loginterp][3d]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 2> gridX{1.0, 2.0};
+  const std::array<double, 2> gridY{1.0, 3.0};
+  const std::array<double, 2> gridZ{0.0, 1.0};
+
+  // Build a 2x2x2 table with known values
+  const int extents[3] = {2, 2, 2};
+  const Layout layout = MakeLayout(extents, 3);
+  std::array<double, 8> table{};
+  auto actual = [](double x, double y, double z) {
+    return 2.0 + 0.5 * x + 0.3 * y + 0.2 * z;
+  };
+  for (int ix = 0; ix < 2; ++ix) {
+    for (int iy = 0; iy < 2; ++iy) {
+      for (int iz = 0; iz < 2; ++iz) {
+        table[layout.Offset(ix, iy, iz)] =
+            std::log10(actual(gridX[ix], gridY[iy], gridZ[iz]));
+      }
+    }
+  }
+
+  const double x = 1.5;
+  const double y = 2.0;
+  const double z = 0.4;
+  const double result = LogInterpolateSingleVariable3DCustomPoint(
+      x, y, z,
+      gridX.data(), 2,
+      gridY.data(), 2,
+      gridZ.data(), 2,
+      table.data(), 0.0);
+
+  // Compute expected via trilinear interpolation in log space
+  const double dX = (x - gridX[0]) / (gridX[1] - gridX[0]);
+  const double dY = (y - gridY[0]) / (gridY[1] - gridY[0]);
+  const double dZ = (z - gridZ[0]) / (gridZ[1] - gridZ[0]);
+
+  const double c000 = table[layout.Offset(0, 0, 0)];
+  const double c100 = table[layout.Offset(1, 0, 0)];
+  const double c010 = table[layout.Offset(0, 1, 0)];
+  const double c110 = table[layout.Offset(1, 1, 0)];
+  const double c001 = table[layout.Offset(0, 0, 1)];
+  const double c101 = table[layout.Offset(1, 0, 1)];
+  const double c011 = table[layout.Offset(0, 1, 1)];
+  const double c111 = table[layout.Offset(1, 1, 1)];
+
+  const double c00 = (1 - dX) * c000 + dX * c100;
+  const double c10 = (1 - dX) * c010 + dX * c110;
+  const double c01 = (1 - dX) * c001 + dX * c101;
+  const double c11 = (1 - dX) * c011 + dX * c111;
+  const double c0 = (1 - dY) * c00 + dY * c10;
+  const double c1 = (1 - dY) * c01 + dY * c11;
+  const double logExpected = (1 - dZ) * c0 + dZ * c1;
+  const double expected = std::pow(10.0, logExpected);
+
+  CHECK(result == Catch::Approx(expected).margin(kTol));
+}
+
+TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][batch]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 2> gridX{1.0, 2.0};
+  const std::array<double, 2> gridY{1.0, 3.0};
+  const std::array<double, 2> gridZ{0.0, 1.0};
+
+  const int extents[3] = {2, 2, 2};
+  const Layout layout = MakeLayout(extents, 3);
+  std::array<double, 8> table{};
+  for (int ix = 0; ix < 2; ++ix) {
+    for (int iy = 0; iy < 2; ++iy) {
+      for (int iz = 0; iz < 2; ++iz) {
+        table[layout.Offset(ix, iy, iz)] =
+            std::log10(2.0 + 0.5 * gridX[ix] + 0.3 * gridY[iy] + 0.2 * gridZ[iz]);
+      }
+    }
+  }
+
+  std::array<double, 3> x0{1.0, 1.5, 2.0};
+  std::array<double, 3> x1{1.0, 2.0, 3.0};
+  std::array<double, 3> x2{0.0, 0.5, 1.0};
+  std::array<double, 3> out{};
+
+  const int rc = LogInterpolateSingleVariable3DCustom(
+      x0.data(), x1.data(), x2.data(), x0.size(),
+      gridX.data(), 2,
+      gridY.data(), 2,
+      gridZ.data(), 2,
+      table.data(),
+      0.0,
+      out.data());
+  REQUIRE(rc == 0);
+
+  for (std::size_t i = 0; i < x0.size(); ++i) {
+    const double point = LogInterpolateSingleVariable3DCustomPoint(
+        x0[i], x1[i], x2[i],
+        gridX.data(), 2,
+        gridY.data(), 2,
+        gridZ.data(), 2,
+        table.data(),
+        0.0);
+    CHECK(out[i] == Catch::Approx(point).margin(kTol));
+  }
+}
+
+TEST_CASE("4D log interpolation matches quadrilinear expectation", "[loginterp][4d]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 2> gridA{1.0, 2.0};
+  const std::array<double, 2> gridB{1.0, 3.0};
+  const std::array<double, 2> gridC{0.0, 1.0};
+  const std::array<double, 2> gridD{5.0, 9.0};
+
+  const int extents[4] = {2, 2, 2, 2};
+  const Layout layout = MakeLayout(extents, 4);
+  std::array<double, 16> table{};
+  auto actual = [](double a, double b, double c, double d) {
+    return 1.0 + 0.2 * a + 0.3 * b + 0.4 * c + 0.1 * d;
+  };
+  for (int ia = 0; ia < 2; ++ia) {
+    for (int ib = 0; ib < 2; ++ib) {
+      for (int ic = 0; ic < 2; ++ic) {
+        for (int id = 0; id < 2; ++id) {
+          table[layout.Offset(ia, ib, ic, id)] =
+              std::log10(actual(gridA[ia], gridB[ib], gridC[ic], gridD[id]));
+        }
+      }
+    }
+  }
+
+  const double a = 1.5;
+  const double b = 2.0;
+  const double c = 0.4;
+  const double d = 7.0;
+  const double result = LogInterpolateSingleVariable4DCustomPoint(
+      a, b, c, d,
+      gridA.data(), 2,
+      gridB.data(), 2,
+      gridC.data(), 2,
+      gridD.data(), 2,
+      table.data(), 0.0);
+
+  // Verify by computing via 4D wrapper
+  Axis axes[4] = {
+      MakeAxis(gridA.data(), 2, AxisScale::Linear),
+      MakeAxis(gridB.data(), 2, AxisScale::Linear),
+      MakeAxis(gridC.data(), 2, AxisScale::Linear),
+      MakeAxis(gridD.data(), 2, AxisScale::Linear)};
+  double coords[4] = {a, b, c, d};
+  const double expected = detail::LogInterpolatedValueDirect<4>(
+      table.data(), layout, axes, coords, 0.0, InterpConfig{});
+
+  CHECK(result == Catch::Approx(expected).margin(kTol));
+}
+
+TEST_CASE("Batch 4D log interpolation matches point wrapper", "[loginterp][4d][batch]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 2> gridA{1.0, 2.0};
+  const std::array<double, 2> gridB{1.0, 3.0};
+  const std::array<double, 2> gridC{0.0, 1.0};
+  const std::array<double, 2> gridD{5.0, 9.0};
+
+  const int extents[4] = {2, 2, 2, 2};
+  const Layout layout = MakeLayout(extents, 4);
+  std::array<double, 16> table{};
+  for (int ia = 0; ia < 2; ++ia) {
+    for (int ib = 0; ib < 2; ++ib) {
+      for (int ic = 0; ic < 2; ++ic) {
+        for (int id = 0; id < 2; ++id) {
+          table[layout.Offset(ia, ib, ic, id)] =
+              std::log10(1.0 + 0.2 * gridA[ia] + 0.3 * gridB[ib] +
+                         0.4 * gridC[ic] + 0.1 * gridD[id]);
+        }
+      }
+    }
+  }
+
+  std::array<double, 3> x0{1.0, 1.5, 2.0};
+  std::array<double, 3> x1{1.0, 2.0, 3.0};
+  std::array<double, 3> x2{0.0, 0.5, 1.0};
+  std::array<double, 3> x3{5.0, 7.0, 9.0};
+  std::array<double, 3> out{};
+
+  const int rc = LogInterpolateSingleVariable4DCustom(
+      x0.data(), x1.data(), x2.data(), x3.data(), x0.size(),
+      gridA.data(), 2,
+      gridB.data(), 2,
+      gridC.data(), 2,
+      gridD.data(), 2,
+      table.data(),
+      0.0,
+      out.data());
+  REQUIRE(rc == 0);
+
+  for (std::size_t i = 0; i < x0.size(); ++i) {
+    const double point = LogInterpolateSingleVariable4DCustomPoint(
+        x0[i], x1[i], x2[i], x3[i],
+        gridA.data(), 2,
+        gridB.data(), 2,
+        gridC.data(), 2,
+        gridD.data(), 2,
+        table.data(),
+        0.0);
+    CHECK(out[i] == Catch::Approx(point).margin(kTol));
+  }
+}
+
+TEST_CASE("5D log interpolation via LinearInterp5DPoint", "[loginterp][5d]")
+{
+  using namespace WeakLibReader;
+
+  const std::array<double, 2> grid0{1.0, 2.0};
+  const std::array<double, 2> grid1{1.0, 3.0};
+  const std::array<double, 2> grid2{0.0, 1.0};
+  const std::array<double, 2> grid3{5.0, 9.0};
+  const std::array<double, 2> grid4{10.0, 20.0};
+
+  const int extents[5] = {2, 2, 2, 2, 2};
+  const Layout layout = MakeLayout(extents, 5);
+  std::array<double, 32> table{};
+  auto actual = [](double a, double b, double c, double d, double e) {
+    return 1.0 + 0.1 * a + 0.2 * b + 0.3 * c + 0.05 * d + 0.02 * e;
+  };
+  for (int i0 = 0; i0 < 2; ++i0) {
+    for (int i1 = 0; i1 < 2; ++i1) {
+      for (int i2 = 0; i2 < 2; ++i2) {
+        for (int i3 = 0; i3 < 2; ++i3) {
+          for (int i4 = 0; i4 < 2; ++i4) {
+            table[layout.Offset(i0, i1, i2, i3, i4)] =
+                std::log10(actual(grid0[i0], grid1[i1], grid2[i2],
+                                  grid3[i3], grid4[i4]));
+          }
+        }
+      }
+    }
+  }
+
+  // Test point
+  const double x0 = 1.5;
+  const double x1 = 2.0;
+  const double x2 = 0.4;
+  const double x3 = 7.0;
+  const double x4 = 15.0;
+
+  // Compute fractions
+  const double d0 = (x0 - grid0[0]) / (grid0[1] - grid0[0]);
+  const double d1 = (x1 - grid1[0]) / (grid1[1] - grid1[0]);
+  const double d2 = (x2 - grid2[0]) / (grid2[1] - grid2[0]);
+  const double d3 = (x3 - grid3[0]) / (grid3[1] - grid3[0]);
+  const double d4 = (x4 - grid4[0]) / (grid4[1] - grid4[0]);
+
+  const double result = LinearInterp5DPoint(
+      0, 0, 0, 0, 0,
+      d0, d1, d2, d3, d4,
+      0.0,
+      table.data(),
+      layout);
+
+  // Compute expected using PentaLinear directly
+  const double p00000 = table[layout.Offset(0, 0, 0, 0, 0)];
+  const double p10000 = table[layout.Offset(1, 0, 0, 0, 0)];
+  const double p01000 = table[layout.Offset(0, 1, 0, 0, 0)];
+  const double p11000 = table[layout.Offset(1, 1, 0, 0, 0)];
+  const double p00100 = table[layout.Offset(0, 0, 1, 0, 0)];
+  const double p10100 = table[layout.Offset(1, 0, 1, 0, 0)];
+  const double p01100 = table[layout.Offset(0, 1, 1, 0, 0)];
+  const double p11100 = table[layout.Offset(1, 1, 1, 0, 0)];
+  const double p00010 = table[layout.Offset(0, 0, 0, 1, 0)];
+  const double p10010 = table[layout.Offset(1, 0, 0, 1, 0)];
+  const double p01010 = table[layout.Offset(0, 1, 0, 1, 0)];
+  const double p11010 = table[layout.Offset(1, 1, 0, 1, 0)];
+  const double p00110 = table[layout.Offset(0, 0, 1, 1, 0)];
+  const double p10110 = table[layout.Offset(1, 0, 1, 1, 0)];
+  const double p01110 = table[layout.Offset(0, 1, 1, 1, 0)];
+  const double p11110 = table[layout.Offset(1, 1, 1, 1, 0)];
+  const double p00001 = table[layout.Offset(0, 0, 0, 0, 1)];
+  const double p10001 = table[layout.Offset(1, 0, 0, 0, 1)];
+  const double p01001 = table[layout.Offset(0, 1, 0, 0, 1)];
+  const double p11001 = table[layout.Offset(1, 1, 0, 0, 1)];
+  const double p00101 = table[layout.Offset(0, 0, 1, 0, 1)];
+  const double p10101 = table[layout.Offset(1, 0, 1, 0, 1)];
+  const double p01101 = table[layout.Offset(0, 1, 1, 0, 1)];
+  const double p11101 = table[layout.Offset(1, 1, 1, 0, 1)];
+  const double p00011 = table[layout.Offset(0, 0, 0, 1, 1)];
+  const double p10011 = table[layout.Offset(1, 0, 0, 1, 1)];
+  const double p01011 = table[layout.Offset(0, 1, 0, 1, 1)];
+  const double p11011 = table[layout.Offset(1, 1, 0, 1, 1)];
+  const double p00111 = table[layout.Offset(0, 0, 1, 1, 1)];
+  const double p10111 = table[layout.Offset(1, 0, 1, 1, 1)];
+  const double p01111 = table[layout.Offset(0, 1, 1, 1, 1)];
+  const double p11111 = table[layout.Offset(1, 1, 1, 1, 1)];
+
+  const double logExpected = PentaLinear(
+      p00000, p10000, p01000, p11000,
+      p00100, p10100, p01100, p11100,
+      p00010, p10010, p01010, p11010,
+      p00110, p10110, p01110, p11110,
+      p00001, p10001, p01001, p11001,
+      p00101, p10101, p01101, p11101,
+      p00011, p10011, p01011, p11011,
+      p00111, p10111, p01111, p11111,
+      d0, d1, d2, d3, d4);
+  const double expected = std::pow(10.0, logExpected);
+
+  CHECK(result == Catch::Approx(expected).margin(kTol));
+}
+
+TEST_CASE("PentaLinear reduces to TetraLinear at boundaries", "[loginterp][5d][pentalinear]")
+{
+  using namespace WeakLibReader;
+
+  // When dX5 = 0, PentaLinear should equal the "lo" TetraLinear
+  const double p00000 = 0.1, p10000 = 0.2, p01000 = 0.15, p11000 = 0.25;
+  const double p00100 = 0.12, p10100 = 0.22, p01100 = 0.17, p11100 = 0.27;
+  const double p00010 = 0.11, p10010 = 0.21, p01010 = 0.16, p11010 = 0.26;
+  const double p00110 = 0.13, p10110 = 0.23, p01110 = 0.18, p11110 = 0.28;
+  const double p00001 = 0.3, p10001 = 0.4, p01001 = 0.35, p11001 = 0.45;
+  const double p00101 = 0.32, p10101 = 0.42, p01101 = 0.37, p11101 = 0.47;
+  const double p00011 = 0.31, p10011 = 0.41, p01011 = 0.36, p11011 = 0.46;
+  const double p00111 = 0.33, p10111 = 0.43, p01111 = 0.38, p11111 = 0.48;
+
+  const double dX1 = 0.3, dX2 = 0.4, dX3 = 0.5, dX4 = 0.6;
+
+  // dX5 = 0 should give the "lo" tetralinear result
+  const double penta0 = PentaLinear(
+      p00000, p10000, p01000, p11000,
+      p00100, p10100, p01100, p11100,
+      p00010, p10010, p01010, p11010,
+      p00110, p10110, p01110, p11110,
+      p00001, p10001, p01001, p11001,
+      p00101, p10101, p01101, p11101,
+      p00011, p10011, p01011, p11011,
+      p00111, p10111, p01111, p11111,
+      dX1, dX2, dX3, dX4, 0.0);
+
+  const double tetraLo = TetraLinear(
+      p00000, p10000, p01000, p11000,
+      p00100, p10100, p01100, p11100,
+      p00010, p10010, p01010, p11010,
+      p00110, p10110, p01110, p11110,
+      dX1, dX2, dX3, dX4);
+
+  CHECK(penta0 == Catch::Approx(tetraLo).margin(kTol));
+
+  // dX5 = 1 should give the "hi" tetralinear result
+  const double penta1 = PentaLinear(
+      p00000, p10000, p01000, p11000,
+      p00100, p10100, p01100, p11100,
+      p00010, p10010, p01010, p11010,
+      p00110, p10110, p01110, p11110,
+      p00001, p10001, p01001, p11001,
+      p00101, p10101, p01101, p11101,
+      p00011, p10011, p01011, p11011,
+      p00111, p10111, p01111, p11111,
+      dX1, dX2, dX3, dX4, 1.0);
+
+  const double tetraHi = TetraLinear(
+      p00001, p10001, p01001, p11001,
+      p00101, p10101, p01101, p11101,
+      p00011, p10011, p01011, p11011,
+      p00111, p10111, p01111, p11111,
+      dX1, dX2, dX3, dX4);
+
+  CHECK(penta1 == Catch::Approx(tetraHi).margin(kTol));
+}
+
+TEST_CASE("Non-aligned 2D2D single point interpolation", "[loginterp][2d2d][nonaligned]")
+{
+  using namespace WeakLibReader;
+
+  constexpr std::size_t sizeE = 2;
+  const std::array<double, sizeE> gridE{1.0, 2.0};
+  const std::array<double, 2> gridT{1.0, 2.0};
+  const std::array<double, 2> gridX{1.0, 3.0};
+
+  const int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), 2, 2};
+  const Layout layout = MakeLayout(extents, 4);
+  std::array<double, sizeE * sizeE * 2 * 2> table{};
+  for (std::size_t e0 = 0; e0 < sizeE; ++e0) {
+    for (std::size_t e1 = 0; e1 < sizeE; ++e1) {
+      for (int t = 0; t < 2; ++t) {
+        for (int x = 0; x < 2; ++x) {
+          const double actual = 1.0 + 0.1 * gridE[e0] + 0.2 * gridE[e1] +
+                                0.3 * gridT[t] + 0.4 * gridX[x];
+          table[layout.Offset(static_cast<int>(e0), static_cast<int>(e1), t, x)] =
+              std::log10(actual);
+        }
+      }
+    }
+  }
+
+  const double logT = 1.4;
+  const double logX = 2.0;
+  std::array<double, sizeE * sizeE> out{};
+
+  const int rc = LogInterpolateSingleVariable2D2DCustomPoint(
+      gridE.data(), sizeE, logT, logX,
+      gridE.data(), static_cast<int>(sizeE),
+      gridT.data(), 2,
+      gridX.data(), 2,
+      table.data(), 0.0, out.data());
+  REQUIRE(rc == 0);
+
+  // Verify output against direct 4D interpolation
+  // The function uses symmetric storage: out[i,j] = out[j,i] = interp(E[i], E[j], T, X)
+  Axis axes[4] = {
+      MakeAxis(gridE.data(), static_cast<int>(sizeE), AxisScale::Linear),
+      MakeAxis(gridE.data(), static_cast<int>(sizeE), AxisScale::Linear),
+      MakeAxis(gridT.data(), 2, AxisScale::Linear),
+      MakeAxis(gridX.data(), 2, AxisScale::Linear)};
+
+  for (std::size_t j = 0; j < sizeE; ++j) {
+    for (std::size_t i = 0; i <= j; ++i) {
+      // For i <= j, coords are (E[i], E[j], T, X)
+      double coords[4] = {gridE[i], gridE[j], logT, logX};
+      const double expected = detail::LogInterpolatedValueDirect<4>(
+          table.data(), layout, axes, coords, 0.0, InterpConfig{});
+      // Check both symmetric positions
+      const std::size_t lower = j * sizeE + i;
+      const std::size_t upper = i * sizeE + j;
+      CHECK(out[lower] == Catch::Approx(expected).margin(kTol));
+      CHECK(out[upper] == Catch::Approx(expected).margin(kTol));
+    }
+  }
+}
+
+TEST_CASE("Non-aligned 2D2D batch interpolation", "[loginterp][2d2d][nonaligned][batch]")
+{
+  using namespace WeakLibReader;
+
+  constexpr std::size_t sizeE = 2;
+  constexpr std::size_t count = 2;
+  const std::array<double, sizeE> gridE{1.0, 2.0};
+  const std::array<double, 2> gridT{1.0, 2.0};
+  const std::array<double, 2> gridX{1.0, 3.0};
+
+  const int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), 2, 2};
+  const Layout layout = MakeLayout(extents, 4);
+  std::array<double, sizeE * sizeE * 2 * 2> table{};
+  for (std::size_t e0 = 0; e0 < sizeE; ++e0) {
+    for (std::size_t e1 = 0; e1 < sizeE; ++e1) {
+      for (int t = 0; t < 2; ++t) {
+        for (int x = 0; x < 2; ++x) {
+          const double actual = 1.0 + 0.1 * gridE[e0] + 0.2 * gridE[e1] +
+                                0.3 * gridT[t] + 0.4 * gridX[x];
+          table[layout.Offset(static_cast<int>(e0), static_cast<int>(e1), t, x)] =
+              std::log10(actual);
+        }
+      }
+    }
+  }
+
+  const std::array<double, count> logT{1.2, 1.8};
+  const std::array<double, count> logX{1.5, 2.5};
+  std::array<double, sizeE * sizeE * count> out{};
+
+  const int rc = LogInterpolateSingleVariable2D2DCustom(
+      gridE.data(), sizeE,
+      logT.data(), logX.data(), count,
+      gridE.data(), static_cast<int>(sizeE),
+      gridT.data(), 2,
+      gridX.data(), 2,
+      table.data(), 0.0, out.data());
+  REQUIRE(rc == 0);
+
+  // Verify against single point version
+  for (std::size_t l = 0; l < count; ++l) {
+    std::array<double, sizeE * sizeE> plane{};
+    const int rcPoint = LogInterpolateSingleVariable2D2DCustomPoint(
+        gridE.data(), sizeE, logT[l], logX[l],
+        gridE.data(), static_cast<int>(sizeE),
+        gridT.data(), 2,
+        gridX.data(), 2,
+        table.data(), 0.0, plane.data());
+    REQUIRE(rcPoint == 0);
+
+    for (std::size_t k = 0; k < sizeE * sizeE; ++k) {
+      CHECK(out[l * sizeE * sizeE + k] == Catch::Approx(plane[k]).margin(kTol));
+    }
+  }
+}

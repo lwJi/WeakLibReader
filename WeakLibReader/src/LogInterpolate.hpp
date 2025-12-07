@@ -100,6 +100,10 @@ inline void FillNaNVector(double* values, std::size_t count, std::size_t stride)
 
 inline bool ComputeLinearAxisScale(const Axis& axis, int idx, double& scale) noexcept
 {
+  if (axis.grid == nullptr) {
+    scale = std::numeric_limits<double>::quiet_NaN();
+    return false;
+  }
   const double span = axis.grid[idx + 1] - axis.grid[idx];
   if (!(span > 0.0)) {
     scale = std::numeric_limits<double>::quiet_NaN();
@@ -112,6 +116,10 @@ inline bool ComputeLinearAxisScale(const Axis& axis, int idx, double& scale) noe
 inline bool ComputeLogAxisScale(const Axis& axis, int idx, double coord,
                                 double& scale) noexcept
 {
+  if (axis.grid == nullptr) {
+    scale = std::numeric_limits<double>::quiet_NaN();
+    return false;
+  }
   if (!(coord > 0.0)) {
     scale = std::numeric_limits<double>::quiet_NaN();
     return false;
@@ -797,7 +805,7 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
     return 0;
   }
 
-  Axis axes[5] = {
+  Axis axes[4] = {
       MakeAxis(gridE, nE, AxisScale::Linear),
       MakeAxis(gridE, nE, AxisScale::Linear),
       MakeAxis(gridT, nT, AxisScale::Linear),
