@@ -11,6 +11,8 @@ CTestTestfile.cmake
 CMakeUserPresets.json
 .cmake/
 
+thoughts/
+
 # Compilation database
 compile_commands.json
 
