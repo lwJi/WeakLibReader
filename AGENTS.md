@@ -1,4 +1,4 @@
-# AGENTS.md
+# AGENTS Instructions
 
 ## Project Goal
 
