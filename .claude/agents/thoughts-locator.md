@@ -41,7 +41,7 @@ thoughts/
 │   ├── plans/       # Implementation plans
 │   ├── tickets/     # Ticket documentation
 │   └── prs/         # PR descriptions
-├── lwji/         # Personal thoughts (user-specific)
+├── lwji/            # Personal thoughts (user-specific)
 │   ├── tickets/
 │   └── notes/
 ├── global/          # Cross-repository thoughts
