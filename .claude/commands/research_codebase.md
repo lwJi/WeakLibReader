@@ -1,6 +1,7 @@
 ---
 description: Document codebase as-is with thoughts directory for historical context
 model: opus
+disable-model-invocation: true
 ---
 
 # Research Codebase
@@ -79,7 +80,7 @@ Then wait for the user's research query.
    - Answer the user's specific questions with concrete evidence
 
 5. **Gather metadata for the research document:**
-   - Run the `hack/spec_metadata.sh` script to generate all relevant metadata
+   - Run the `spec_metadata.sh` script to generate all relevant metadata
    - Filename: `thoughts/shared/research/YYYY-MM-DD-ENG-XXXX-description.md`
      - Format: `YYYY-MM-DD-ENG-XXXX-description.md` where:
        - YYYY-MM-DD is today's date
@@ -157,7 +158,8 @@ Then wait for the user's research query.
      - Create permalinks: `https://github.com/{owner}/{repo}/blob/{commit}/{file}#L{line}`
    - Replace local file references with permalinks in the document
 
-8. **Present findings:**
+8. **Sync and present findings:**
+   - Run `thoughts-sync.sh` to sync the thoughts directory
    - Present a concise summary of findings to the user
    - Include key file references for easy navigation
    - Ask if they have follow-up questions or need clarification
@@ -168,7 +170,7 @@ Then wait for the user's research query.
    - Add `last_updated_note: "Added follow-up research for [brief description]"` to frontmatter
    - Add a new section: `## Follow-up Research [timestamp]`
    - Spawn new sub-agents as needed for additional investigation
-   - Continue updating the document
+   - Continue updating the document and syncing
 
 ## Important notes:
 - Always use parallel Task agents to maximize efficiency and minimize context usage
