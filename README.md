@@ -4,50 +4,116 @@
 
 GPU-friendly C++ reimplementation of WeakLib's equation-of-state and opacity interpolators. The library mirrors the original Fortran routines under `ref/weaklib/`, provides AMReX-ready device functions, and ships with a lightweight regression suite.
 
+## Features
+
+- 1D-5D log-space interpolation with compile-time dimension dispatch
+- GPU-ready kernels (`AMREX_GPU_HOST_DEVICE` qualified)
+- Configurable out-of-range policies: `Clamp`, `Error`, `FillNaN`
+- Derivative computation for 2D-4D interpolation
+- HDF5 table loading with MPI broadcast support
+- Numerical parity with Fortran reference (≤1e-12 relative error)
+
 ## Requirements
 
 - CMake ≥ 3.18
 - C++17-capable compiler
-- AMReX headers (point `AMREX_ROOT` to your installation)
-- OpenMP runtime if AMReX was built with OpenMP (e.g. `libomp` on macOS)
-- HDF5 C library (for table loader + unit tests)
+- AMReX (point `AMREX_ROOT` to your installation)
+- OpenMP runtime
+- HDF5 C library
 
-## Configure & Build
+## Build
 
 ```bash
-# Configure (fill in your AMReX path; an installed AMReX CMake package is used when available)
-cmake -S . -B build \
-      -DCMAKE_BUILD_TYPE=Release \
-      -DAMREX_ROOT=/path/to/amrex \
-      -DOpenMP_CXX_FLAGS='-Xpreprocessor -fopenmp' \
-      -DOpenMP_CXX_LIB_NAMES=omp \
-      -DOpenMP_omp_LIBRARY=$(brew --prefix libomp)/lib/libomp.dylib
-
-# Build library + tests
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAMREX_ROOT=/path/to/amrex
 cmake --build build -j
 ```
 
-## Tests
-
+**macOS note:** If using Homebrew's libomp, add OpenMP flags:
 ```bash
-ctest --test-dir build -j
+-DOpenMP_CXX_FLAGS='-Xpreprocessor -fopenmp' \
+-DOpenMP_CXX_LIB_NAMES=omp \
+-DOpenMP_omp_LIBRARY=$(brew --prefix libomp)/lib/libomp.dylib
 ```
 
-The regression suite runs via a bundled Catch2-style shim. It exercises:
+## Test
 
-- 2D log interpolation vs. bilinear expectation
-- FillNaN out-of-range policy
-- Aligned 2D plane symmetry and weighted sums
-- Derivative wrappers (`LogInterpolateDifferentiateSingleVariable*`)
-- HDF5 loader round-trip into `amrex::TableData`
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+The suite exercises 2D-5D interpolation, out-of-range policies, derivatives, symmetric plane helpers, and HDF5 round-trips.
+
+## Usage Example
+
+```cpp
+#include "Hdf5Loader.hpp"
+#include "LogInterpolate.hpp"
+
+using namespace WeakLibReader;
+
+// Load table from HDF5
+Hdf5Table table;
+auto status = LoadHdf5Table("opacity.h5", table);
+if (status != Hdf5LoadStatus::Success) { /* handle error */ }
+
+// Get table view
+TableView view = table.View();
+
+// 3D interpolation at a single point
+double d = 1.0e10, t = 0.5, y = 300.0;
+InterpConfig cfg{OutOfRangePolicy::Clamp};
+double result = LogInterpolateSingleVariable3DCustomPoint(
+    d, t, y,
+    view.axes[0].grid, view.axes[0].n,
+    view.axes[1].grid, view.axes[1].n,
+    view.axes[2].grid, view.axes[2].n,
+    view.data, 0.0, cfg);
+```
+
+## API Overview
+
+### Core Types
+
+| Type | Description |
+|------|-------------|
+| `Axis` | Grid metadata: pointer, size, scale (Linear/Log10) |
+| `Layout` | Row-major strides for N-D data |
+| `InterpConfig` | Out-of-range policy configuration |
+| `Hdf5Table` | Host-side table storage (owns data + axes) |
+| `TableView` | Read-only view into loaded table |
+| `TableDevice` | Device-side table copy |
+
+### Key Functions
+
+| Function | Description |
+|----------|-------------|
+| `LoadHdf5Table()` | Load HDF5 into `amrex::TableData` |
+| `LoadHdf5TableParallel()` | MPI-aware loader (rank 0 reads, broadcasts) |
+| `MakeDeviceCopy()` | Copy host table to GPU device |
+| `LogInterpolateSingleVariable*DCustomPoint()` | Single-point N-D interpolation |
+| `LogInterpolateSingleVariable*DCustom()` | Batch N-D interpolation |
+| `LogInterpolateDifferentiateSingleVariable*()` | Interpolation with derivatives |
+
+### HDF5 File Format
+
+```
+/values              # N-D array (row-major layout)
+/axis0               # 1D array with "scale" attribute ("linear" or "log10")
+/axis1               # ...
+```
+
+## Project Structure
+
+```
+WeakLibReader/src/   # Header-only library (8 headers)
+ref/weaklib/         # Fortran reference implementation
+test/                # Regression tests (39 test cases)
+```
 
 ## Fortran Parity
 
-Original routines live under `ref/weaklib/`. The C++ API mirrors the Fortran functions (indices, weights, log handling) and targets ≤ 1e-12 relative agreement. Use the regression suite as a starting point when adding additional parity checks.
+Original routines live under `ref/weaklib/`. The C++ API mirrors Fortran functions (indices, weights, log handling) and targets ≤1e-12 relative agreement.
 
-## Notes
+## Contributing
 
-- The AMReX CUDA demo is a placeholder; integrate once the GPU kernels are ready.
-- Headers include `AMReX_GpuQualifiers.H` and `AMReX_Extension.H`; ensure your include path covers `${AMREX_ROOT}/include`.
-- HDF5 tables load into `amrex::TableData<double,4>`; for 5D datasets the final two axes are flattened when allocating the table storage while preserving the raw row-major layout for interpolation.
-- Use `LoadHdf5TableParallel` when running under MPI to let a single rank hit the filesystem and broadcast the loaded table to peers.
+PRs require CI pass. See `CLAUDE.md` for code conventions and design principles.
