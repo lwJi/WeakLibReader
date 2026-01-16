@@ -105,7 +105,7 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 ## Project Structure
 
 ```
-WeakLibReader/src/   # Header-only library (8 headers)
+src/                 # Header-only library (8 headers)
 ref/weaklib/         # Fortran reference implementation
 test/                # Regression tests (39 test cases)
 ```

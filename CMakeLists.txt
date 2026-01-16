@@ -62,8 +62,8 @@ endif()
 # Header-only library target
 add_library(WeakLibReader INTERFACE)
 target_include_directories(WeakLibReader INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/WeakLibReader/src>
-  $<INSTALL_INTERFACE:WeakLibReader/src>)
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+  $<INSTALL_INTERFACE:src>)
 target_link_libraries(WeakLibReader INTERFACE
   OpenMP::OpenMP_CXX
   HDF5::HDF5
