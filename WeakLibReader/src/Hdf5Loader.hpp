@@ -1,10 +1,5 @@
 #pragma once
 
-// Hdf5Loader.hpp - Umbrella header for HDF5 table loading
-//
-// This header includes all HDF5 loading functionality. Users should
-// continue to #include "Hdf5Loader.hpp" for the complete API.
-
 #include <AMReX_Arena.H>
 #include <AMReX_Array.H>
 #include <AMReX_GpuContainers.H>

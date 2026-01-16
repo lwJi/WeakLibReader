@@ -1,10 +1,5 @@
 #pragma once
 
-// InterpLogTableSlice.hpp - Aligned slice interpolation operations
-//
-// Functions for interpolating on pre-sliced arrays where leading
-// dimensions are fixed (aligned). Used for sweep operations.
-
 #include <AMReX_GpuQualifiers.H>
 
 #include "InterpLogTablePoint.hpp"

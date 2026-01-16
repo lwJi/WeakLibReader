@@ -11,15 +11,6 @@
 namespace WeakLibReader {
 namespace detail {
 
-// ============================================================================
-// GPU-Optimized Template-Based Interpolation Core Functions
-// ============================================================================
-// These templates use compile-time dimensionality (ND) to eliminate all
-// runtime branching, improving GPU performance by avoiding warp divergence.
-// The 'if constexpr' statements are resolved at compile time, generating
-// specialized code for each dimension with zero runtime overhead.
-// ============================================================================
-
 /// GPU-optimized log-interpolation using compile-time dimension dispatch
 /// @tparam ND Number of dimensions (1-5), known at compile time
 /// @param data Raw data array in row-major order (log10-stored values)
@@ -38,16 +29,9 @@ double LogInterpolatedValueDirect(const double* data,
                                   double offset,
                                   const InterpConfig& cfg) noexcept
 {
-  // Fixed-size arrays: compiler can optimize/unroll the loop below
   int indices[ND];
   double fractions[ND];
 
-  // Index lookup for each dimension
-  // Note: Loop used intentionally (not explicit unrolling) because:
-  // 1. Compile-time ND means loop fully unrolls automatically (zero overhead)
-  // 2. Keeps code maintainable across all dimensions (1D-5D)
-  // 3. Modern compilers generate identical code to hand-unrolled version
-  // 4. GPU: All threads execute same unrolled instructions (no divergence)
   for (int d = 0; d < ND; ++d) {
     bool out = IndexAndDelta(axes[d], coords[d], indices[d], fractions[d]);
     if (out) {
