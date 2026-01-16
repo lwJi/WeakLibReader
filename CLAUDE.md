@@ -42,9 +42,7 @@ test/
 ## Build & Test
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAMREX_ROOT=/path/to/amrex
-cmake --build build -j
-ctest --test-dir build --output-on-failure
+scripts/check.sh
 ```
 
 ## HDF5 Table Format
