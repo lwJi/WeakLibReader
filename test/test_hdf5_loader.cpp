@@ -41,6 +41,24 @@ struct AmrexGuard {
   AmrexGuard() { (void)GlobalAmrexGuard::Instance(); }
 };
 
+/// RAII helper that temporarily silences HDF5 automatic error printing.
+/// Used in tests that intentionally trigger HDF5 errors.
+struct ScopedHdf5ErrorSilencer {
+  H5E_auto2_t oldFunc = nullptr;
+  void* oldClientData = nullptr;
+
+  ScopedHdf5ErrorSilencer()
+  {
+    H5Eget_auto2(H5E_DEFAULT, &oldFunc, &oldClientData);
+    H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+  }
+
+  ~ScopedHdf5ErrorSilencer()
+  {
+    H5Eset_auto2(H5E_DEFAULT, oldFunc, oldClientData);
+  }
+};
+
 void WriteStringAttribute(hid_t parent, const std::string& name, const char* value)
 {
   hid_t type = H5Tcopy(H5T_C_S1);
@@ -227,6 +245,7 @@ TEST_CASE("HDF5 loader rejects single-point axes", "[hdf5][loader][validation]")
 TEST_CASE("HDF5 loader returns FileOpenFailed for non-existent file", "[hdf5][loader][error]")
 {
   AmrexGuard amrex{};
+  ScopedHdf5ErrorSilencer silencer{};
 
   WeakLibReader::Hdf5Table table;
   const auto status = WeakLibReader::LoadHdf5Table("/nonexistent/path/to/file.h5", table);
@@ -237,6 +256,7 @@ TEST_CASE("HDF5 loader returns FileOpenFailed for non-existent file", "[hdf5][lo
 TEST_CASE("HDF5 loader returns DatasetOpenFailed for missing values dataset", "[hdf5][loader][error]")
 {
   AmrexGuard amrex{};
+  ScopedHdf5ErrorSilencer silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_no_values.h5";
@@ -261,6 +281,7 @@ TEST_CASE("HDF5 loader returns DatasetOpenFailed for missing values dataset", "[
 TEST_CASE("HDF5 loader returns AxisDatasetOpenFailed for missing axis", "[hdf5][loader][error]")
 {
   AmrexGuard amrex{};
+  ScopedHdf5ErrorSilencer silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_missing_axis.h5";
@@ -295,6 +316,7 @@ TEST_CASE("HDF5 loader returns AxisDatasetOpenFailed for missing axis", "[hdf5][
 TEST_CASE("HDF5 loader returns AxisExtentMismatch when axis size differs from values", "[hdf5][loader][error]")
 {
   AmrexGuard amrex{};
+  ScopedHdf5ErrorSilencer silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_extent_mismatch.h5";
@@ -329,6 +351,7 @@ TEST_CASE("HDF5 loader returns AxisExtentMismatch when axis size differs from va
 TEST_CASE("HDF5 loader returns AxisInvalidScale for unknown scale attribute", "[hdf5][loader][error]")
 {
   AmrexGuard amrex{};
+  ScopedHdf5ErrorSilencer silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_invalid_scale.h5";
@@ -362,6 +385,7 @@ TEST_CASE("HDF5 loader returns AxisInvalidScale for unknown scale attribute", "[
 TEST_CASE("HDF5 loader returns AxisNotMonotone for non-monotonic axis", "[hdf5][loader][error]")
 {
   AmrexGuard amrex{};
+  ScopedHdf5ErrorSilencer silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_nonmonotonic.h5";
@@ -395,6 +419,7 @@ TEST_CASE("HDF5 loader returns AxisNotMonotone for non-monotonic axis", "[hdf5][
 TEST_CASE("HDF5 loader returns AxisNotMonotone for descending axis", "[hdf5][loader][error]")
 {
   AmrexGuard amrex{};
+  ScopedHdf5ErrorSilencer silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_descending.h5";
@@ -428,6 +453,7 @@ TEST_CASE("HDF5 loader returns AxisNotMonotone for descending axis", "[hdf5][loa
 TEST_CASE("HDF5 loader returns AxisNotMonotone for Log10 axis with non-positive values", "[hdf5][loader][error]")
 {
   AmrexGuard amrex{};
+  ScopedHdf5ErrorSilencer silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_log_nonpositive.h5";
@@ -461,6 +487,7 @@ TEST_CASE("HDF5 loader returns AxisNotMonotone for Log10 axis with non-positive 
 TEST_CASE("HDF5 loader returns DatasetRankInvalid for 0D dataset", "[hdf5][loader][error]")
 {
   AmrexGuard amrex{};
+  ScopedHdf5ErrorSilencer silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_0d.h5";
