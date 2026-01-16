@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <exception>
 #include <functional>
 #include <iostream>
@@ -50,6 +51,12 @@ inline TestContext& current_context()
 inline void reset_context()
 {
   current_context() = TestContext{};
+}
+
+inline bool is_verbose()
+{
+  static const bool verbose = (std::getenv("VERBOSE") != nullptr);
+  return verbose;
 }
 
 inline void report_failure(const char* expr, const char* file, int line, const std::string& message)
@@ -147,9 +154,12 @@ namespace simple_catch {
 
 inline int run_all()
 {
+  const bool verbose = is_verbose();
   int failures = 0;
   for (const TestCase& tc : registry()) {
-    std::cout << "[ RUN      ] " << tc.name << std::endl;
+    if (verbose) {
+      std::cout << "[ RUN      ] " << tc.name << std::endl;
+    }
     reset_context();
     try {
       tc.func();
@@ -160,7 +170,7 @@ inline int run_all()
     if (current_context().failed) {
       ++failures;
       std::cout << "[  FAILED ] " << tc.name << std::endl;
-    } else {
+    } else if (verbose) {
       std::cout << "[       OK ] " << tc.name << std::endl;
     }
   }
