@@ -7,16 +7,15 @@ Translate WeakLib's EOS & opacity **interpolators** from Fortran into **GPU-frie
 ## Repository Structure
 
 ```
-WeakLibReader/
-  src/                        # Core headers (public API + device helpers)
-    AxisTypes.hpp             # Axis, InterpConfig, AxisScale, OutOfRangePolicy
-    IndexDelta.hpp            # Linear/log10 indexing helpers
-    InterpBasis.hpp           # Linear through penta-linear basis routines
-    InterpLogTable.hpp        # Log-space point kernels and aligned slices
-    LogInterpolate.hpp        # High-level API: interpolation, derivatives, sweeps
-    Layout.hpp                # Row-major stride helpers
-    Math.hpp                  # GPU math utilities (Log10, Pow10)
-    Hdf5Loader.hpp            # HDF5 reader via amrex::TableData
+src/                          # Core headers (public API + device helpers)
+  AxisTypes.hpp               # Axis, InterpConfig, AxisScale, OutOfRangePolicy
+  IndexDelta.hpp              # Linear/log10 indexing helpers
+  InterpBasis.hpp             # Linear through penta-linear basis routines
+  InterpLogTable.hpp          # Log-space point kernels and aligned slices
+  LogInterpolate.hpp          # High-level API: interpolation, derivatives, sweeps
+  Layout.hpp                  # Row-major stride helpers
+  Math.hpp                    # GPU math utilities (Log10, Pow10)
+  Hdf5Loader.hpp              # HDF5 reader via amrex::TableData
 ref/weaklib/                  # Fortran reference implementation
 test/
   test_log_interpolate.cpp    # 28 interpolation tests (1D-5D, derivatives, policies)
