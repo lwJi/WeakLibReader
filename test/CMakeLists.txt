@@ -1,4 +1,5 @@
-add_executable(WeakLibReaderTests
+# All test files compiled into a single executable
+set(TEST_SOURCES
   test_log_interpolate_2d.cpp
   test_log_interpolate_3d.cpp
   test_log_interpolate_4d5d.cpp
@@ -8,14 +9,11 @@ add_executable(WeakLibReaderTests
   test_log_interpolate_kernel.cpp
   test_hdf5_loader.cpp)
 
-target_include_directories(WeakLibReaderTests
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_executable(WeakLibReaderTests ${TEST_SOURCES})
 
-target_link_libraries(WeakLibReaderTests
-  PRIVATE
-    WeakLibReader)
+target_include_directories(WeakLibReaderTests PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-add_test(
-  NAME WeakLibReader.LogInterpolation
-  COMMAND WeakLibReaderTests)
+target_link_libraries(WeakLibReaderTests PRIVATE WeakLibReader)
+
+add_test(NAME WeakLibReader.LogInterpolation COMMAND WeakLibReaderTests)
