@@ -1,10 +1,5 @@
 #pragma once
 
-// InterpLogTablePoint.hpp - 1D-5D point interpolation kernels
-//
-// Low-level log-space interpolation functions for single points.
-// Uses precomputed indices and fractions from IndexDelta.hpp.
-
 #include <AMReX_GpuQualifiers.H>
 
 #include "../InterpBasis.hpp"
@@ -161,10 +156,6 @@ double LinearInterp5DPoint(int i0, int i1, int i2, int i3, int i4,
                                  p00111, p10111, p01111, p11111,
                                  d0, d1, d2, d3, d4)) - os;
 }
-
-// ============================================================================
-// Template-based compile-time dispatch wrapper for GPU optimization
-// ============================================================================
 
 /// Template wrapper for dimension-specific log-interpolation (compile-time dispatch)
 /// @tparam ND Number of dimensions (1-5), known at compile time

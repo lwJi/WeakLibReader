@@ -1,10 +1,5 @@
 #pragma once
 
-// InterpLogTableDeriv.hpp - 2D-4D derivative interpolation kernels
-//
-// Low-level log-space interpolation functions that compute both
-// interpolated values and partial derivatives.
-
 #include <AMReX_GpuQualifiers.H>
 
 #include "../InterpBasis.hpp"
@@ -149,10 +144,6 @@ void LinearInterpDeriv4DPoint(int i0, int i1, int i2, int i3,
                                                p0011, p1011, p0111, p1111,
                                                d0, d1, d2);
 }
-
-// ============================================================================
-// Template-based compile-time dispatch wrapper for GPU optimization
-// ============================================================================
 
 /// Template wrapper for dimension-specific log-interpolation with derivatives (compile-time dispatch)
 /// @tparam ND Number of dimensions (2-4), known at compile time
