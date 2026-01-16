@@ -42,8 +42,12 @@ test/
 ## Build & Test
 
 ```bash
-scripts/check.sh
+scripts/build.sh   # Build only
+scripts/test.sh    # Run tests only
+scripts/check.sh   # Build and test together
 ```
+
+Set `VERBOSE=1` for full test output (e.g., `VERBOSE=1 scripts/test.sh`).
 
 ## HDF5 Table Format
 
