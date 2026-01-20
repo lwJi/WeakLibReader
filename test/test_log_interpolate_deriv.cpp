@@ -54,13 +54,13 @@ TEST_CASE("Log derivative wrapper matches direct kernel for 3D tables", "[logint
 
   int idxD = 0;
   double fracD = 0.0;
-  REQUIRE_FALSE(IndexAndDeltaLog10(dCoord, gridD.data(), 2, idxD, fracD));
+  IndexAndDeltaLog10(dCoord, gridD.data(), 2, idxD, fracD);
   int idxT = 0;
   double fracT = 0.0;
-  REQUIRE_FALSE(IndexAndDeltaLog10(tCoord, gridT.data(), 2, idxT, fracT));
+  IndexAndDeltaLog10(tCoord, gridT.data(), 2, idxT, fracT);
   int idxY = 0;
   double fracY = 0.0;
-  REQUIRE_FALSE(IndexAndDeltaLin(yCoord, gridY.data(), 2, idxY, fracY));
+  IndexAndDeltaLin(yCoord, gridY.data(), 2, idxY, fracY);
 
   const double spanLogD = std::log10(gridD[1] / gridD[0]);
   const double spanLogT = std::log10(gridT[1] / gridT[0]);
@@ -93,23 +93,6 @@ TEST_CASE("Log derivative wrapper matches direct kernel for 3D tables", "[logint
   CHECK(deriv[0] == Catch::Approx(expectedDD).margin(kTol));
   CHECK(deriv[1] == Catch::Approx(expectedDT).margin(kTol));
   CHECK(deriv[2] == Catch::Approx(expectedDY).margin(kTol));
-
-  InterpConfig cfg;
-  cfg.outOfRange = OutOfRangePolicy::FillNaN;
-  double nanInterp = 0.0;
-  double nanDeriv[3] = {0.0, 0.0, 0.0};
-  const int nanRc = LogInterpolateDifferentiateSingleVariable3DCustomPoint(
-      0.1, tCoord, yCoord,
-      gridD.data(), 2,
-      gridT.data(), 2,
-      gridY.data(), 2,
-      table.data(),
-      0.0, nanInterp, nanDeriv, cfg);
-  REQUIRE(nanRc == 0);
-  CHECK(std::isnan(nanInterp));
-  CHECK(std::isnan(nanDeriv[0]));
-  CHECK(std::isnan(nanDeriv[1]));
-  CHECK(std::isnan(nanDeriv[2]));
 }
 
 TEST_CASE("Aligned derivative wrapper mirrors kernel output", "[loginterp][derivative][2d2d]")
@@ -151,10 +134,10 @@ TEST_CASE("Aligned derivative wrapper mirrors kernel output", "[loginterp][deriv
 
   int idxT = 0;
   double fracT = 0.0;
-  REQUIRE_FALSE(IndexAndDeltaLin(logTCoord, gridT.data(), 2, idxT, fracT));
+  IndexAndDeltaLin(logTCoord, gridT.data(), 2, idxT, fracT);
   int idxX = 0;
   double fracX = 0.0;
-  REQUIRE_FALSE(IndexAndDeltaLin(logXCoord, gridX.data(), 2, idxX, fracX));
+  IndexAndDeltaLin(logXCoord, gridX.data(), 2, idxX, fracX);
 
   const double spanT = gridT[idxT + 1] - gridT[idxT];
   const double spanX = gridX[idxX + 1] - gridX[idxX];
@@ -173,8 +156,7 @@ TEST_CASE("Aligned derivative wrapper mirrors kernel output", "[loginterp][deriv
       0.0,
       planeInterp.data(),
       planeDerivT.data(),
-      planeDerivX.data(),
-      InterpConfig{});
+      planeDerivX.data());
   REQUIRE(rc == 0);
 
   for (std::size_t j = 0; j < sizeE; ++j) {

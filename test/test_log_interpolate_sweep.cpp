@@ -60,10 +60,10 @@ TEST_CASE("Aligned 2D plane interpolation mirrors underlying kernel", "[loginter
 
   int idxT = 0;
   double fracT = 0.0;
-  REQUIRE_FALSE(IndexAndDeltaLin(logT, gridT.data(), 2, idxT, fracT));
+  IndexAndDeltaLin(logT, gridT.data(), 2, idxT, fracT);
   int idxX = 0;
   double fracX = 0.0;
-  REQUIRE_FALSE(IndexAndDeltaLin(logX, gridX.data(), 2, idxX, fracX));
+  IndexAndDeltaLin(logX, gridX.data(), 2, idxX, fracX);
 
   for (std::size_t j = 0; j < sizeE; ++j) {
     for (std::size_t i = 0; i <= j; ++i) {
@@ -135,7 +135,7 @@ TEST_CASE("Weighted sum aligned helper reproduces manual accumulation", "[logint
 
   int idxT = 0;
   double fracT = 0.0;
-  REQUIRE_FALSE(IndexAndDeltaLin(logT[0], gridT.data(), 2, idxT, fracT));
+  IndexAndDeltaLin(logT[0], gridT.data(), 2, idxT, fracT);
 
   for (std::size_t j = 0; j < sizeE; ++j) {
     for (std::size_t i = 0; i <= j; ++i) {
@@ -143,7 +143,7 @@ TEST_CASE("Weighted sum aligned helper reproduces manual accumulation", "[logint
       for (std::size_t l = 0; l < nAlpha; ++l) {
         int idxD = 0;
         double fracD = 0.0;
-        REQUIRE_FALSE(IndexAndDeltaLin(logD[l], gridD.data(), 2, idxD, fracD));
+        IndexAndDeltaLin(logD[l], gridD.data(), 2, idxD, fracD);
         const double interp = LinearInterp2D4DArray2DAlignedPoint(
             static_cast<int>(i), static_cast<int>(j),
             idxD, idxT, fracD, fracT,
@@ -209,7 +209,7 @@ TEST_CASE("Non-aligned 2D2D single point interpolation", "[loginterp][2d2d][nona
       // For i <= j, coords are (E[i], E[j], T, X)
       double coords[4] = {gridE[i], gridE[j], logT, logX};
       const double expected = detail::LogInterpolatedValueDirect<4>(
-          table.data(), layout, axes, coords, 0.0, InterpConfig{});
+          table.data(), layout, axes, coords, 0.0);
       // Check both symmetric positions
       const std::size_t lower = j * sizeE + i;
       const std::size_t upper = i * sizeE + j;

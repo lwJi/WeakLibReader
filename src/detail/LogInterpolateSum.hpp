@@ -2,7 +2,6 @@
 
 #include <AMReX_GpuQualifiers.H>
 #include <cstddef>
-#include <limits>
 #include <vector>
 
 #include "LogInterpolateCore.hpp"
@@ -18,8 +17,7 @@ inline int SumLogInterpolateSingleVariable2D2DCustomAligned(
     const double* alpha,
     const double* data,
     double offset,
-    double* out,
-    const InterpConfig& cfg = InterpConfig{}) noexcept
+    double* out) noexcept
 {
   if (logD == nullptr || logT == nullptr || data == nullptr ||
       alpha == nullptr || out == nullptr ||
@@ -49,43 +47,15 @@ inline int SumLogInterpolateSingleVariable2D2DCustomAligned(
 
     int idxT = 0;
     double fracT = 0.0;
-    bool outT = detail::IndexAndDelta(axes[1], logT[k], idxT, fracT);
-
-    if (outT) {
-      if (cfg.outOfRange == OutOfRangePolicy::Error) {
-        return 4;
-      }
-      if (cfg.outOfRange == OutOfRangePolicy::FillNaN) {
-        detail::FillNaNPlane(plane, sizeE);
-        continue;
-      }
-      fracT = detail::Clamp01(fracT);
-    }
-
-    bool skipPlane = false;
+    detail::IndexAndDelta(axes[1], logT[k], idxT, fracT);
 
     for (std::size_t l = 0; l < nAlpha; ++l) {
       int idx = 0;
       double frac = 0.0;
       const double value = logD[k * nAlpha + l];
-      bool outD = detail::IndexAndDelta(axes[0], value, idx, frac);
-      if (outD) {
-        if (cfg.outOfRange == OutOfRangePolicy::Error) {
-          return 5;
-        }
-        if (cfg.outOfRange == OutOfRangePolicy::FillNaN) {
-          detail::FillNaNPlane(plane, sizeE);
-          skipPlane = true;
-          break;
-        }
-        frac = detail::Clamp01(frac);
-      }
+      detail::IndexAndDelta(axes[0], value, idx, frac);
       idxD[l] = idx;
       fracD[l] = frac;
-    }
-
-    if (skipPlane) {
-      continue;
     }
 
     for (std::size_t j = 0; j < sizeE; ++j) {

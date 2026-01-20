@@ -63,7 +63,7 @@ TEST_CASE("4D log interpolation matches quadrilinear expectation", "[loginterp][
       MakeAxis(gridD.data(), 2, AxisScale::Linear)};
   double coords[4] = {a, b, c, d};
   const double expected = detail::LogInterpolatedValueDirect<4>(
-      table.data(), layout, axes, coords, 0.0, InterpConfig{});
+      table.data(), layout, axes, coords, 0.0);
 
   CHECK(result == Catch::Approx(expected).margin(kTol));
 }
@@ -157,10 +157,10 @@ TEST_CASE("4D mixed axes log interpolation respects offset", "[loginterp][4d][of
 
   int idxA = 0, idxB = 0, idxC = 0, idxD = 0;
   double fracA = 0.0, fracB = 0.0, fracC = 0.0, fracD = 0.0;
-  REQUIRE_FALSE(IndexAndDeltaLog10(coords[0], gridA.data(), 2, idxA, fracA));
-  REQUIRE_FALSE(IndexAndDeltaLog10(coords[1], gridB.data(), 2, idxB, fracB));
-  REQUIRE_FALSE(IndexAndDeltaLin(coords[2], gridC.data(), 2, idxC, fracC));
-  REQUIRE_FALSE(IndexAndDeltaLin(coords[3], gridD.data(), 2, idxD, fracD));
+  IndexAndDeltaLog10(coords[0], gridA.data(), 2, idxA, fracA);
+  IndexAndDeltaLog10(coords[1], gridB.data(), 2, idxB, fracB);
+  IndexAndDeltaLin(coords[2], gridC.data(), 2, idxC, fracC);
+  IndexAndDeltaLin(coords[3], gridD.data(), 2, idxD, fracD);
 
   const double expected = LinearInterp4DPoint(
       idxA, idxB, idxC, idxD,
@@ -168,7 +168,7 @@ TEST_CASE("4D mixed axes log interpolation respects offset", "[loginterp][4d][of
       offset, table.data(), layout);
 
   const double result = detail::LogInterpolatedValueDirect<4>(
-      table.data(), layout, axes, coords, offset, InterpConfig{});
+      table.data(), layout, axes, coords, offset);
 
   CHECK(result == Catch::Approx(expected).margin(kTol));
 }
@@ -208,10 +208,10 @@ TEST_CASE("4D mixed axes derivative matches kernel", "[loginterp][4d][derivative
 
   int idxA = 0, idxB = 0, idxC = 0, idxD = 0;
   double fracA = 0.0, fracB = 0.0, fracC = 0.0, fracD = 0.0;
-  REQUIRE_FALSE(IndexAndDeltaLog10(coords[0], gridA.data(), 2, idxA, fracA));
-  REQUIRE_FALSE(IndexAndDeltaLog10(coords[1], gridB.data(), 2, idxB, fracB));
-  REQUIRE_FALSE(IndexAndDeltaLin(coords[2], gridC.data(), 2, idxC, fracC));
-  REQUIRE_FALSE(IndexAndDeltaLin(coords[3], gridD.data(), 2, idxD, fracD));
+  IndexAndDeltaLog10(coords[0], gridA.data(), 2, idxA, fracA);
+  IndexAndDeltaLog10(coords[1], gridB.data(), 2, idxB, fracB);
+  IndexAndDeltaLin(coords[2], gridC.data(), 2, idxC, fracC);
+  IndexAndDeltaLin(coords[3], gridD.data(), 2, idxD, fracD);
 
   const double aA = 1.0 / (coords[0] * WeakLibReader::math::Log10(gridA[1] / gridA[0]));
   const double aB = 1.0 / (coords[1] * WeakLibReader::math::Log10(gridB[1] / gridB[0]));
@@ -232,9 +232,8 @@ TEST_CASE("4D mixed axes derivative matches kernel", "[loginterp][4d][derivative
 
   double interpolant = 0.0;
   double deriv[4] = {0.0, 0.0, 0.0, 0.0};
-  const bool success = detail::LogInterpolatedDerivativeDirect<4>(
-      table.data(), layout, axes, coords, offset, InterpConfig{}, interpolant, deriv);
-  REQUIRE(success);
+  detail::LogInterpolatedDerivativeDirect<4>(
+      table.data(), layout, axes, coords, offset, interpolant, deriv);
 
   CHECK(interpolant == Catch::Approx(expectedInterp).margin(kTol));
   CHECK(deriv[0] == Catch::Approx(expectedDA).margin(kTol));
@@ -461,7 +460,7 @@ TEST_CASE("1D3D sweep batch matches direct interpolation", "[loginterp][4d][batc
     for (std::size_t i = 0; i < sizeE; ++i) {
       double coords[4] = {logE[i], logD[j], logT[j], y[j]};
       const double expected = detail::LogInterpolatedValueDirect<4>(
-          table.data(), layout, axes, coords, 0.0, InterpConfig{});
+          table.data(), layout, axes, coords, 0.0);
       const std::size_t idx = j * sizeE + i;
       CHECK(out[idx] == Catch::Approx(expected).margin(kTol));
     }

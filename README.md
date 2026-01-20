@@ -8,7 +8,7 @@ GPU-friendly C++ reimplementation of WeakLib's equation-of-state and opacity int
 
 - 1D-5D log-space interpolation with compile-time dimension dispatch
 - GPU-ready kernels (`AMREX_GPU_HOST_DEVICE` qualified)
-- Configurable out-of-range policies: `Clamp`, `Error`, `FillNaN`
+- Out-of-range coordinates extrapolate naturally (matches Fortran)
 - Derivative computation for 2D-4D interpolation
 - HDF5 table loading with MPI broadcast support
 - Numerical parity with Fortran reference (≤1e-12 relative error)
@@ -41,7 +41,7 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-The suite exercises 2D-5D interpolation, out-of-range policies, derivatives, symmetric plane helpers, and HDF5 round-trips.
+The suite exercises 2D-5D interpolation, derivatives, symmetric plane helpers, and HDF5 round-trips.
 
 ## Usage Example
 
@@ -61,13 +61,12 @@ TableView view = table.View();
 
 // 3D interpolation at a single point
 double d = 1.0e10, t = 0.5, y = 300.0;
-InterpConfig cfg{OutOfRangePolicy::Clamp};
 double result = LogInterpolateSingleVariable3DCustomPoint(
     d, t, y,
     view.axes[0].grid, view.axes[0].n,
     view.axes[1].grid, view.axes[1].n,
     view.axes[2].grid, view.axes[2].n,
-    view.data, 0.0, cfg);
+    view.data, 0.0);
 ```
 
 ## API Overview
@@ -78,7 +77,6 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 |------|-------------|
 | `Axis` | Grid metadata: pointer, size, scale (Linear/Log10) |
 | `Layout` | Row-major strides for N-D data |
-| `InterpConfig` | Out-of-range policy configuration |
 | `Hdf5Table` | Host-side table storage (owns data + axes) |
 | `TableView` | Read-only view into loaded table |
 | `TableDevice` | Device-side table copy |

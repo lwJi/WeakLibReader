@@ -55,61 +55,6 @@ TEST_CASE("2D log interpolation matches bilinear expectation", "[loginterp][2d]"
   CHECK(result == Catch::Approx(expected).margin(kTol));
 }
 
-TEST_CASE("Out-of-range clamp FillNaN policy returns NaN", "[loginterp][2d][nan]")
-{
-  using namespace WeakLibReader;
-
-  const std::array<double, 2> gridX{1.0, 2.0};
-  const std::array<double, 2> gridY{1.0, 3.0};
-  const std::array<double, 4> table{
-      std::log10(2.0),
-      std::log10(3.0),
-      std::log10(4.0),
-      std::log10(5.0)};
-
-  const int extents[2] = {2, 2};
-  const Layout layout = MakeLayout(extents, 2);
-
-  Axis axes[2] = {
-      MakeAxis(gridX.data(), 2, AxisScale::Linear),
-      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
-
-  InterpConfig cfg;
-  cfg.outOfRange = OutOfRangePolicy::FillNaN;
-
-  const double value = LogInterpolateSingleVariable2DCustomPoint(
-      0.5, 2.0,
-      gridX.data(), 2,
-      gridY.data(), 2,
-      table.data(), 0.0, cfg);
-
-  CHECK(std::isnan(value));
-}
-
-TEST_CASE("Out-of-range error policy returns NaN", "[loginterp][2d][nan][error]")
-{
-  using namespace WeakLibReader;
-
-  const std::array<double, 2> gridX{1.0, 2.0};
-  const std::array<double, 2> gridY{1.0, 3.0};
-  const std::array<double, 4> table{
-      std::log10(2.0),
-      std::log10(3.0),
-      std::log10(4.0),
-      std::log10(5.0)};
-
-  InterpConfig cfg;
-  cfg.outOfRange = OutOfRangePolicy::Error;
-
-  const double value = LogInterpolateSingleVariable2DCustomPoint(
-      0.5, 2.0,
-      gridX.data(), 2,
-      gridY.data(), 2,
-      table.data(), 0.0, cfg);
-
-  CHECK(std::isnan(value));
-}
-
 TEST_CASE("Batch 2D log interpolation matches point wrapper", "[loginterp][2d][batch]")
 {
   using namespace WeakLibReader;
@@ -146,7 +91,7 @@ TEST_CASE("Batch 2D log interpolation matches point wrapper", "[loginterp][2d][b
   }
 }
 
-TEST_CASE("Out-of-range policies on mixed axes", "[loginterp][policy]")
+TEST_CASE("Out-of-range on mixed axes extrapolates correctly", "[loginterp][policy]")
 {
   using namespace WeakLibReader;
 
@@ -175,61 +120,31 @@ TEST_CASE("Out-of-range policies on mixed axes", "[loginterp][policy]")
   int idxLin = 0;
   double fracLog = 0.0;
   double fracLin = 0.0;
-  const bool outLog = IndexAndDeltaLog10(coords[0], gridLog.data(), 2, idxLog, fracLog);
-  const bool outLin = IndexAndDeltaLin(coords[1], gridLin.data(), 2, idxLin, fracLin);
-  REQUIRE(outLog);
-  REQUIRE(outLin);
+  IndexAndDeltaLog10(coords[0], gridLog.data(), 2, idxLog, fracLog);
+  IndexAndDeltaLin(coords[1], gridLin.data(), 2, idxLin, fracLin);
 
-  // Clamp policy should return clamped interpolation/derivatives
-  {
-    const double aLog = 1.0 / (coords[0] * WeakLibReader::math::Log10(gridLog[1] / gridLog[0]));
-    const double aLin = WeakLibReader::math::Ln10 / (gridLin[1] - gridLin[0]);
+  // Extrapolation should work with natural fractions (can be < 0 or > 1)
+  const double aLog = 1.0 / (coords[0] * WeakLibReader::math::Log10(gridLog[1] / gridLog[0]));
+  const double aLin = WeakLibReader::math::Ln10 / (gridLin[1] - gridLin[0]);
 
-    double expectedInterp = 0.0;
-    double expectedDLog = 0.0;
-    double expectedDLin = 0.0;
-    LinearInterpDeriv2DPoint(
-        idxLog, idxLin,
-        detail::Clamp01(fracLog), detail::Clamp01(fracLin),
-        aLog, aLin,
-        offset, table.data(), layout,
-        expectedInterp, expectedDLog, expectedDLin);
+  double expectedInterp = 0.0;
+  double expectedDLog = 0.0;
+  double expectedDLin = 0.0;
+  LinearInterpDeriv2DPoint(
+      idxLog, idxLin,
+      fracLog, fracLin,
+      aLog, aLin,
+      offset, table.data(), layout,
+      expectedInterp, expectedDLog, expectedDLin);
 
-    double interpolant = 0.0;
-    double deriv[2] = {0.0, 0.0};
-    const bool ok = detail::LogInterpolatedDerivativeDirect<2>(
-        table.data(), layout, axes, coords, offset, InterpConfig{}, interpolant, deriv);
-    REQUIRE(ok);
+  double interpolant = 0.0;
+  double deriv[2] = {0.0, 0.0};
+  detail::LogInterpolatedDerivativeDirect<2>(
+      table.data(), layout, axes, coords, offset, interpolant, deriv);
 
-    CHECK(interpolant == Catch::Approx(expectedInterp).margin(kTol));
-    CHECK(deriv[0] == Catch::Approx(expectedDLog).margin(kTol));
-    CHECK(deriv[1] == Catch::Approx(expectedDLin).margin(kTol));
-  }
-
-  // FillNaN policy should propagate NaN
-  {
-    InterpConfig cfg;
-    cfg.outOfRange = OutOfRangePolicy::FillNaN;
-    double interpolant = 0.0;
-    double deriv[2] = {0.0, 0.0};
-    const bool ok = detail::LogInterpolatedDerivativeDirect<2>(
-        table.data(), layout, axes, coords, offset, cfg, interpolant, deriv);
-    REQUIRE(ok);
-    CHECK(std::isnan(interpolant));
-    CHECK(std::isnan(deriv[0]));
-    CHECK(std::isnan(deriv[1]));
-  }
-
-  // Error policy should report failure
-  {
-    InterpConfig cfg;
-    cfg.outOfRange = OutOfRangePolicy::Error;
-    double interpolant = 0.0;
-    double deriv[2] = {0.0, 0.0};
-    const bool ok = detail::LogInterpolatedDerivativeDirect<2>(
-        table.data(), layout, axes, coords, offset, cfg, interpolant, deriv);
-    CHECK_FALSE(ok);
-  }
+  CHECK(interpolant == Catch::Approx(expectedInterp).margin(kTol));
+  CHECK(deriv[0] == Catch::Approx(expectedDLog).margin(kTol));
+  CHECK(deriv[1] == Catch::Approx(expectedDLin).margin(kTol));
 }
 
 TEST_CASE("Template instantiation compiles for all dimensions", "[compile-time]")
