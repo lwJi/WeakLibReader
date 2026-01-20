@@ -79,8 +79,8 @@ double LogInterpolateSingleVariable3DCustomPoint(
   }
   constexpr int ND = 3;
   Axis axes[ND] = {
-      MakeAxis(grid0, n0, AxisScale::Linear),
-      MakeAxis(grid1, n1, AxisScale::Linear),
+      MakeAxis(grid0, n0, AxisScale::Log10),
+      MakeAxis(grid1, n1, AxisScale::Log10),
       MakeAxis(grid2, n2, AxisScale::Linear)};
   int extents[ND] = {n0, n1, n2};
   const Layout layout = MakeLayout(extents, ND);
@@ -107,8 +107,8 @@ inline int LogInterpolateSingleVariable3DCustom(
   }
   constexpr int ND = 3;
   Axis axes[ND] = {
-      MakeAxis(grid0, n0, AxisScale::Linear),
-      MakeAxis(grid1, n1, AxisScale::Linear),
+      MakeAxis(grid0, n0, AxisScale::Log10),
+      MakeAxis(grid1, n1, AxisScale::Log10),
       MakeAxis(grid2, n2, AxisScale::Linear)};
   int extents[ND] = {n0, n1, n2};
   const Layout layout = MakeLayout(extents, ND);

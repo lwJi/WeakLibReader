@@ -50,8 +50,11 @@ TEST_CASE("3D log interpolation matches trilinear expectation", "[loginterp][3d]
       table.data(), 0.0);
 
   // Compute expected via trilinear interpolation in log space
-  const double dX = (x - gridX[0]) / (gridX[1] - gridX[0]);
-  const double dY = (y - gridY[0]) / (gridY[1] - gridY[0]);
+  // X and Y axes use Log10 scale, Z axis uses Linear scale
+  const double dX = (std::log10(x) - std::log10(gridX[0])) /
+                    (std::log10(gridX[1]) - std::log10(gridX[0]));
+  const double dY = (std::log10(y) - std::log10(gridY[0])) /
+                    (std::log10(gridY[1]) - std::log10(gridY[0]));
   const double dZ = (z - gridZ[0]) / (gridZ[1] - gridZ[0]);
 
   const double c000 = table[layout.Offset(0, 0, 0)];
