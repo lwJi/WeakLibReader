@@ -48,6 +48,7 @@ coverage/
 *.swp
 *.swo
 *~
+tags
 .project
 .cproject
 .settings/
