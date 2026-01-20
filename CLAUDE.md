@@ -8,7 +8,7 @@ Translate WeakLib's EOS & opacity **interpolators** from Fortran into **GPU-frie
 
 ```
 src/                          # Core headers (public API + device helpers)
-  AxisTypes.hpp               # Axis, InterpConfig, AxisScale, OutOfRangePolicy
+  AxisTypes.hpp               # Axis, AxisScale
   IndexDelta.hpp              # Linear/log10 indexing helpers
   InterpBasis.hpp             # Linear through penta-linear basis routines
   InterpLogTable.hpp          # Log-space point kernels and aligned slices
@@ -18,7 +18,7 @@ src/                          # Core headers (public API + device helpers)
   Hdf5Loader.hpp              # HDF5 reader via amrex::TableData
 ref/weaklib/                  # Fortran reference implementation
 test/
-  test_log_interpolate.cpp    # 28 interpolation tests (1D-5D, derivatives, policies)
+  test_log_interpolate.cpp    # Interpolation tests (1D-5D, derivatives, sweeps)
   test_hdf5_loader.cpp        # 11 HDF5 loader tests
 ```
 
@@ -26,15 +26,15 @@ test/
 
 - **Namespace:** `WeakLibReader`
 - **Types/Functions:** `PascalCase` (e.g., `Axis`, `IndexAndDeltaLin`)
-- **Variables:** `lowerCamelCase` (e.g., `outOfRange`, `rowStride`)
+- **Variables:** `lowerCamelCase` (e.g., `fracT`, `rowStride`)
 - **Standard:** C++17+
 
 ## Key Design Principles
 
 1. **Row-major layout** with precomputed strides
 2. **No STL containers** in device code; no dynamic allocations in kernels
-3. **Pass by value** for small structs (`Axis`, `Layout`, `InterpConfig`)
-4. **Out-of-range handling** via policy (default: `Clamp`)
+3. **Pass by value** for small structs (`Axis`, `Layout`)
+4. **Out-of-range handling:** Extrapolation (matches Fortran behavior)
 5. **Strict monotonicity** for axis grids (validated at load time)
 6. **Device functions** must be `noexcept`, inline, `AMREX_GPU_HOST_DEVICE`
 
@@ -63,7 +63,7 @@ Located in `ref/weaklib/`. Key modules: `wlInterpolationModule.F90`, `wlInterpol
 
 ## Architectural Decisions (Locked)
 
-1. **Out-of-range policy:** Default `Clamp` (matches Fortran)
+1. **Out-of-range behavior:** Natural extrapolation (matches Fortran)
 2. **Precision:** Double throughout
 3. **Table I/O:** HDF5 only
 4. **GPU backend:** CUDA first, HIP/DPCPP later
