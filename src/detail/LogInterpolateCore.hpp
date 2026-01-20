@@ -1,5 +1,6 @@
 #pragma once
 
+#include <AMReX_BLassert.H>
 #include <AMReX_GpuQualifiers.H>
 #include <cstddef>
 #include <limits>
@@ -81,57 +82,38 @@ inline void FillNaNVector(double* values, std::size_t count, std::size_t stride)
   }
 }
 
-inline bool ComputeLinearAxisScale(const Axis& axis, int idx, double& scale) noexcept
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+void ComputeLinearAxisScale(const Axis& axis, int idx, double& scale) noexcept
 {
-  if (axis.grid == nullptr) {
-    scale = std::numeric_limits<double>::quiet_NaN();
-    return false;
-  }
+  AMREX_ASSERT(axis.grid != nullptr);
   const double span = axis.grid[idx + 1] - axis.grid[idx];
-  if (!(span > 0.0)) {
-    scale = std::numeric_limits<double>::quiet_NaN();
-    return false;
-  }
+  AMREX_ASSERT(span > 0.0);
   scale = math::Ln10 / span;
-  return true;
 }
 
-inline bool ComputeLogAxisScale(const Axis& axis, int idx, double coord,
-                                double& scale) noexcept
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+void ComputeLogAxisScale(const Axis& axis, int idx, double coord,
+                         double& scale) noexcept
 {
-  if (axis.grid == nullptr) {
-    scale = std::numeric_limits<double>::quiet_NaN();
-    return false;
-  }
-  if (!(coord > 0.0)) {
-    scale = std::numeric_limits<double>::quiet_NaN();
-    return false;
-  }
+  AMREX_ASSERT(axis.grid != nullptr);
+  AMREX_ASSERT(coord > 0.0);
   const double ratio = axis.grid[idx + 1] / axis.grid[idx];
-  if (!(ratio > 0.0)) {
-    scale = std::numeric_limits<double>::quiet_NaN();
-    return false;
-  }
+  AMREX_ASSERT(ratio > 0.0);
   const double denom = math::Log10(ratio);
-  if (denom == 0.0) {
-    scale = std::numeric_limits<double>::quiet_NaN();
-    return false;
-  }
+  AMREX_ASSERT(denom != 0.0);
   scale = 1.0 / (coord * denom);
-  return true;
 }
 
-inline bool ComputeAxisScale(const Axis& axis, int idx, double coord,
-                             double& scale) noexcept
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+void ComputeAxisScale(const Axis& axis, int idx, double coord,
+                      double& scale) noexcept
 {
-  if (axis.grid == nullptr) {
-    scale = std::numeric_limits<double>::quiet_NaN();
-    return false;
-  }
+  AMREX_ASSERT(axis.grid != nullptr);
   if (axis.scale == AxisScale::Linear) {
-    return ComputeLinearAxisScale(axis, idx, scale);
+    ComputeLinearAxisScale(axis, idx, scale);
+  } else {
+    ComputeLogAxisScale(axis, idx, coord, scale);
   }
-  return ComputeLogAxisScale(axis, idx, coord, scale);
 }
 
 inline void SetNaN(double& value0, double& value1, double& value2) noexcept
@@ -208,10 +190,7 @@ bool LogInterpolatedDerivativeDirect(const double* data,
     }
 
     // Compute axis scale for derivative calculation
-    if (!ComputeAxisScale(axes[d], indices[d], coords[d], scales[d])) {
-      SetNaN<ND>(interpolant, derivatives);
-      return false;
-    }
+    ComputeAxisScale(axes[d], indices[d], coords[d], scales[d]);
   }
 
   // Compile-time dispatch to dimension-specific derivative kernel
