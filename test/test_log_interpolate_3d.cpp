@@ -125,42 +125,12 @@ TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][b
   }
 }
 
-TEST_CASE("Invalid log coordinate triggers error code", "[loginterp][invalid]")
-{
-  using namespace WeakLibReader;
-
-  const std::array<double, 2> gridD{1.0, 10.0};
-  const std::array<double, 2> gridT{1.0, 100.0};
-  const std::array<double, 2> gridY{0.0, 1.0};
-
-  const int extents[3] = {2, 2, 2};
-  const Layout layout = MakeLayout(extents, 3);
-
-  std::array<double, 8> table{};
-  for (int id = 0; id < 2; ++id) {
-    for (int it = 0; it < 2; ++it) {
-      for (int iy = 0; iy < 2; ++iy) {
-        table[layout.Offset(id, it, iy)] = std::log10(1.0 + 0.1 * id + 0.2 * it + 0.3 * iy);
-      }
-    }
-  }
-
-  double interpolant = 0.0;
-  double deriv[3] = {0.0, 0.0, 0.0};
-  const int rc = LogInterpolateDifferentiateSingleVariable3DCustomPoint(
-      -1.0, 2.0, 0.3,   // invalid log axis coord
-      gridD.data(), 2,
-      gridT.data(), 2,
-      gridY.data(), 2,
-      table.data(),
-      0.0,
-      interpolant, deriv);
-  CHECK(rc == 4);
-  CHECK(std::isnan(interpolant));
-  CHECK(std::isnan(deriv[0]));
-  CHECK(std::isnan(deriv[1]));
-  CHECK(std::isnan(deriv[2]));
-}
+// Note: The test "Invalid log coordinate triggers error code" was removed as part
+// of Issue #67. The defensive validation in ComputeAxisScale was removed because:
+// 1. HDF5 loader guarantees valid axes at load time
+// 2. IndexAndDelta validates coordinates for Log10 axes
+// 3. Invalid coordinates are programming errors caught by AMREX_ASSERT in debug builds
+// 4. The Fortran reference has no such runtime validation
 
 TEST_CASE("Zero-span axis yields NaN under FillNaN policy", "[loginterp][invalid]")
 {
