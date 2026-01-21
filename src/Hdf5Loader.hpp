@@ -94,9 +94,7 @@ inline TableDevice MakeDeviceCopy(const Hdf5Table& host,
   const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
   bool overflow = false;
   const amrex::Array<int, 4> hi = detail::MakeHiArray(host.nd, host.extents, overflow);
-  if (overflow) {
-    return device;
-  }
+  AMREX_ASSERT(!overflow);
 
   device.values.resize(lo, hi, arena);
   device.values.copy(host.values);
@@ -235,9 +233,6 @@ inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
                           ? localTable.axisStorage[dim].data()
                           : output.axisStorage[dim].data();
     amrex::ParallelDescriptor::Bcast(axisPtr, count, root);
-    if (myRank != root) {
-      output.axes[dim].grid = axisPtr;
-    }
   }
 
   if (myRank == root) {
