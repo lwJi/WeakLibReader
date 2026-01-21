@@ -513,3 +513,129 @@ TEST_CASE("HDF5 loader returns DatasetRankInvalid for 0D dataset", "[hdf5][loade
 
   std::filesystem::remove(filePath);
 }
+
+TEST_CASE("HDF5 loader handles 5D tables correctly", "[hdf5][loader][5d]")
+{
+  AmrexGuard amrex{};
+
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_hdf5_5d.h5";
+
+  // 5D table with shape (2, 3, 4, 5, 6) in C-order
+  // HDF5 stores in Fortran-order, so dims are reversed: (6, 5, 4, 3, 2)
+  const hsize_t dims[5] = {6, 5, 4, 3, 2};
+  const std::size_t totalSize = 2 * 3 * 4 * 5 * 6; // 720 elements
+
+  std::vector<double> rawData;
+  rawData.reserve(totalSize);
+  // Fill with unique values based on multi-index
+  for (hsize_t i4 = 0; i4 < dims[0]; ++i4) {
+    for (hsize_t i3 = 0; i3 < dims[1]; ++i3) {
+      for (hsize_t i2 = 0; i2 < dims[2]; ++i2) {
+        for (hsize_t i1 = 0; i1 < dims[3]; ++i1) {
+          for (hsize_t i0 = 0; i0 < dims[4]; ++i0) {
+            rawData.push_back(
+                10000.0 * static_cast<double>(i4) +
+                1000.0 * static_cast<double>(i3) +
+                100.0 * static_cast<double>(i2) +
+                10.0 * static_cast<double>(i1) +
+                static_cast<double>(i0));
+          }
+        }
+      }
+    }
+  }
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  hid_t space = H5Screate_simple(5, dims, nullptr);
+  hid_t dataset = H5Dcreate(file, "values", H5T_IEEE_F64LE, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(dataset >= 0);
+  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, rawData.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+
+  // Create 5 axes
+  CreateAxisDataset(file, "axis0", {0.0, 1.0}, "Linear");
+  CreateAxisDataset(file, "axis1", {0.0, 1.0, 2.0}, "Linear");
+  CreateAxisDataset(file, "axis2", {1.0, 2.0, 3.0, 4.0}, "Log10");
+  CreateAxisDataset(file, "axis3", {0.0, 0.25, 0.5, 0.75, 1.0}, "Linear");
+  CreateAxisDataset(file, "axis4", {1.0, 2.0, 3.0, 4.0, 5.0, 6.0}, "Log10");
+
+  H5Fclose(file);
+
+  // Load the table
+  WeakLibReader::Hdf5Table table;
+  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+
+  REQUIRE(status == WeakLibReader::Hdf5LoadStatus::Success);
+  REQUIRE(table.nd == 5);
+
+  // Verify extents (C-order)
+  CHECK(table.extents[0] == 2);
+  CHECK(table.extents[1] == 3);
+  CHECK(table.extents[2] == 4);
+  CHECK(table.extents[3] == 5);
+  CHECK(table.extents[4] == 6);
+
+  // Verify layout
+  CHECK(table.layout.nd == 5);
+  CHECK(table.layout.n[0] == 2);
+  CHECK(table.layout.n[1] == 3);
+  CHECK(table.layout.n[2] == 4);
+  CHECK(table.layout.n[3] == 5);
+  CHECK(table.layout.n[4] == 6);
+
+  // Verify axes
+  CHECK(table.axes[0].scale == WeakLibReader::AxisScale::Linear);
+  CHECK(table.axes[0].n == 2);
+  CHECK(table.axes[2].scale == WeakLibReader::AxisScale::Log10);
+  CHECK(table.axes[2].n == 4);
+  CHECK(table.axes[4].scale == WeakLibReader::AxisScale::Log10);
+  CHECK(table.axes[4].n == 6);
+
+  // Verify a specific data point using Layout::Offset
+  // Index (1, 2, 3, 4, 5) should give value 10000*5 + 1000*4 + 100*3 + 10*2 + 1 = 54321
+  const std::size_t offset = table.layout.Offset(1, 2, 3, 4, 5);
+  const double* data = table.DataPtr();
+  CHECK(data[offset] == Catch::Approx(54321.0));
+
+  // Test MakeDeviceCopy (exercises MakeHiArray 5D flattening)
+  const auto deviceTable = WeakLibReader::MakeDeviceCopy(table);
+  CHECK(deviceTable.nd == 5);
+  CHECK(deviceTable.layout.nd == 5);
+
+  // Round-trip: copy device data back to host and verify
+  amrex::TableData<double, 4> roundtrip;
+  const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
+  bool overflow = false;
+  const amrex::Array<int, 4> hi =
+      WeakLibReader::detail::MakeHiArray(table.nd, table.extents, overflow);
+  REQUIRE_FALSE(overflow);
+  roundtrip.resize(lo, hi, amrex::The_Pinned_Arena());
+  roundtrip.copy(deviceTable.values);
+
+  // Verify all data matches
+  const double* originalPtr = table.DataPtr();
+  const double* roundtripPtr = roundtrip.const_table().p;
+  for (std::size_t i = 0; i < totalSize; ++i) {
+    CHECK(roundtripPtr[i] == Catch::Approx(originalPtr[i]).margin(1.0e-12));
+  }
+
+  // Verify device axis data
+  for (int dim = 0; dim < table.nd; ++dim) {
+    const auto& deviceAxis = deviceTable.axisStorage[dim];
+    std::vector<double> hostAxis(deviceAxis.size());
+    amrex::Gpu::copy(amrex::Gpu::deviceToHost,
+                     deviceAxis.begin(), deviceAxis.end(),
+                     hostAxis.begin());
+    REQUIRE(hostAxis.size() == table.axisStorage[dim].size());
+    for (std::size_t i = 0; i < hostAxis.size(); ++i) {
+      CHECK(hostAxis[i] == Catch::Approx(table.axisStorage[dim][i]).margin(1.0e-12));
+    }
+  }
+
+  std::filesystem::remove(filePath);
+}
