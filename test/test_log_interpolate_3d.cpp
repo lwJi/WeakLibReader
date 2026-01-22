@@ -124,14 +124,3 @@ TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][b
     CHECK(out[i] == Catch::Approx(point).margin(kTol));
   }
 }
-
-// Note: The test "Invalid log coordinate triggers error code" was removed as part
-// of Issue #67. The defensive validation in ComputeAxisScale was removed because:
-// 1. HDF5 loader guarantees valid axes at load time
-// 2. IndexAndDelta validates coordinates for Log10 axes
-// 3. Invalid coordinates are programming errors caught by AMREX_ASSERT in debug builds
-// 4. The Fortran reference has no such runtime validation
-
-// Note: The test "Zero-span axis yields NaN under FillNaN policy" was removed as part
-// of Issue #70. OutOfRangePolicy and InterpConfig have been removed to match Fortran
-// behavior where out-of-range coordinates simply extrapolate.

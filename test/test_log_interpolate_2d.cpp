@@ -151,11 +151,6 @@ TEST_CASE("Template instantiation compiles for all dimensions", "[compile-time]"
 {
   using namespace WeakLibReader;
 
-  // This test verifies that our templated functions instantiate correctly
-  // for all supported dimensions. The actual function calls don't execute
-  // (they're in unreachable code), but the compiler still instantiates the
-  // templates, ensuring they compile without errors.
-
   if (false) {  // Never executed, but forces template instantiation
     double dummy_data[32] = {};
     int dummy_indices[5] = {};
