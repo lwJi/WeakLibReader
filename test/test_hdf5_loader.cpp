@@ -17,6 +17,8 @@
 
 namespace {
 
+constexpr double kTol = 1.0e-12;
+
 /// Global AMReX guard that initializes once and finalizes at program exit.
 /// This avoids the MPI re-initialization error that occurs when each test
 /// creates its own AmrexGuard (MPI cannot be re-initialized after finalization).
@@ -181,7 +183,7 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
     total *= static_cast<std::size_t>(table.extents[dim]);
   }
   for (std::size_t i = 0; i < total; ++i) {
-    CHECK(roundtripPtr[i] == Catch::Approx(originalPtr[i]).margin(1.0e-12));
+    CHECK(roundtripPtr[i] == Catch::Approx(originalPtr[i]).margin(kTol));
   }
 
   for (int dim = 0; dim < table.nd; ++dim) {
@@ -192,7 +194,7 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
                      hostAxis.begin());
     REQUIRE(hostAxis.size() == table.axisStorage[dim].size());
     for (std::size_t i = 0; i < hostAxis.size(); ++i) {
-      CHECK(hostAxis[i] == Catch::Approx(table.axisStorage[dim][i]).margin(1.0e-12));
+      CHECK(hostAxis[i] == Catch::Approx(table.axisStorage[dim][i]).margin(kTol));
     }
   }
 
@@ -204,7 +206,7 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
   CHECK(parallelTable.layout.n[0] == table.layout.n[0]);
   CHECK(parallelTable.axes[2].scale == table.axes[2].scale);
   const double* parallelData = parallelTable.DataPtr();
-  CHECK(parallelData[idx] == Catch::Approx(data[idx]).margin(1.0e-12));
+  CHECK(parallelData[idx] == Catch::Approx(data[idx]).margin(kTol));
 
   std::filesystem::remove(filePath);
 }
@@ -621,7 +623,7 @@ TEST_CASE("HDF5 loader handles 5D tables correctly", "[hdf5][loader][5d]")
   const double* originalPtr = table.DataPtr();
   const double* roundtripPtr = roundtrip.const_table().p;
   for (std::size_t i = 0; i < totalSize; ++i) {
-    CHECK(roundtripPtr[i] == Catch::Approx(originalPtr[i]).margin(1.0e-12));
+    CHECK(roundtripPtr[i] == Catch::Approx(originalPtr[i]).margin(kTol));
   }
 
   // Verify device axis data
@@ -633,7 +635,7 @@ TEST_CASE("HDF5 loader handles 5D tables correctly", "[hdf5][loader][5d]")
                      hostAxis.begin());
     REQUIRE(hostAxis.size() == table.axisStorage[dim].size());
     for (std::size_t i = 0; i < hostAxis.size(); ++i) {
-      CHECK(hostAxis[i] == Catch::Approx(table.axisStorage[dim][i]).margin(1.0e-12));
+      CHECK(hostAxis[i] == Catch::Approx(table.axisStorage[dim][i]).margin(kTol));
     }
   }
 
