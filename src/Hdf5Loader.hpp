@@ -54,16 +54,14 @@ inline Hdf5LoadStatus LoadHdf5Table(const std::string& filePath,
     }
     extents[dim] = static_cast<int>(source);
   }
-  result.extents = extents;
-
-  const std::size_t totalSize = detail::ComputeTotalSize(rank, extents);
+  const std::size_t totalSize = detail::ComputeTotalSize(rank, extents.data());
   if (totalSize == 0) {
     return Hdf5LoadStatus::IncompatibleDatasetExtent;
   }
 
   const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
   bool extentOverflow = false;
-  amrex::Array<int, 4> hi = detail::MakeHiArray(rank, extents, extentOverflow);
+  amrex::Array<int, 4> hi = detail::MakeHiArray(rank, extents.data(), extentOverflow);
   if (extentOverflow) {
     return Hdf5LoadStatus::IncompatibleDatasetExtent;
   }
@@ -74,12 +72,12 @@ inline Hdf5LoadStatus LoadHdf5Table(const std::string& filePath,
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
-  const Hdf5LoadStatus axisStatus = detail::LoadAxes(file.Get(), rank, cfg, result);
+  const Hdf5LoadStatus axisStatus = detail::LoadAxes(file.Get(), rank, extents.data(), cfg, result);
   if (axisStatus != Hdf5LoadStatus::Success) {
     return axisStatus;
   }
 
-  result.layout = MakeLayout(result.extents.data(), result.nd);
+  result.layout = MakeLayout(extents.data(), result.nd);
   output = std::move(result);
   return Hdf5LoadStatus::Success;
 }
@@ -93,7 +91,7 @@ inline TableDevice MakeDeviceCopy(const Hdf5Table& host,
 
   const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
   bool overflow = false;
-  const amrex::Array<int, 4> hi = detail::MakeHiArray(host.nd, host.extents, overflow);
+  const amrex::Array<int, 4> hi = detail::MakeHiArray(host.nd, host.layout.n, overflow);
   AMREX_ASSERT(!overflow);
 
   device.values.resize(lo, hi, arena);
@@ -157,7 +155,7 @@ inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
   if (myRank == root) {
     header[0] = localTable.nd;
     for (int dim = 0; dim < 5; ++dim) {
-      header[1 + dim] = localTable.extents[dim];
+      header[1 + dim] = localTable.layout.n[dim];
     }
   }
   amrex::ParallelDescriptor::Bcast(header, 6, root);
@@ -185,7 +183,7 @@ inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
   amrex::ParallelDescriptor::Bcast(axisCounts, 5, root);
   amrex::ParallelDescriptor::Bcast(axisScales, 5, root);
 
-  const std::size_t totalSize = detail::ComputeTotalSize(nd, extents);
+  const std::size_t totalSize = detail::ComputeTotalSize(nd, extents.data());
   if (totalSize > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
     return Hdf5LoadStatus::IncompatibleDatasetExtent;
   }
@@ -193,15 +191,14 @@ inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
   if (myRank != root) {
     output = Hdf5Table{};
     output.nd = nd;
-    output.extents = extents;
     bool overflow = false;
     const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
-    const amrex::Array<int, 4> hi = detail::MakeHiArray(nd, output.extents, overflow);
+    const amrex::Array<int, 4> hi = detail::MakeHiArray(nd, extents.data(), overflow);
     if (overflow || totalSize == 0) {
       return Hdf5LoadStatus::IncompatibleDatasetExtent;
     }
     output.values.resize(lo, hi, amrex::The_Pinned_Arena());
-    output.layout = MakeLayout(output.extents.data(), output.nd);
+    output.layout = MakeLayout(extents.data(), output.nd);
     for (int dim = 0; dim < 5; ++dim) {
       amrex::Vector<double>& storage = output.axisStorage[dim];
       storage.resize(static_cast<std::size_t>(axisCounts[dim]));

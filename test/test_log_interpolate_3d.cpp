@@ -39,14 +39,17 @@ TEST_CASE("3D log interpolation matches trilinear expectation", "[loginterp][3d]
     }
   }
 
+  const Axis axes[3] = {
+      MakeAxis(gridX.data(), 2, AxisScale::Log10),
+      MakeAxis(gridY.data(), 2, AxisScale::Log10),
+      MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
+
   const double x = 1.5;
   const double y = 2.0;
   const double z = 0.4;
   const double result = LogInterpolateSingleVariable3DCustomPoint(
       x, y, z,
-      gridX.data(), 2,
-      gridY.data(), 2,
-      gridZ.data(), 2,
+      axes,
       table.data(), 0.0);
 
   // Compute expected via trilinear interpolation in log space
@@ -98,6 +101,11 @@ TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][b
     }
   }
 
+  const Axis axes[3] = {
+      MakeAxis(gridX.data(), 2, AxisScale::Log10),
+      MakeAxis(gridY.data(), 2, AxisScale::Log10),
+      MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
+
   std::array<double, 3> x0{1.0, 1.5, 2.0};
   std::array<double, 3> x1{1.0, 2.0, 3.0};
   std::array<double, 3> x2{0.0, 0.5, 1.0};
@@ -105,9 +113,7 @@ TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][b
 
   const int rc = LogInterpolateSingleVariable3DCustom(
       x0.data(), x1.data(), x2.data(), x0.size(),
-      gridX.data(), 2,
-      gridY.data(), 2,
-      gridZ.data(), 2,
+      axes,
       table.data(),
       0.0,
       out.data());
@@ -116,9 +122,7 @@ TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][b
   for (std::size_t i = 0; i < x0.size(); ++i) {
     const double point = LogInterpolateSingleVariable3DCustomPoint(
         x0[i], x1[i], x2[i],
-        gridX.data(), 2,
-        gridY.data(), 2,
-        gridZ.data(), 2,
+        axes,
         table.data(),
         0.0);
     CHECK(out[i] == Catch::Approx(point).margin(kTol));

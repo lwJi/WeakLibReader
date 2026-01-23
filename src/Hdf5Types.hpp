@@ -62,7 +62,6 @@ struct TableDevice {
 
 struct Hdf5Table {
   int nd = 0;
-  std::array<int, 5> extents{{1, 1, 1, 1, 1}};
   Layout layout{};
   Axis axes[5]{};
   amrex::TableData<double, 4> values{};

@@ -2,7 +2,6 @@
 
 #include <AMReX_Vector.H>
 
-#include <array>
 #include <cctype>
 #include <cstring>
 #include <limits>
@@ -133,7 +132,7 @@ inline bool ValidateAxis(const amrex::Vector<double>& values, AxisScale scale)
   return true;
 }
 
-inline amrex::Array<int, 4> MakeHiArray(int nd, const std::array<int, 5>& extents,
+inline amrex::Array<int, 4> MakeHiArray(int nd, const int* extents,
                                         bool& overflow) noexcept
 {
   amrex::Array<int, 4> hi{{0, 0, 0, 0}};
@@ -160,7 +159,7 @@ inline amrex::Array<int, 4> MakeHiArray(int nd, const std::array<int, 5>& extent
   return hi;
 }
 
-inline std::size_t ComputeTotalSize(int nd, const std::array<int, 5>& extents)
+inline std::size_t ComputeTotalSize(int nd, const int* extents)
 {
   std::size_t size = 1;
   const std::size_t maxSize = std::numeric_limits<std::size_t>::max();
@@ -179,6 +178,7 @@ inline std::size_t ComputeTotalSize(int nd, const std::array<int, 5>& extents)
 
 inline Hdf5LoadStatus LoadAxes(hid_t file,
                                int nd,
+                               const int* extents,
                                const Hdf5LoadConfig& cfg,
                                Hdf5Table& table)
 {
@@ -204,7 +204,7 @@ inline Hdf5LoadStatus LoadAxes(hid_t file,
       return Hdf5LoadStatus::AxisReadFailed;
     }
 
-    if (length != static_cast<hsize_t>(table.extents[dim])) {
+    if (length != static_cast<hsize_t>(extents[dim])) {
       return Hdf5LoadStatus::AxisExtentMismatch;
     }
 

@@ -4,6 +4,8 @@
 #include <AMReX_Extension.H>
 #include <cstddef>
 
+#include "AxisTypes.hpp"
+
 namespace WeakLibReader {
 
 struct Layout {
@@ -69,6 +71,16 @@ Layout MakeLayout(const int* extents, int nd) noexcept
     stride *= static_cast<std::size_t>(extents[dim]);
   }
   return layout;
+}
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Layout MakeLayoutFromAxes(const Axis* axes, int nd) noexcept
+{
+  int extents[5] = {1, 1, 1, 1, 1};
+  for (int dim = 0; dim < nd; ++dim) {
+    extents[dim] = axes[dim].n;
+  }
+  return MakeLayout(extents, nd);
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
