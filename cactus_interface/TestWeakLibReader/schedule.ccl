@@ -1,0 +1,9 @@
+# Schedule definitions for thorn TestWeakLibReader
+
+STORAGE: energy
+
+SCHEDULE TestWeakLibReader_Init AT INITIAL
+{
+  LANG: C
+  WRITES: energy(everywhere)
+} "Initialize grid function"

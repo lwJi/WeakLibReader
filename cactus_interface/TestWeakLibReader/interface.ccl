@@ -1,0 +1,7 @@
+# Interface definition for thorn TestWeakLibReader
+
+IMPLEMENTS: TestWeakLibReader
+
+USES INCLUDE HEADER: loop_device.hxx
+
+CCTK_REAL energy TYPE=GF CENTERING={VVV} TAGS="checkpoint='yes'" "weaklibreader test"
