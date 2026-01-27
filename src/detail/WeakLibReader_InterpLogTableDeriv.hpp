@@ -2,9 +2,9 @@
 
 #include <AMReX_GpuQualifiers.H>
 
-#include "../InterpBasis.hpp"
-#include "../Layout.hpp"
-#include "../Math.hpp"
+#include "../WeakLibReader_InterpBasis.hpp"
+#include "../WeakLibReader_Layout.hpp"
+#include "../WeakLibReader_Math.hpp"
 
 namespace WeakLibReader {
 

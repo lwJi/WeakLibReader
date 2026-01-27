@@ -46,8 +46,8 @@ The suite exercises 2D-5D interpolation, derivatives, symmetric plane helpers, a
 ## Usage Example
 
 ```cpp
-#include "Hdf5Loader.hpp"
-#include "LogInterpolate.hpp"
+#include "WeakLibReader_Hdf5Loader.hpp"
+#include "WeakLibReader_LogInterpolate.hpp"
 
 using namespace WeakLibReader;
 

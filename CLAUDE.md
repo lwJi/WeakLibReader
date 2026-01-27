@@ -7,19 +7,19 @@ Translate WeakLib's EOS & opacity **interpolators** from Fortran into **GPU-frie
 ## Repository Structure
 
 ```
-src/                          # Core headers (public API + device helpers)
-  AxisTypes.hpp               # Axis, AxisScale
-  IndexDelta.hpp              # Linear/log10 indexing helpers
-  InterpBasis.hpp             # Linear through penta-linear basis routines
-  InterpLogTable.hpp          # Log-space point kernels and aligned slices
-  LogInterpolate.hpp          # High-level API: interpolation, derivatives, sweeps
-  Layout.hpp                  # Row-major stride helpers
-  Math.hpp                    # GPU math utilities (Log10, Pow10)
-  Hdf5Loader.hpp              # HDF5 reader via amrex::TableData
-ref/weaklib/                  # Fortran reference implementation
+src/                                    # Core headers (public API + device helpers)
+  WeakLibReader_AxisTypes.hpp           # Axis, AxisScale
+  WeakLibReader_IndexDelta.hpp          # Linear/log10 indexing helpers
+  WeakLibReader_InterpBasis.hpp         # Linear through penta-linear basis routines
+  WeakLibReader_InterpLogTable.hpp      # Log-space point kernels and aligned slices
+  WeakLibReader_LogInterpolate.hpp      # High-level API: interpolation, derivatives, sweeps
+  WeakLibReader_Layout.hpp              # Row-major stride helpers
+  WeakLibReader_Math.hpp                # GPU math utilities (Log10, Pow10)
+  WeakLibReader_Hdf5Loader.hpp          # HDF5 reader via amrex::TableData
+ref/weaklib/                            # Fortran reference implementation
 test/
-  test_log_interpolate.cpp    # Interpolation tests (1D-5D, derivatives, sweeps)
-  test_hdf5_loader.cpp        # 11 HDF5 loader tests
+  test_log_interpolate.cpp              # Interpolation tests (1D-5D, derivatives, sweeps)
+  test_hdf5_loader.cpp                  # 11 HDF5 loader tests
 ```
 
 ## Naming Conventions

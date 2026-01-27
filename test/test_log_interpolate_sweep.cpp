@@ -1,10 +1,10 @@
 #define SIMPLE_CATCH_NO_MAIN
 #include <catch2/catch_test_macros.hpp>
 
-#include "LogInterpolate.hpp"
-#include "InterpLogTable.hpp"
-#include "Layout.hpp"
-#include "AxisTypes.hpp"
+#include "WeakLibReader_LogInterpolate.hpp"
+#include "WeakLibReader_InterpLogTable.hpp"
+#include "WeakLibReader_Layout.hpp"
+#include "WeakLibReader_AxisTypes.hpp"
 
 #include <array>
 #include <cmath>

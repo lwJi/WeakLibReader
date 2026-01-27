@@ -9,8 +9,8 @@
 #include <string>
 #include <utility>
 
-#include "Hdf5Types.hpp"
-#include "detail/Hdf5LoaderDetail.hpp"
+#include "WeakLibReader_Hdf5Types.hpp"
+#include "detail/WeakLibReader_Hdf5LoaderDetail.hpp"
 
 namespace WeakLibReader {
 
