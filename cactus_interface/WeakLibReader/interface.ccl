@@ -1,0 +1,5 @@
+# Interface definition for thorn WeakLibReader
+
+IMPLEMENTS: WeakLibReader
+
+USES INCLUDE HEADER: loop_device.hxx

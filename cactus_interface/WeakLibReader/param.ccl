@@ -1,0 +1,8 @@
+# Parameter definitions for thorn WeakLibReader
+
+RESTRICTED:
+
+STRING eos_table_file "eos table name (hdf5)" STEERABLE=RECOVER
+{
+  ".*" :: "can be anything"
+} "foo.h5"

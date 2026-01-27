@@ -1,0 +1,10 @@
+# Configuration definition for thorn WeakLibReader
+
+REQUIRES Loop HDF5
+
+PROVIDES WeakLibReader
+{
+  SCRIPT src/detect.sh
+  LANG bash
+  OPTIONS WEAKLIBREADER_DIR WEAKLIBREADER_INC_DIR
+}
