@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <limits>
 
-#include "LogInterpolateCore.hpp"
+#include "WeakLibReader_LogInterpolateCore.hpp"
 
 namespace WeakLibReader {
 

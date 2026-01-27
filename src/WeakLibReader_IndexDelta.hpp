@@ -4,7 +4,7 @@
 #include <AMReX_GpuQualifiers.H>
 #include <AMReX_Extension.H>
 
-#include "Math.hpp"
+#include "WeakLibReader_Math.hpp"
 
 namespace WeakLibReader {
 namespace detail {

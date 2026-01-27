@@ -4,9 +4,9 @@
 #include <AMReX_GpuQualifiers.H>
 #include <cstddef>
 
-#include "../InterpLogTable.hpp"
-#include "../Math.hpp"
-#include "../AxisTypes.hpp"
+#include "../WeakLibReader_InterpLogTable.hpp"
+#include "../WeakLibReader_Math.hpp"
+#include "../WeakLibReader_AxisTypes.hpp"
 
 namespace WeakLibReader {
 namespace detail {

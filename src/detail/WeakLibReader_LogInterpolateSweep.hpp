@@ -3,7 +3,7 @@
 #include <AMReX_GpuQualifiers.H>
 #include <cstddef>
 
-#include "LogInterpolateCore.hpp"
+#include "WeakLibReader_LogInterpolateCore.hpp"
 
 namespace WeakLibReader {
 

@@ -8,8 +8,8 @@
 #include <array>
 #include <cstdint>
 
-#include "Layout.hpp"
-#include "AxisTypes.hpp"
+#include "WeakLibReader_Layout.hpp"
+#include "WeakLibReader_AxisTypes.hpp"
 
 namespace WeakLibReader {
 

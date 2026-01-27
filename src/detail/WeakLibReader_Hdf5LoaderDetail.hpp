@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "../Hdf5Types.hpp"
+#include "../WeakLibReader_Hdf5Types.hpp"
 
 #include <hdf5.h>
 

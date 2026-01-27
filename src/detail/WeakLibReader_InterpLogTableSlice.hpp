@@ -2,8 +2,8 @@
 
 #include <AMReX_GpuQualifiers.H>
 
-#include "InterpLogTablePoint.hpp"
-#include "InterpLogTableDeriv.hpp"
+#include "WeakLibReader_InterpLogTablePoint.hpp"
+#include "WeakLibReader_InterpLogTableDeriv.hpp"
 
 namespace WeakLibReader {
 
