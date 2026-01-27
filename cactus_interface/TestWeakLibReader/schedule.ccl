@@ -2,7 +2,13 @@
 
 STORAGE: energy
 
-SCHEDULE TestWeakLibReader_Init AT INITIAL
+SCHEDULE TestWeakLibReader_LoadTable AT INITIAL
+{
+  LANG: C
+  OPTIONS: global
+} "Load table"
+
+SCHEDULE TestWeakLibReader_Init AT INITIAL AFTER TestWeakLibReader_LoadTable
 {
   LANG: C
   WRITES: energy(everywhere)
