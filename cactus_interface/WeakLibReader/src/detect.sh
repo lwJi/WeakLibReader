@@ -29,6 +29,7 @@ echo "BEGIN MESSAGE"
 echo "Using bundled WeakLibReader headers..."
 echo "END MESSAGE"
 
+#WEAKLIBREADER_DIR="${PACKAGE_DIR}"
 WEAKLIBREADER_INC_DIRS="${BUNDLED_INC_DIR}"
 
 ################################################################################
@@ -36,7 +37,14 @@ WEAKLIBREADER_INC_DIRS="${BUNDLED_INC_DIR}"
 ################################################################################
 
 # Normalize include dirs
-WEAKLIBREADER_INC_DIRS="$(${CCTK_HOME}/lib/sbin/strip-incdirs.sh $WEAKLIBREADER_INC_DIRS)"
+#WEAKLIBREADER_INC_DIRS="$(${CCTK_HOME}/lib/sbin/strip-incdirs.sh $WEAKLIBREADER_INC_DIRS)"
+
+# Pass options to Cactus
+echo "BEGIN MAKE_DEFINITION"
+#echo "WEAKLIBREADER_DIR      = ${WEAKLIBREADER_DIR}"
+echo "WEAKLIBREADER_INC_DIRS = ${WEAKLIBREADER_INC_DIRS}"
+echo "END MAKE_DEFINITION"
 
 # Emit directives for the build system
 echo 'INCLUDE_DIRECTORY ${WEAKLIBREADER_INC_DIRS}'
+

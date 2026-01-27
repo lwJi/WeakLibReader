@@ -3,7 +3,7 @@
 #include <cctk_Parameters.h>
 #include <loop_device.hxx>
 
-#include "Hdf5Loader.hpp"
+#include "WeakLibReader_Hdf5Loader.hpp"
 
 namespace TestWeakLibReader {
 
