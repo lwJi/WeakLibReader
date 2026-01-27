@@ -7,19 +7,43 @@ Translate WeakLib's EOS & opacity **interpolators** from Fortran into **GPU-frie
 ## Repository Structure
 
 ```
-src/                                    # Core headers (public API + device helpers)
-  WeakLibReader_AxisTypes.hpp           # Axis, AxisScale
-  WeakLibReader_IndexDelta.hpp          # Linear/log10 indexing helpers
-  WeakLibReader_InterpBasis.hpp         # Linear through penta-linear basis routines
-  WeakLibReader_InterpLogTable.hpp      # Log-space point kernels and aligned slices
-  WeakLibReader_LogInterpolate.hpp      # High-level API: interpolation, derivatives, sweeps
-  WeakLibReader_Layout.hpp              # Row-major stride helpers
-  WeakLibReader_Math.hpp                # GPU math utilities (Log10, Pow10)
-  WeakLibReader_Hdf5Loader.hpp          # HDF5 reader via amrex::TableData
-ref/weaklib/                            # Fortran reference implementation
-test/
-  test_log_interpolate.cpp              # Interpolation tests (1D-5D, derivatives, sweeps)
-  test_hdf5_loader.cpp                  # 11 HDF5 loader tests
+src/                                        # Public API headers
+  WeakLibReader_AxisTypes.hpp               # Axis, AxisScale
+  WeakLibReader_Hdf5Loader.hpp              # HDF5 table loader API
+  WeakLibReader_Hdf5Types.hpp               # HDF5-related types (TableView, Hdf5Table, etc.)
+  WeakLibReader_IndexDelta.hpp              # Linear/log10 indexing helpers
+  WeakLibReader_InterpBasis.hpp             # Linear through penta-linear basis routines
+  WeakLibReader_InterpLogTable.hpp          # Aggregator for log-table interpolation headers
+  WeakLibReader_Layout.hpp                  # Row-major stride helpers
+  WeakLibReader_LogInterpolate.hpp          # Aggregator for high-level interpolation API
+  WeakLibReader_Math.hpp                    # GPU math utilities (Log10, Pow10)
+  detail/                                   # Implementation details (internal)
+    WeakLibReader_Hdf5LoaderDetail.hpp      # HDF5 loading implementation
+    WeakLibReader_InterpLogTableDeriv.hpp   # Point derivative kernels
+    WeakLibReader_InterpLogTablePoint.hpp   # Point interpolation kernels
+    WeakLibReader_InterpLogTableSlice.hpp   # Slice and symmetric plane ops
+    WeakLibReader_LogInterpolateCore.hpp    # Template dispatch by dimension
+    WeakLibReader_LogInterpolateDeriv.hpp   # Derivative API wrappers
+    WeakLibReader_LogInterpolatePoint.hpp   # Single-point API wrappers
+    WeakLibReader_LogInterpolateSum.hpp     # Sum utilities
+    WeakLibReader_LogInterpolateSweep.hpp   # Batch/sweep operations
+test/                                       # Regression tests (Catch2)
+  test_hdf5_loader.cpp                      # HDF5 loader tests
+  test_log_interpolate_2d.cpp               # 2D interpolation tests
+  test_log_interpolate_3d.cpp               # 3D interpolation tests
+  test_log_interpolate_4d5d.cpp             # 4D/5D interpolation tests
+  test_log_interpolate_basis.cpp            # Basis function tests
+  test_log_interpolate_deriv.cpp            # Derivative tests
+  test_log_interpolate_kernel.cpp           # Kernel unit tests
+  test_log_interpolate_sweep.cpp            # Sweep operation tests
+ref/weaklib/                                # Fortran reference implementation
+  wlInterpolationModule.F90                 # Main interpolation routines
+  wlInterpolationUtilitiesModule.F90        # Utility functions
+  wlKindModule.f90                          # Kind parameter definitions
+scripts/                                    # Build & test automation
+  build.sh                                  # Build only
+  test.sh                                   # Run tests only
+  check.sh                                  # Build and test together
 ```
 
 ## Naming Conventions
