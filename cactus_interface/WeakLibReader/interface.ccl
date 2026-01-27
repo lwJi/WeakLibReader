@@ -3,7 +3,3 @@
 IMPLEMENTS: WeakLibReader
 
 USES INCLUDE HEADER: loop_device.hxx
-
-INCLUDES HEADER: hdf5loader.hxx IN weaklibreader_hdf5loader.hpp
-
-

@@ -3,6 +3,8 @@
 #include <cctk_Parameters.h>
 #include <loop_device.hxx>
 
+#include "Hdf5Loader.hpp"
+
 namespace TestWeakLibReader {
 
 extern "C" void TestWeakLibReader_Init(CCTK_ARGUMENTS) {
