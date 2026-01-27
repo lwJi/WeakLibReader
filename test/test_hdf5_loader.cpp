@@ -2,8 +2,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "WeakLibReader_Hdf5Loader.hpp"
+#include "test_amrex_guard.hpp"
 
-#include <AMReX.H>
 #include <AMReX_Arena.H>
 #include <AMReX_GpuContainers.H>
 #include <AMReX_GpuDevice.H>
@@ -19,29 +19,7 @@ namespace {
 
 constexpr double kTol = 1.0e-12;
 
-/// Global AMReX guard that initializes once and finalizes at program exit.
-/// This avoids the MPI re-initialization error that occurs when each test
-/// creates its own AmrexGuard (MPI cannot be re-initialized after finalization).
-struct GlobalAmrexGuard {
-  GlobalAmrexGuard()
-  {
-    int argc = 0;
-    char** argv = nullptr;
-    amrex::Initialize(argc, argv);
-  }
-  ~GlobalAmrexGuard() { amrex::Finalize(); }
-
-  static GlobalAmrexGuard& Instance()
-  {
-    static GlobalAmrexGuard guard;
-    return guard;
-  }
-};
-
-/// Per-test helper that ensures AMReX is initialized (via the global guard)
-struct AmrexGuard {
-  AmrexGuard() { (void)GlobalAmrexGuard::Instance(); }
-};
+using test_utils::AmrexGuard;
 
 /// RAII helper that temporarily silences HDF5 automatic error printing.
 /// Used in tests that intentionally trigger HDF5 errors.
