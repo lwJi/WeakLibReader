@@ -84,6 +84,125 @@ inline Hdf5LoadStatus LoadHdf5Table(const std::string& filePath,
   return Hdf5LoadStatus::Success;
 }
 
+inline Hdf5LoadStatus LoadWeakLibEosTable(const std::string& filePath,
+                                          const std::string& variableName,
+                                          Hdf5Table& output)
+{
+  Hdf5Table result;
+
+  detail::ScopedHandle file(H5Fopen(filePath.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
+  if (!file.Valid()) {
+    return Hdf5LoadStatus::FileOpenFailed;
+  }
+
+  // Open ThermoState group and read LogInterp
+  detail::ScopedHandle thermoGroup(H5Gopen(file.Get(), "ThermoState", H5P_DEFAULT), H5Gclose);
+  if (!thermoGroup.Valid()) {
+    return Hdf5LoadStatus::DatasetOpenFailed;
+  }
+
+  int logInterp[3] = {0, 0, 0};
+  if (!detail::ReadIntArray(thermoGroup.Get(), "LogInterp", logInterp, 3)) {
+    return Hdf5LoadStatus::DatasetReadFailed;
+  }
+
+  // Map LogInterp values to AxisScale (1=Log10, 0=Linear)
+  // LogInterp order in file: [Density, Temperature, Ye]
+  // After reversal: axis0=Density, axis1=Temperature, axis2=Ye
+  const AxisScale scales[3] = {
+    (logInterp[0] == 1) ? AxisScale::Log10 : AxisScale::Linear,  // Density -> axis0
+    (logInterp[1] == 1) ? AxisScale::Log10 : AxisScale::Linear,  // Temperature -> axis1
+    (logInterp[2] == 1) ? AxisScale::Log10 : AxisScale::Linear   // Ye -> axis2
+  };
+
+  // Open dependent variable dataset
+  const std::string datasetPath = "DependentVariables/" + variableName;
+  detail::ScopedHandle dataset(H5Dopen(file.Get(), datasetPath.c_str(), H5P_DEFAULT), H5Dclose);
+  if (!dataset.Valid()) {
+    return Hdf5LoadStatus::DatasetOpenFailed;
+  }
+
+  detail::ScopedHandle dataspace(H5Dget_space(dataset.Get()), H5Sclose);
+  if (!dataspace.Valid()) {
+    return Hdf5LoadStatus::DatasetReadFailed;
+  }
+
+  const int rank = H5Sget_simple_extent_ndims(dataspace.Get());
+  if (rank != 3) {
+    return Hdf5LoadStatus::DatasetRankInvalid;
+  }
+
+  // Read dimensions in HDF5 (Fortran) order: (Ye, T, rho)
+  std::array<hsize_t, 3> nativeDims{{0, 0, 0}};
+  if (H5Sget_simple_extent_dims(dataspace.Get(), nativeDims.data(), nullptr) < 0) {
+    return Hdf5LoadStatus::DatasetReadFailed;
+  }
+
+  // Reverse to C order: axis0=rho, axis1=T, axis2=Ye
+  result.nd = 3;
+  std::array<int, 5> extents{{1, 1, 1, 1, 1}};
+  for (int dim = 0; dim < 3; ++dim) {
+    const hsize_t source = nativeDims[2 - dim];
+    if (source == 0 || source > static_cast<hsize_t>(std::numeric_limits<int>::max())) {
+      return Hdf5LoadStatus::IncompatibleDatasetExtent;
+    }
+    extents[dim] = static_cast<int>(source);
+  }
+  result.extents = extents;
+
+  // Allocate and read data
+  const std::size_t totalSize = detail::ComputeTotalSize(3, extents);
+  if (totalSize == 0) {
+    return Hdf5LoadStatus::IncompatibleDatasetExtent;
+  }
+
+  const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
+  bool extentOverflow = false;
+  amrex::Array<int, 4> hi = detail::MakeHiArray(3, extents, extentOverflow);
+  if (extentOverflow) {
+    return Hdf5LoadStatus::IncompatibleDatasetExtent;
+  }
+  result.values.resize(lo, hi, amrex::The_Pinned_Arena());
+
+  if (H5Dread(dataset.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+              result.values.table().p) < 0) {
+    return Hdf5LoadStatus::DatasetReadFailed;
+  }
+
+  // Load axes from ThermoState group
+  // File order: Density(185), Temperature(81), Electron Fraction(30)
+  // C order after reversal: axis0=Density(185), axis1=Temperature(81), axis2=Ye(30)
+  Hdf5LoadStatus axisStatus;
+
+  axisStatus = detail::LoadWeakLibAxis(thermoGroup.Get(), "Density",
+                                       extents[0], scales[0], 0, result);
+  if (axisStatus != Hdf5LoadStatus::Success) {
+    return axisStatus;
+  }
+
+  axisStatus = detail::LoadWeakLibAxis(thermoGroup.Get(), "Temperature",
+                                       extents[1], scales[1], 1, result);
+  if (axisStatus != Hdf5LoadStatus::Success) {
+    return axisStatus;
+  }
+
+  axisStatus = detail::LoadWeakLibAxis(thermoGroup.Get(), "Electron Fraction",
+                                       extents[2], scales[2], 2, result);
+  if (axisStatus != Hdf5LoadStatus::Success) {
+    return axisStatus;
+  }
+
+  // Clear unused axes
+  for (int dim = 3; dim < 5; ++dim) {
+    result.axisStorage[dim].clear();
+    result.axes[dim] = Axis{};
+  }
+
+  result.layout = MakeLayout(result.extents.data(), result.nd);
+  output = std::move(result);
+  return Hdf5LoadStatus::Success;
+}
+
 inline TableDevice MakeDeviceCopy(const Hdf5Table& host,
                                   amrex::Arena* arena = amrex::The_Device_Arena())
 {

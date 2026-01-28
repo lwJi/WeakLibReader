@@ -112,6 +112,32 @@ inline bool ReadStringAttribute(hid_t parent, const std::string& name, std::stri
   return true;
 }
 
+inline bool ReadIntArray(hid_t parent, const char* name, int* out, std::size_t count)
+{
+  if (parent < 0) {
+    return false;
+  }
+  ScopedHandle dataset(H5Dopen(parent, name, H5P_DEFAULT), H5Dclose);
+  if (!dataset.Valid()) {
+    return false;
+  }
+  ScopedHandle space(H5Dget_space(dataset.Get()), H5Sclose);
+  if (!space.Valid()) {
+    return false;
+  }
+  hsize_t dims = 0;
+  if (H5Sget_simple_extent_dims(space.Get(), &dims, nullptr) < 0) {
+    return false;
+  }
+  if (dims != static_cast<hsize_t>(count)) {
+    return false;
+  }
+  if (H5Dread(dataset.Get(), H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, out) < 0) {
+    return false;
+  }
+  return true;
+}
+
 inline bool ValidateAxis(const amrex::Vector<double>& values, AxisScale scale)
 {
   if (values.size() < 2) {
@@ -238,6 +264,57 @@ inline Hdf5LoadStatus LoadAxes(hid_t file,
     table.axisStorage[dim].clear();
     table.axes[dim] = Axis{};
   }
+
+  return Hdf5LoadStatus::Success;
+}
+
+inline Hdf5LoadStatus LoadWeakLibAxis(hid_t thermoGroup,
+                                      const char* datasetName,
+                                      int expectedExtent,
+                                      AxisScale scale,
+                                      int axisIndex,
+                                      Hdf5Table& table)
+{
+  ScopedHandle dataset(H5Dopen(thermoGroup, datasetName, H5P_DEFAULT), H5Dclose);
+  if (!dataset.Valid()) {
+    return Hdf5LoadStatus::AxisDatasetOpenFailed;
+  }
+
+  ScopedHandle space(H5Dget_space(dataset.Get()), H5Sclose);
+  if (!space.Valid()) {
+    return Hdf5LoadStatus::AxisReadFailed;
+  }
+
+  const int rank = H5Sget_simple_extent_ndims(space.Get());
+  if (rank != 1) {
+    return Hdf5LoadStatus::AxisReadFailed;
+  }
+
+  hsize_t length = 0;
+  if (H5Sget_simple_extent_dims(space.Get(), &length, nullptr) < 0) {
+    return Hdf5LoadStatus::AxisReadFailed;
+  }
+
+  if (static_cast<int>(length) != expectedExtent) {
+    return Hdf5LoadStatus::AxisExtentMismatch;
+  }
+
+  amrex::Vector<double>& storage = table.axisStorage[axisIndex];
+  storage.resize(static_cast<std::size_t>(length));
+  if (H5Dread(dataset.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+              storage.data()) < 0) {
+    return Hdf5LoadStatus::AxisReadFailed;
+  }
+
+  if (!ValidateAxis(storage, scale)) {
+    return Hdf5LoadStatus::AxisNotMonotone;
+  }
+
+  Axis axis{};
+  axis.grid = storage.data();
+  axis.n = static_cast<int>(storage.size());
+  axis.scale = scale;
+  table.axes[axisIndex] = axis;
 
   return Hdf5LoadStatus::Success;
 }
