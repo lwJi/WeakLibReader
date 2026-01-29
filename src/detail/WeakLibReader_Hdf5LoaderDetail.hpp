@@ -159,6 +159,168 @@ inline bool ValidateAxis(const amrex::Vector<double>& values, AxisScale scale)
   return true;
 }
 
+// Read a single integer from a 1-element dataset
+// Matches pattern used in Fortran ReadDependentVariablesHDF for index datasets
+inline bool ReadScalarInt(hid_t parent, const char* name, int& out)
+{
+  if (parent < 0) {
+    return false;
+  }
+  ScopedHandle dataset(H5Dopen(parent, name, H5P_DEFAULT), H5Dclose);
+  if (!dataset.Valid()) {
+    return false;
+  }
+  ScopedHandle space(H5Dget_space(dataset.Get()), H5Sclose);
+  if (!space.Valid()) {
+    return false;
+  }
+
+  const int rank = H5Sget_simple_extent_ndims(space.Get());
+  if (rank != 1) {
+    return false;
+  }
+
+  hsize_t dims = 0;
+  if (H5Sget_simple_extent_dims(space.Get(), &dims, nullptr) < 0) {
+    return false;
+  }
+  if (dims != 1) {
+    return false;
+  }
+
+  int buffer[1] = {0};
+  if (H5Dread(dataset.Get(), H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer) < 0) {
+    return false;
+  }
+  out = buffer[0];
+  return true;
+}
+
+// Read a 1D string array dataset
+// Matches Fortran Read1dHDF_string (wlIOModuleHDF.F90:601-618)
+inline bool ReadStringArray(hid_t parent, const char* name, std::vector<std::string>& out)
+{
+  if (parent < 0) {
+    return false;
+  }
+  ScopedHandle dataset(H5Dopen(parent, name, H5P_DEFAULT), H5Dclose);
+  if (!dataset.Valid()) {
+    return false;
+  }
+  ScopedHandle space(H5Dget_space(dataset.Get()), H5Sclose);
+  if (!space.Valid()) {
+    return false;
+  }
+
+  const int rank = H5Sget_simple_extent_ndims(space.Get());
+  if (rank != 1) {
+    return false;
+  }
+
+  hsize_t count = 0;
+  if (H5Sget_simple_extent_dims(space.Get(), &count, nullptr) < 0) {
+    return false;
+  }
+
+  ScopedHandle dtype(H5Dget_type(dataset.Get()), H5Tclose);
+  if (!dtype.Valid()) {
+    return false;
+  }
+
+  const bool isVariable = H5Tis_variable_str(dtype.Get()) > 0;
+
+  if (isVariable) {
+    // Variable-length strings
+    std::vector<char*> buffer(count, nullptr);
+    ScopedHandle memtype(H5Tcopy(H5T_C_S1), H5Tclose);
+    H5Tset_size(memtype.Get(), H5T_VARIABLE);
+
+    if (H5Dread(dataset.Get(), memtype.Get(), H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()) < 0) {
+      return false;
+    }
+
+    out.resize(count);
+    for (hsize_t i = 0; i < count; ++i) {
+      if (buffer[i] != nullptr) {
+        out[i] = buffer[i];
+      }
+    }
+
+    // Free HDF5-allocated memory
+    ScopedHandle vlenSpace(H5Dget_space(dataset.Get()), H5Sclose);
+    H5Dvlen_reclaim(memtype.Get(), vlenSpace.Get(), H5P_DEFAULT, buffer.data());
+  } else {
+    // Fixed-length strings
+    const std::size_t strLen = H5Tget_size(dtype.Get());
+    std::vector<char> buffer(count * strLen);
+
+    if (H5Dread(dataset.Get(), dtype.Get(), H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()) < 0) {
+      return false;
+    }
+
+    out.resize(count);
+    for (hsize_t i = 0; i < count; ++i) {
+      // Extract string, trimming trailing spaces/nulls
+      const char* start = buffer.data() + i * strLen;
+      std::size_t len = strLen;
+      while (len > 0 && (start[len - 1] == '\0' || start[len - 1] == ' ')) {
+        --len;
+      }
+      out[i].assign(start, len);
+    }
+  }
+
+  return true;
+}
+
+// Read a 3D integer array dataset
+// Matches Fortran Read3dHDF_integer (wlIOModuleHDF.F90:361-375)
+inline bool ReadIntArray3d(hid_t parent, const char* name,
+                           amrex::TableData<int, 3>& out,
+                           const std::array<int, 3>& expectedDims)
+{
+  if (parent < 0) {
+    return false;
+  }
+  ScopedHandle dataset(H5Dopen(parent, name, H5P_DEFAULT), H5Dclose);
+  if (!dataset.Valid()) {
+    return false;
+  }
+  ScopedHandle space(H5Dget_space(dataset.Get()), H5Sclose);
+  if (!space.Valid()) {
+    return false;
+  }
+
+  const int rank = H5Sget_simple_extent_ndims(space.Get());
+  if (rank != 3) {
+    return false;
+  }
+
+  hsize_t dims[3] = {0, 0, 0};
+  if (H5Sget_simple_extent_dims(space.Get(), dims, nullptr) < 0) {
+    return false;
+  }
+
+  // Verify dimensions match (in reversed order due to Fortran->C conversion)
+  // File order: [Ye, T, rho], C order: [rho, T, Ye]
+  if (static_cast<int>(dims[2]) != expectedDims[0] ||
+      static_cast<int>(dims[1]) != expectedDims[1] ||
+      static_cast<int>(dims[0]) != expectedDims[2]) {
+    return false;
+  }
+
+  // Allocate output array
+  const amrex::Array<int, 3> lo{{0, 0, 0}};
+  const amrex::Array<int, 3> hi{{expectedDims[0] - 1, expectedDims[1] - 1, expectedDims[2] - 1}};
+  out.resize(lo, hi, amrex::The_Pinned_Arena());
+
+  if (H5Dread(dataset.Get(), H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, out.table().p) < 0) {
+    return false;
+  }
+
+  return true;
+}
+
 inline amrex::Array<int, 4> MakeHiArray(int nd, const std::array<int, 5>& extents,
                                         bool& overflow) noexcept
 {

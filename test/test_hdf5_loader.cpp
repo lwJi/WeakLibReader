@@ -12,6 +12,7 @@
 
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -640,4 +641,93 @@ TEST_CASE("HDF5 loader handles 5D tables correctly", "[hdf5][loader][5d]")
   }
 
   std::filesystem::remove(filePath);
+}
+
+TEST_CASE("LoadWeakLibEosTableFull reads complete EOS table", "[hdf5][weaklib]")
+{
+  AmrexGuard amrex{};
+
+  const std::string eosPath = "/Users/liwei/docker-workspace/repos/weaklib-tables/SFHo/LowRes/wl-EOS-SFHo-15-25-50.h5";
+
+  // Skip if file doesn't exist
+  std::ifstream checkFile(eosPath);
+  if (!checkFile.good()) {
+    std::cout << "SKIPPED: WeakLib EOS file not found: " << eosPath << std::endl;
+    return;
+  }
+  checkFile.close();
+
+  WeakLibReader::WeakLibEosTable table;
+  const auto status = WeakLibReader::LoadWeakLibEosTableFull(eosPath, table);
+  REQUIRE(status == WeakLibReader::Hdf5LoadStatus::Success);
+
+  // Dimensions are correct
+  // Expected: 185 density, 81 temperature, 30 Ye points
+  CHECK(table.dimensions[0] == 185);  // nRho
+  CHECK(table.dimensions[1] == 81);   // nT
+  CHECK(table.dimensions[2] == 30);   // nYe
+
+  // nVariables is correct
+  CHECK(table.nVariables == 15);
+
+  // Axis scales match LogInterp
+  CHECK(table.scales[0] == WeakLibReader::AxisScale::Log10);  // Density
+  CHECK(table.scales[1] == WeakLibReader::AxisScale::Log10);  // Temperature
+  CHECK(table.scales[2] == WeakLibReader::AxisScale::Linear); // Ye
+
+  // Axis names are read correctly
+  CHECK(table.axisNames[0] == "Density");
+  CHECK(table.axisNames[1] == "Temperature");
+  CHECK(table.axisNames[2] == "Electron Fraction");
+
+  // Variable names are read correctly
+  REQUIRE(table.variableNames.size() == 15);
+  CHECK(table.variableNames[0] == "Pressure");
+  CHECK(table.variableNames[1] == "Entropy Per Baryon");
+
+  // Index mappings are valid
+  // Indices are 1-based in Fortran, should be positive
+  CHECK(table.indices.iPressure >= 1);
+  CHECK(table.indices.iEntropyPerBaryon >= 1);
+  CHECK(table.indices.iGamma1 >= 1);
+
+  // Variable data has correct size
+  for (int iVar = 0; iVar < table.nVariables; ++iVar) {
+    const auto& var = table.variables[iVar];
+    CHECK(var.const_table().p != nullptr);
+  }
+
+  // Repaired mask is loaded
+  CHECK(table.repaired.const_table().p != nullptr);
+
+  // Layout is computed correctly (row-major)
+  // stride[0] = 1, stride[1] = n[0], stride[2] = n[0]*n[1]
+  CHECK(table.layout.stride[0] == 1);
+  CHECK(table.layout.stride[1] == static_cast<std::size_t>(table.dimensions[0]));
+  CHECK(table.layout.stride[2] == static_cast<std::size_t>(table.dimensions[0] * table.dimensions[1]));
+}
+
+TEST_CASE("MakeDeviceCopy works for WeakLibEosTable", "[hdf5][weaklib][gpu]")
+{
+  AmrexGuard amrex{};
+
+  const std::string eosPath = "/Users/liwei/docker-workspace/repos/weaklib-tables/SFHo/LowRes/wl-EOS-SFHo-15-25-50.h5";
+
+  std::ifstream checkFile(eosPath);
+  if (!checkFile.good()) {
+    std::cout << "SKIPPED: WeakLib EOS file not found: " << eosPath << std::endl;
+    return;
+  }
+  checkFile.close();
+
+  WeakLibReader::WeakLibEosTable hostTable;
+  const auto status = WeakLibReader::LoadWeakLibEosTableFull(eosPath, hostTable);
+  REQUIRE(status == WeakLibReader::Hdf5LoadStatus::Success);
+
+  // This will only do meaningful work on GPU builds
+  auto deviceTable = WeakLibReader::MakeDeviceCopy(hostTable);
+
+  CHECK(deviceTable.nVariables == hostTable.nVariables);
+  CHECK(deviceTable.dimensions == hostTable.dimensions);
+  CHECK(deviceTable.indices.iPressure == hostTable.indices.iPressure);
 }
