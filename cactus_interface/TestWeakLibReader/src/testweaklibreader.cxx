@@ -13,7 +13,7 @@ extern "C" void TestWeakLibReader_LoadTable(CCTK_ARGUMENTS) {
   CCTK_INFO("Loading EOS table");
 
   WeakLibReader::Hdf5Table table;
-  const auto status = WeakLibReader::LoadHdf5Table(eos_table_file, table);
+  const auto status = WeakLibReader::LoadWeakLibEosTable(eos_table_file, "Pressure", table);
 
   assert(status == WeakLibReader::Hdf5LoadStatus::Success);
 }
