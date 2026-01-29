@@ -1,0 +1,109 @@
+# AGENTS.md
+
+## Project Goal
+
+Translate WeakLib's EOS & opacity **interpolators** from Fortran into **GPU-friendly C++** that integrates with **AMReX**. Target: numerical parity with Fortran (≤1e-12 relative error), CUDA first (HIP later).
+
+## Repository Structure
+
+```
+src/                                        # Public API headers
+  WeakLibReader_AxisTypes.hpp               # Axis, AxisScale
+  WeakLibReader_Hdf5Loader.hpp              # HDF5 table loader API
+  WeakLibReader_Hdf5Types.hpp               # HDF5-related types (TableView, Hdf5Table, etc.)
+  WeakLibReader_IndexDelta.hpp              # Linear/log10 indexing helpers
+  WeakLibReader_InterpBasis.hpp             # Linear through penta-linear basis routines
+  WeakLibReader_InterpLogTable.hpp          # Aggregator for log-table interpolation headers
+  WeakLibReader_Layout.hpp                  # Row-major stride helpers
+  WeakLibReader_LogInterpolate.hpp          # Aggregator for high-level interpolation API
+  WeakLibReader_Math.hpp                    # GPU math utilities (Log10, Pow10)
+  detail/                                   # Implementation details (internal)
+    WeakLibReader_Hdf5LoaderDetail.hpp      # HDF5 loading implementation
+    WeakLibReader_InterpLogTableDeriv.hpp   # Point derivative kernels
+    WeakLibReader_InterpLogTablePoint.hpp   # Point interpolation kernels
+    WeakLibReader_InterpLogTableSlice.hpp   # Slice and symmetric plane ops
+    WeakLibReader_LogInterpolateCore.hpp    # Template dispatch by dimension
+    WeakLibReader_LogInterpolateDeriv.hpp   # Derivative API wrappers
+    WeakLibReader_LogInterpolatePoint.hpp   # Single-point API wrappers
+    WeakLibReader_LogInterpolateSum.hpp     # Sum utilities
+    WeakLibReader_LogInterpolateSweep.hpp   # Batch/sweep operations
+test/                                       # Regression tests (Catch2)
+  test_hdf5_loader.cpp                      # HDF5 loader tests
+  test_log_interpolate_2d.cpp               # 2D interpolation tests
+  test_log_interpolate_3d.cpp               # 3D interpolation tests
+  test_log_interpolate_4d5d.cpp             # 4D/5D interpolation tests
+  test_log_interpolate_basis.cpp            # Basis function tests
+  test_log_interpolate_deriv.cpp            # Derivative tests
+  test_log_interpolate_kernel.cpp           # Kernel unit tests
+  test_log_interpolate_sweep.cpp            # Sweep operation tests
+ref/weaklib/                                # Fortran reference implementation
+  wlInterpolationModule.F90                 # Main interpolation routines
+  wlInterpolationUtilitiesModule.F90        # Utility functions
+  wlKindModule.f90                          # Kind parameter definitions
+scripts/                                    # Build & test automation
+  build.sh                                  # Build only
+  test.sh                                   # Run tests only
+  check.sh                                  # Build and test together
+```
+
+## Naming Conventions
+
+- **Namespace:** `WeakLibReader`
+- **Types/Functions:** `PascalCase` (e.g., `Axis`, `IndexAndDeltaLin`)
+- **Variables:** `lowerCamelCase` (e.g., `fracT`, `rowStride`)
+- **Standard:** C++17+
+
+## Key Design Principles
+
+1. **Row-major layout** with precomputed strides
+2. **No STL containers** in device code; no dynamic allocations in kernels
+3. **Pass by value** for small structs (`Axis`, `Layout`)
+4. **Out-of-range handling:** Extrapolation (matches Fortran behavior)
+5. **Strict monotonicity** for axis grids (validated at load time)
+6. **Device functions** must be `noexcept`, inline, `AMREX_GPU_HOST_DEVICE`
+
+## Build & Test
+
+```bash
+scripts/build.sh   # Build only
+scripts/test.sh    # Run tests only
+scripts/check.sh   # Build and test together
+```
+
+Set `VERBOSE=1` for full test output (e.g., `VERBOSE=1 scripts/test.sh`).
+
+## HDF5 Table Format
+
+```
+/values              # N-D array (row-major)
+/axis0, /axis1, ...  # 1D arrays with "scale" attribute ("linear" or "log10")
+```
+
+Validation: monotonic ascending, positive values for Log10 axes.
+
+## Fortran Reference
+
+Located in `ref/weaklib/`. Key modules: `wlInterpolationModule.F90`, `wlInterpolationUtilitiesModule.F90`. Always consult before implementing new interpolation logic.
+
+## Architectural Decisions (Locked)
+
+1. **Out-of-range behavior:** Natural extrapolation (matches Fortran)
+2. **Precision:** Double throughout
+3. **Table I/O:** HDF5 only
+4. **GPU backend:** CUDA first, HIP/DPCPP later
+5. **Memory layout:** Explicit row-major with precomputed strides
+
+## Do's and Don'ts
+
+**Do**
+- Read existing files before proposing changes
+- Add tests for new features; verify against `ref/weaklib/` for interpolation changes
+- Preserve numerical behavior at boundaries and mixed Linear/Log10 axes
+- Use `Layout::Offset` for bounds-safe data access
+- Ensure HDF5 loader retains axis storage backing `Axis` pointers
+
+**Don't**
+- Add I/O formats beyond HDF5
+- Use STL containers or dynamic allocations in device code
+- Add OpenACC or non-AMReX GPU pragmas
+- Skip host-side validation (monotonicity, Log10 positivity)
