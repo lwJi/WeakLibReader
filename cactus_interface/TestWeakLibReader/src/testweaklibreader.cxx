@@ -3,19 +3,32 @@
 #include <cctk_Parameters.h>
 #include <loop_device.hxx>
 
+#include <memory>
+
 #include <WeakLibReader_Hdf5Loader.hpp>
 
 namespace TestWeakLibReader {
+
+std::unique_ptr<WeakLibReader::WeakLibEosTable> eos_table;
 
 extern "C" void TestWeakLibReader_LoadTable(CCTK_ARGUMENTS) {
   DECLARE_CCTK_PARAMETERS;
 
   CCTK_INFO("Loading EOS table");
 
-  WeakLibReader::Hdf5Table table;
-  const auto status = WeakLibReader::LoadWeakLibEosTable(eos_table_file, "Pressure", table);
+  eos_table = std::make_unique<WeakLibReader::WeakLibEosTable>();
 
-  assert(status == WeakLibReader::Hdf5LoadStatus::Success);
+  const auto status =
+      WeakLibReader::LoadWeakLibEosTableFull(eos_table_file, *eos_table);
+
+  if (status != WeakLibReader::Hdf5LoadStatus::Success) {
+    CCTK_ERROR("Failed to load EOS table");
+  }
+}
+
+extern "C" void TestWeakLibReader_Cleanup(CCTK_ARGUMENTS) {
+  CCTK_INFO("Cleaning up EOS table");
+  eos_table.reset();
 }
 
 extern "C" void TestWeakLibReader_Init(CCTK_ARGUMENTS) {
@@ -24,7 +37,6 @@ extern "C" void TestWeakLibReader_Init(CCTK_ARGUMENTS) {
 
   CCTK_INFO("Initializing grid function");
 
-  // Launch a kernel on the GPU device
   grid.loop_all_device<0, 0, 0>(
       grid.nghostzones, [=](const Loop::PointDesc &p) { energy(p.I) = 0.0; });
 }

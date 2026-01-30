@@ -13,3 +13,9 @@ SCHEDULE TestWeakLibReader_Init AT INITIAL AFTER TestWeakLibReader_LoadTable
   LANG: C
   WRITES: energy(everywhere)
 } "Initialize grid function"
+
+SCHEDULE TestWeakLibReader_Cleanup AT TERMINATE
+{
+  LANG: C
+  OPTIONS: global
+} "Clean up EOS table before AMReX finalizes"
