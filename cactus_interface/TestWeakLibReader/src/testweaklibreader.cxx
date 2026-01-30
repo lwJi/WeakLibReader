@@ -21,7 +21,7 @@ extern "C" void TestWeakLibReader_LoadTable(CCTK_ARGUMENTS) {
   eos_table = std::make_unique<WeakLibReader::WeakLibEosTable>();
 
   const auto status =
-      WeakLibReader::LoadWeakLibEosTableFull(eos_table_file, *eos_table);
+      WeakLibReader::LoadWeakLibEosTableFullParallel(eos_table_file, *eos_table);
 
   if (status != WeakLibReader::Hdf5LoadStatus::Success) {
     CCTK_ERROR("Failed to load EOS table");
