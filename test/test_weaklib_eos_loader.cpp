@@ -4,9 +4,13 @@
 #include "WeakLibReader_Hdf5Loader.hpp"
 
 #include <AMReX.H>
+#include <AMReX_GpuContainers.H>
 #include <hdf5.h>
 
+#include <algorithm>
+#include <array>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -68,6 +72,183 @@ void CreateIntDataset(hid_t parent, const char* name, const int* values, std::si
 
   H5Dclose(dataset);
   H5Sclose(space);
+}
+
+void WriteStringAttribute(hid_t parent, const std::string& name, const char* value)
+{
+  hid_t type = H5Tcopy(H5T_C_S1);
+  H5Tset_size(type, std::strlen(value));
+  H5Tset_strpad(type, H5T_STR_NULLTERM);
+
+  hid_t space = H5Screate(H5S_SCALAR);
+  hid_t attr = H5Acreate(parent, name.c_str(), type, space, H5P_DEFAULT, H5P_DEFAULT);
+  H5Awrite(attr, type, value);
+  H5Aclose(attr);
+  H5Sclose(space);
+  H5Tclose(type);
+}
+
+void WriteIntArrayDataset(hid_t parent,
+                          const std::string& name,
+                          const std::vector<int>& values)
+{
+  const hsize_t dims = static_cast<hsize_t>(values.size());
+  hid_t space = H5Screate_simple(1, &dims, nullptr);
+  hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_NATIVE_INT, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(dataset >= 0);
+  H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+}
+
+void WriteDoubleArrayDataset(hid_t parent,
+                             const std::string& name,
+                             const std::vector<double>& values)
+{
+  const hsize_t dims = static_cast<hsize_t>(values.size());
+  hid_t space = H5Screate_simple(1, &dims, nullptr);
+  hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_IEEE_F64LE, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(dataset >= 0);
+  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+}
+
+void WriteStringArrayDataset(hid_t parent,
+                             const std::string& name,
+                             const std::vector<std::string>& values)
+{
+  const hsize_t dims = static_cast<hsize_t>(values.size());
+  hid_t space = H5Screate_simple(1, &dims, nullptr);
+
+  std::size_t maxLen = 1;
+  for (const auto& value : values) {
+    maxLen = std::max(maxLen, value.size());
+  }
+  const std::size_t stride = maxLen + 1;
+
+  hid_t type = H5Tcopy(H5T_C_S1);
+  H5Tset_size(type, stride);
+  H5Tset_strpad(type, H5T_STR_NULLTERM);
+
+  hid_t dataset = H5Dcreate(parent, name.c_str(), type, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(dataset >= 0);
+
+  std::vector<char> buffer(values.size() * stride, '\0');
+  for (std::size_t i = 0; i < values.size(); ++i) {
+    std::memcpy(buffer.data() + i * stride, values[i].c_str(), values[i].size());
+  }
+
+  H5Dwrite(dataset, type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+  H5Tclose(type);
+}
+
+void WriteDoubleArray3dDataset(hid_t parent,
+                               const std::string& name,
+                               const std::array<hsize_t, 3>& dims,
+                               const std::vector<double>& values)
+{
+  hid_t space = H5Screate_simple(3, dims.data(), nullptr);
+  hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_IEEE_F64LE, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(dataset >= 0);
+  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+}
+
+void WriteIntArray3dDataset(hid_t parent,
+                            const std::string& name,
+                            const std::array<hsize_t, 3>& dims,
+                            const std::vector<int>& values)
+{
+  hid_t space = H5Screate_simple(3, dims.data(), nullptr);
+  hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_NATIVE_INT, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(dataset >= 0);
+  H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+}
+
+void CreateWeakLibEosTestFileFull(const std::filesystem::path& filePath)
+{
+  constexpr int nRho = 2;
+  constexpr int nT = 3;
+  constexpr int nYe = 2;
+  constexpr int nVariables = 3;
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  hid_t thermoGroup = H5Gcreate(file, "ThermoState", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(thermoGroup >= 0);
+
+  WriteIntArrayDataset(thermoGroup, "LogInterp", {1, 1, 0});
+  WriteIntArrayDataset(thermoGroup, "Dimensions", {nRho, nT, nYe});
+  WriteStringArrayDataset(thermoGroup, "Names",
+                          {"Density", "Temperature", "Electron Fraction"});
+  WriteStringArrayDataset(thermoGroup, "Units",
+                          {"g/cm^3", "MeV", "dimensionless"});
+
+  WriteDoubleArrayDataset(thermoGroup, "Density", {1.0, 2.0});
+  WriteDoubleArrayDataset(thermoGroup, "Temperature", {0.5, 1.0, 2.0});
+  WriteDoubleArrayDataset(thermoGroup, "Electron Fraction", {0.1, 0.2});
+
+  H5Gclose(thermoGroup);
+
+  hid_t dvGroup = H5Gcreate(file, "DependentVariables", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(dvGroup >= 0);
+
+  WriteIntArrayDataset(dvGroup, "nVariables", {nVariables});
+
+  const std::vector<std::string> varNames = {
+      "Pressure", "Entropy Per Baryon", "Gamma1"};
+  WriteStringArrayDataset(dvGroup, "Names", varNames);
+  WriteStringArrayDataset(dvGroup, "Units",
+                          {"dyn/cm^2", "kb/baryon", "dimensionless"});
+  WriteDoubleArrayDataset(dvGroup, "Offsets", {0.0, 0.1, 0.2});
+
+  const std::array<hsize_t, 3> fileDims = {
+      static_cast<hsize_t>(nYe),
+      static_cast<hsize_t>(nT),
+      static_cast<hsize_t>(nRho)};
+  const std::size_t totalSize = static_cast<std::size_t>(nRho * nT * nYe);
+
+  for (int iVar = 0; iVar < nVariables; ++iVar) {
+    std::vector<double> data(totalSize);
+    for (std::size_t i = 0; i < totalSize; ++i) {
+      data[i] = static_cast<double>(iVar) + 0.01 * static_cast<double>(i);
+    }
+    WriteDoubleArray3dDataset(dvGroup, varNames[iVar], fileDims, data);
+  }
+
+  std::vector<int> repaired(totalSize, 0);
+  WriteIntArray3dDataset(dvGroup, "Repaired", fileDims, repaired);
+
+  WriteIntArrayDataset(dvGroup, "iPressure", {1});
+  WriteIntArrayDataset(dvGroup, "iEntropyPerBaryon", {2});
+  WriteIntArrayDataset(dvGroup, "iInternalEnergyDensity", {1});
+  WriteIntArrayDataset(dvGroup, "iElectronChemicalPotential", {1});
+  WriteIntArrayDataset(dvGroup, "iProtonChemicalPotential", {1});
+  WriteIntArrayDataset(dvGroup, "iNeutronChemicalPotential", {1});
+  WriteIntArrayDataset(dvGroup, "iProtonMassFraction", {1});
+  WriteIntArrayDataset(dvGroup, "iNeutronMassFraction", {1});
+  WriteIntArrayDataset(dvGroup, "iAlphaMassFraction", {1});
+  WriteIntArrayDataset(dvGroup, "iHeavyMassFraction", {1});
+  WriteIntArrayDataset(dvGroup, "iHeavyChargeNumber", {1});
+  WriteIntArrayDataset(dvGroup, "iHeavyMassNumber", {1});
+  WriteIntArrayDataset(dvGroup, "iHeavyBindingEnergy", {1});
+  WriteIntArrayDataset(dvGroup, "iThermalEnergy", {1});
+  WriteIntArrayDataset(dvGroup, "iGamma1", {3});
+
+  H5Gclose(dvGroup);
+  H5Fclose(file);
 }
 
 std::vector<double> MakeDependentValues(double offset)
@@ -306,4 +487,85 @@ TEST_CASE("LoadWeakLibEosTable data values spot check", "[weaklib][eos][values]"
   // Total size check
   const std::size_t expectedSize = kRhoCount * kTempCount * kYeCount;
   CHECK(layout.Offset(lastRho, lastT, lastYe) == expectedSize - 1);
+}
+
+TEST_CASE("LoadWeakLibEosTableFull reads complete EOS table", "[hdf5][weaklib]")
+{
+  EnsureAmrexInitialized();
+
+  const std::filesystem::path eosPath =
+      std::filesystem::temp_directory_path() / "weaklibreader_eos_small_full.h5";
+  CreateWeakLibEosTestFileFull(eosPath);
+
+  WeakLibEosTable table;
+  const auto status = LoadWeakLibEosTableFull(eosPath.string(), table);
+  REQUIRE(status == Hdf5LoadStatus::Success);
+
+  // Dimensions are correct
+  CHECK(table.dimensions[0] == 2);  // nRho
+  CHECK(table.dimensions[1] == 3);  // nT
+  CHECK(table.dimensions[2] == 2);  // nYe
+
+  // nVariables is correct
+  CHECK(table.nVariables == 3);
+
+  // Axis scales match LogInterp
+  CHECK(table.scales[0] == AxisScale::Log10);  // Density
+  CHECK(table.scales[1] == AxisScale::Log10);  // Temperature
+  CHECK(table.scales[2] == AxisScale::Linear); // Ye
+
+  // Axis names are read correctly
+  CHECK(table.axisNames[0] == "Density");
+  CHECK(table.axisNames[1] == "Temperature");
+  CHECK(table.axisNames[2] == "Electron Fraction");
+
+  // Variable names are read correctly
+  REQUIRE(table.variableNames.size() == 3);
+  CHECK(table.variableNames[0] == "Pressure");
+  CHECK(table.variableNames[1] == "Entropy Per Baryon");
+
+  // Index mappings are valid
+  // Indices are 1-based in Fortran, should be positive
+  CHECK(table.indices.iPressure >= 1);
+  CHECK(table.indices.iEntropyPerBaryon >= 1);
+  CHECK(table.indices.iGamma1 >= 1);
+
+  // Variable data has correct size
+  for (int iVar = 0; iVar < table.nVariables; ++iVar) {
+    const auto& var = table.variables[iVar];
+    CHECK(var.const_table().p != nullptr);
+  }
+
+  // Repaired mask is loaded
+  CHECK(table.repaired.const_table().p != nullptr);
+
+  // Layout is computed correctly (row-major)
+  // stride[0] = 1, stride[1] = n[0], stride[2] = n[0]*n[1]
+  CHECK(table.layout.stride[0] == 1);
+  CHECK(table.layout.stride[1] == static_cast<std::size_t>(table.dimensions[0]));
+  CHECK(table.layout.stride[2] == static_cast<std::size_t>(table.dimensions[0] * table.dimensions[1]));
+
+  std::filesystem::remove(eosPath);
+}
+
+TEST_CASE("MakeDeviceCopy works for WeakLibEosTable", "[hdf5][weaklib][gpu]")
+{
+  EnsureAmrexInitialized();
+
+  const std::filesystem::path eosPath =
+      std::filesystem::temp_directory_path() / "weaklibreader_eos_small_device.h5";
+  CreateWeakLibEosTestFileFull(eosPath);
+
+  WeakLibEosTable hostTable;
+  const auto status = LoadWeakLibEosTableFull(eosPath.string(), hostTable);
+  REQUIRE(status == Hdf5LoadStatus::Success);
+
+  // This will only do meaningful work on GPU builds
+  auto deviceTable = MakeDeviceCopy(hostTable);
+
+  CHECK(deviceTable.nVariables == hostTable.nVariables);
+  CHECK(deviceTable.dimensions == hostTable.dimensions);
+  CHECK(deviceTable.indices.iPressure == hostTable.indices.iPressure);
+
+  std::filesystem::remove(eosPath);
 }
