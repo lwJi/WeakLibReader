@@ -11,7 +11,8 @@ SCHEDULE TestWeakLibReader_LoadTable AT INITIAL
 SCHEDULE TestWeakLibReader_Init AT INITIAL AFTER TestWeakLibReader_LoadTable
 {
   LANG: C
-  WRITES: energy(everywhere)
+  WRITES: energy(interior)
+  SYNC: energy
 } "Initialize grid function"
 
 SCHEDULE TestWeakLibReader_Cleanup AT TERMINATE
