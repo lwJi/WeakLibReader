@@ -569,3 +569,120 @@ TEST_CASE("MakeDeviceCopy works for WeakLibEosTable", "[hdf5][weaklib][gpu]")
 
   std::filesystem::remove(eosPath);
 }
+
+TEST_CASE("LoadWeakLibEosTableParallel loads Pressure", "[weaklib][eos][parallel]")
+{
+  EnsureAmrexInitialized();
+
+  TempWeakLibEosFile tempFile{};
+  const std::string path = tempFile.path.string();
+  Hdf5Table table;
+  const Hdf5LoadStatus status = LoadWeakLibEosTableParallel(path, "Pressure", table);
+
+  REQUIRE(status == Hdf5LoadStatus::Success);
+
+  // Verify dimensions match sequential loader
+  REQUIRE(table.nd == 3);
+  CHECK(table.extents[0] == static_cast<int>(kRhoCount));
+  CHECK(table.extents[1] == static_cast<int>(kTempCount));
+  CHECK(table.extents[2] == static_cast<int>(kYeCount));
+
+  // Verify axis scales
+  CHECK(table.axes[0].scale == AxisScale::Log10);
+  CHECK(table.axes[1].scale == AxisScale::Log10);
+  CHECK(table.axes[2].scale == AxisScale::Linear);
+
+  // Verify data matches sequential loader
+  Hdf5Table seqTable;
+  REQUIRE(LoadWeakLibEosTable(path, "Pressure", seqTable) == Hdf5LoadStatus::Success);
+
+  const double* parData = table.DataPtr();
+  const double* seqData = seqTable.DataPtr();
+  const std::size_t totalSize = kRhoCount * kTempCount * kYeCount;
+  for (std::size_t i = 0; i < totalSize; ++i) {
+    CHECK(parData[i] == seqData[i]);
+  }
+}
+
+TEST_CASE("LoadWeakLibEosTableParallel fails for nonexistent file", "[weaklib][eos][parallel]")
+{
+  EnsureAmrexInitialized();
+  ScopedHdf5ErrorSilencer silencer{};
+
+  Hdf5Table table;
+  const Hdf5LoadStatus status = LoadWeakLibEosTableParallel("/nonexistent/path.h5", "Pressure", table);
+
+  CHECK(status == Hdf5LoadStatus::FileOpenFailed);
+}
+
+TEST_CASE("LoadWeakLibEosTableFullParallel loads complete table", "[weaklib][eos][parallel]")
+{
+  EnsureAmrexInitialized();
+
+  const std::filesystem::path eosPath =
+      std::filesystem::temp_directory_path() / "weaklibreader_eos_parallel_full.h5";
+  CreateWeakLibEosTestFileFull(eosPath);
+
+  WeakLibEosTable table;
+  const auto status = LoadWeakLibEosTableFullParallel(eosPath.string(), table);
+  REQUIRE(status == Hdf5LoadStatus::Success);
+
+  // Load sequential for comparison
+  WeakLibEosTable seqTable;
+  REQUIRE(LoadWeakLibEosTableFull(eosPath.string(), seqTable) == Hdf5LoadStatus::Success);
+
+  // Verify dimensions match
+  CHECK(table.nVariables == seqTable.nVariables);
+  CHECK(table.dimensions == seqTable.dimensions);
+  CHECK(table.scales == seqTable.scales);
+
+  // Verify axis names and units
+  CHECK(table.axisNames == seqTable.axisNames);
+  CHECK(table.axisUnits == seqTable.axisUnits);
+
+  // Verify variable names and units
+  CHECK(table.variableNames == seqTable.variableNames);
+  CHECK(table.variableUnits == seqTable.variableUnits);
+
+  // Verify offsets
+  REQUIRE(table.offsets.size() == seqTable.offsets.size());
+  for (std::size_t i = 0; i < table.offsets.size(); ++i) {
+    CHECK(table.offsets[i] == seqTable.offsets[i]);
+  }
+
+  // Verify indices
+  CHECK(table.indices.iPressure == seqTable.indices.iPressure);
+  CHECK(table.indices.iEntropyPerBaryon == seqTable.indices.iEntropyPerBaryon);
+  CHECK(table.indices.iGamma1 == seqTable.indices.iGamma1);
+
+  // Verify variable data matches
+  const std::size_t varSize = static_cast<std::size_t>(table.dimensions[0]) *
+                              table.dimensions[1] * table.dimensions[2];
+  for (int iVar = 0; iVar < table.nVariables; ++iVar) {
+    const double* parData = table.variables[iVar].const_table().p;
+    const double* seqData = seqTable.variables[iVar].const_table().p;
+    for (std::size_t i = 0; i < varSize; ++i) {
+      CHECK(parData[i] == seqData[i]);
+    }
+  }
+
+  // Verify repaired mask matches
+  const int* parRepaired = table.repaired.const_table().p;
+  const int* seqRepaired = seqTable.repaired.const_table().p;
+  for (std::size_t i = 0; i < varSize; ++i) {
+    CHECK(parRepaired[i] == seqRepaired[i]);
+  }
+
+  std::filesystem::remove(eosPath);
+}
+
+TEST_CASE("LoadWeakLibEosTableFullParallel fails for nonexistent file", "[weaklib][eos][parallel]")
+{
+  EnsureAmrexInitialized();
+  ScopedHdf5ErrorSilencer silencer{};
+
+  WeakLibEosTable table;
+  const Hdf5LoadStatus status = LoadWeakLibEosTableFullParallel("/nonexistent/path.h5", table);
+
+  CHECK(status == Hdf5LoadStatus::FileOpenFailed);
+}
