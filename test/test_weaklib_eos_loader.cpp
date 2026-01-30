@@ -524,11 +524,10 @@ TEST_CASE("LoadWeakLibEosTableFull reads complete EOS table", "[hdf5][weaklib]")
   CHECK(table.variableNames[0] == "Pressure");
   CHECK(table.variableNames[1] == "Entropy Per Baryon");
 
-  // Index mappings are valid
-  // Indices are 1-based in Fortran, should be positive
-  CHECK(table.indices.iPressure >= 1);
-  CHECK(table.indices.iEntropyPerBaryon >= 1);
-  CHECK(table.indices.iGamma1 >= 1);
+  // Index mappings are normalized to 0-based in the loader
+  CHECK(table.indices.iPressure == 0);
+  CHECK(table.indices.iEntropyPerBaryon == 1);
+  CHECK(table.indices.iGamma1 == 2);
 
   // Variable data has correct size
   for (int iVar = 0; iVar < table.nVariables; ++iVar) {

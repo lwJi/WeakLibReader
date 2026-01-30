@@ -355,6 +355,36 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
+  auto normalizeIndex = [&](int& idx) -> bool {
+    if (idx <= 0) {
+      idx = -1;
+      return true;
+    }
+    if (idx > result.nVariables) {
+      return false;
+    }
+    idx -= 1;
+    return true;
+  };
+
+  if (!normalizeIndex(result.indices.iPressure) ||
+      !normalizeIndex(result.indices.iEntropyPerBaryon) ||
+      !normalizeIndex(result.indices.iInternalEnergyDensity) ||
+      !normalizeIndex(result.indices.iElectronChemicalPotential) ||
+      !normalizeIndex(result.indices.iProtonChemicalPotential) ||
+      !normalizeIndex(result.indices.iNeutronChemicalPotential) ||
+      !normalizeIndex(result.indices.iProtonMassFraction) ||
+      !normalizeIndex(result.indices.iNeutronMassFraction) ||
+      !normalizeIndex(result.indices.iAlphaMassFraction) ||
+      !normalizeIndex(result.indices.iHeavyMassFraction) ||
+      !normalizeIndex(result.indices.iHeavyChargeNumber) ||
+      !normalizeIndex(result.indices.iHeavyMassNumber) ||
+      !normalizeIndex(result.indices.iHeavyBindingEnergy) ||
+      !normalizeIndex(result.indices.iThermalEnergy) ||
+      !normalizeIndex(result.indices.iGamma1)) {
+    return Hdf5LoadStatus::DatasetReadFailed;
+  }
+
   // Compute layout for interpolation
   std::array<int, 5> extents5{{result.dimensions[0], result.dimensions[1], result.dimensions[2], 1, 1}};
   result.layout = MakeLayout(extents5.data(), 3);

@@ -92,7 +92,7 @@ struct Hdf5Table {
   }
 };
 
-// Index mappings for dependent variables (matches Fortran DV % Indices)
+// Index mappings for dependent variables (normalized to 0-based on load)
 struct WeakLibEosIndices {
   int iPressure = -1;
   int iEntropyPerBaryon = -1;
