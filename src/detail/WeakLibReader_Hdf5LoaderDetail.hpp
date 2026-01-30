@@ -1,5 +1,6 @@
 #pragma once
 
+#include <AMReX_ParallelDescriptor.H>
 #include <AMReX_Vector.H>
 
 #include <array>
@@ -479,6 +480,73 @@ inline Hdf5LoadStatus LoadWeakLibAxis(hid_t thermoGroup,
   table.axes[axisIndex] = axis;
 
   return Hdf5LoadStatus::Success;
+}
+
+/// Broadcast a vector of strings from root to all ranks.
+/// Format: [count][len0][len1]...[lenN-1][chars...]
+inline void BcastStringVector(std::vector<std::string>& strings, int root)
+{
+  const int myRank = amrex::ParallelDescriptor::MyProc();
+
+  // Broadcast count
+  int count = (myRank == root) ? static_cast<int>(strings.size()) : 0;
+  amrex::ParallelDescriptor::Bcast(&count, 1, root);
+
+  if (count == 0) {
+    if (myRank != root) {
+      strings.clear();
+    }
+    return;
+  }
+
+  // Broadcast lengths
+  std::vector<int> lengths(count);
+  if (myRank == root) {
+    for (int i = 0; i < count; ++i) {
+      lengths[i] = static_cast<int>(strings[i].size());
+    }
+  }
+  amrex::ParallelDescriptor::Bcast(lengths.data(), count, root);
+
+  // Compute total chars and broadcast concatenated buffer
+  int totalChars = 0;
+  for (int i = 0; i < count; ++i) {
+    totalChars += lengths[i];
+  }
+
+  std::vector<char> buffer(totalChars);
+  if (myRank == root) {
+    int offset = 0;
+    for (int i = 0; i < count; ++i) {
+      std::memcpy(buffer.data() + offset, strings[i].data(), lengths[i]);
+      offset += lengths[i];
+    }
+  }
+
+  if (totalChars > 0) {
+    amrex::ParallelDescriptor::Bcast(buffer.data(), totalChars, root);
+  }
+
+  // Non-root: reconstruct strings
+  if (myRank != root) {
+    strings.resize(count);
+    int offset = 0;
+    for (int i = 0; i < count; ++i) {
+      strings[i].assign(buffer.data() + offset, lengths[i]);
+      offset += lengths[i];
+    }
+  }
+}
+
+/// Broadcast a fixed-size array of strings from root to all ranks.
+template <std::size_t N>
+inline void BcastStringArray(std::array<std::string, N>& strings, int root)
+{
+  std::vector<std::string> vec(strings.begin(), strings.end());
+  BcastStringVector(vec, root);
+  for (std::size_t i = 0; i < N && i < vec.size(); ++i) {
+    strings[i] = std::move(vec[i]);
+  }
 }
 
 } // namespace detail
