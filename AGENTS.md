@@ -36,10 +36,15 @@ test/                                       # Regression tests (Catch2)
   test_log_interpolate_deriv.cpp            # Derivative tests
   test_log_interpolate_kernel.cpp           # Kernel unit tests
   test_log_interpolate_sweep.cpp            # Sweep operation tests
+  test_weaklib_eos_loader.cpp               # WeakLib EOS table loader tests
 ref/weaklib/                                # Fortran reference implementation
   wlInterpolationModule.F90                 # Main interpolation routines
   wlInterpolationUtilitiesModule.F90        # Utility functions
+  wlIOModuleHDF.F90                         # HDF5 I/O module
   wlKindModule.f90                          # Kind parameter definitions
+cactus_interface/                           # Cactus thorn integration
+  WeakLibReader/                            # Library thorn
+  TestWeakLibReader/                        # Test thorn with example usage
 scripts/                                    # Build & test automation
   build.sh                                  # Build only
   test.sh                                   # Run tests only
@@ -74,12 +79,31 @@ Set `VERBOSE=1` for full test output (e.g., `VERBOSE=1 scripts/test.sh`).
 
 ## HDF5 Table Format
 
+### Simple Format (Generic Tables)
+
 ```
 /values              # N-D array (row-major)
 /axis0, /axis1, ...  # 1D arrays with "scale" attribute ("linear" or "log10")
 ```
 
 Validation: monotonic ascending, positive values for Log10 axes.
+
+### Native WeakLib EOS Format
+
+```
+/ThermoState/
+  Dimensions[3]                     # Grid dimensions [nRho, nT, nYe]
+  Density[nRho]                     # Density axis (log10 scale)
+  Temperature[nT]                   # Temperature axis (log10 scale)
+  Electron Fraction[nYe]            # Ye axis (linear scale)
+/DependentVariables/
+  nVariables                        # Number of dependent variables
+  Names[], Units[], Offsets[]       # Variable metadata
+  iPressure, iEntropyPerBaryon, ... # Index mappings for each variable
+  {variable_name}[nYe,nT,nRho]      # Variable data arrays
+```
+
+Use `LoadWeakLibEosTable()` for single variables or `LoadWeakLibEosTableFull()` for complete tables.
 
 ## Fortran Reference
 
