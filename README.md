@@ -11,6 +11,8 @@ GPU-friendly C++ reimplementation of WeakLib's equation-of-state and opacity int
 - Out-of-range coordinates extrapolate naturally (matches Fortran)
 - Derivative computation for 2D-4D interpolation
 - HDF5 table loading with MPI broadcast support
+- Native WeakLib EOS table loading (full and single-variable)
+- Cactus framework integration (thorns provided)
 - Numerical parity with Fortran reference (≤1e-12 relative error)
 
 ## Requirements
@@ -80,6 +82,9 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 | `Hdf5Table` | Host-side table storage (owns data + axes) |
 | `TableView` | Read-only view into loaded table |
 | `TableDevice` | Device-side table copy |
+| `WeakLibEosTable` | Full EOS table storage with all variables and metadata |
+| `WeakLibEosTableDevice` | Device copy of full EOS table |
+| `WeakLibEosIndices` | Index mappings for EOS dependent variables |
 
 ### Key Functions
 
@@ -87,6 +92,8 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 |----------|-------------|
 | `LoadHdf5Table()` | Load HDF5 into `amrex::TableData` |
 | `LoadHdf5TableParallel()` | MPI-aware loader (rank 0 reads, broadcasts) |
+| `LoadWeakLibEosTable()` | Load single variable from native WeakLib format |
+| `LoadWeakLibEosTableFull()` | Load complete EOS table with all metadata |
 | `MakeDeviceCopy()` | Copy host table to GPU device |
 | `LogInterpolateSingleVariable*DCustomPoint()` | Single-point N-D interpolation |
 | `LogInterpolateSingleVariable*DCustom()` | Batch N-D interpolation |
@@ -94,18 +101,36 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 
 ### HDF5 File Format
 
+#### Simple Format (Generic Tables)
+
 ```
 /values              # N-D array (row-major layout)
 /axis0               # 1D array with "scale" attribute ("linear" or "log10")
 /axis1               # ...
 ```
 
+#### Native WeakLib EOS Format
+
+```
+/ThermoState/
+  Dimensions[3]                     # Grid dimensions [nRho, nT, nYe]
+  Density[nRho]                     # Density axis (log10 scale)
+  Temperature[nT]                   # Temperature axis (log10 scale)
+  Electron Fraction[nYe]            # Ye axis (linear scale)
+/DependentVariables/
+  nVariables                        # Number of dependent variables
+  Names[], Units[], Offsets[]       # Variable metadata
+  iPressure, iEntropyPerBaryon, ... # Index mappings for each variable
+  {variable_name}[nYe,nT,nRho]      # Variable data arrays
+```
+
 ## Project Structure
 
 ```
-src/                 # Header-only library (8 headers)
-ref/weaklib/         # Fortran reference implementation
-test/                # Regression tests (39 test cases)
+src/                 # Header-only library
+ref/weaklib/         # Fortran reference implementation (incl. wlIOModuleHDF.F90)
+test/                # Regression tests
+cactus_interface/    # Cactus thorn integration (WeakLibReader, TestWeakLibReader)
 ```
 
 ## Fortran Parity
