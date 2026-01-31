@@ -276,9 +276,11 @@ inline bool ReadStringArray(hid_t parent, const char* name, std::vector<std::str
 
 // Read a 3D integer array dataset
 // Matches Fortran Read3dHDF_integer (wlIOModuleHDF.F90:361-375)
-inline bool ReadIntArray3d(hid_t parent, const char* name,
-                           amrex::TableData<int, 3>& out,
-                           const std::array<int, 3>& expectedDims)
+template <typename T>
+inline bool ReadWeakLibArray3d(hid_t parent, const char* name,
+                               amrex::TableData<T, 3>& out,
+                               const std::array<int, 3>& expectedDims,
+                               hid_t nativeType)
 {
   if (parent < 0) {
     return false;
@@ -302,24 +304,47 @@ inline bool ReadIntArray3d(hid_t parent, const char* name,
     return false;
   }
 
-  // Verify dimensions match (in reversed order due to Fortran->C conversion)
-  // File order: [Ye, T, rho], C order: [rho, T, Ye]
-  if (static_cast<int>(dims[2]) != expectedDims[0] ||
-      static_cast<int>(dims[1]) != expectedDims[1] ||
-      static_cast<int>(dims[0]) != expectedDims[2]) {
+  const int nRho = expectedDims[0];
+  const int nT = expectedDims[1];
+  const int nYe = expectedDims[2];
+  if (nRho <= 0 || nT <= 0 || nYe <= 0) {
     return false;
   }
 
-  // Allocate output array
+  const bool orderYeTRho =
+      (static_cast<int>(dims[0]) == nYe &&
+       static_cast<int>(dims[1]) == nT &&
+       static_cast<int>(dims[2]) == nRho);
+  if (!orderYeTRho) {
+    return false;
+  }
+
   const amrex::Array<int, 3> lo{{0, 0, 0}};
-  const amrex::Array<int, 3> hi{{expectedDims[0] - 1, expectedDims[1] - 1, expectedDims[2] - 1}};
+  const amrex::Array<int, 3> hi{{nRho - 1, nT - 1, nYe - 1}};
   out.resize(lo, hi, amrex::The_Pinned_Arena());
 
-  if (H5Dread(dataset.Get(), H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, out.table().p) < 0) {
+  T* dest = out.table().p;
+
+  if (H5Dread(dataset.Get(), nativeType, H5S_ALL, H5S_ALL, H5P_DEFAULT, dest) < 0) {
     return false;
   }
-
   return true;
+}
+
+// Read a 3D integer array dataset
+// Expects Fortran-written (Ye,T,rho) datasets.
+inline bool ReadIntArray3d(hid_t parent, const char* name,
+                           amrex::TableData<int, 3>& out,
+                           const std::array<int, 3>& expectedDims)
+{
+  return ReadWeakLibArray3d<int>(parent, name, out, expectedDims, H5T_NATIVE_INT);
+}
+
+inline bool ReadDoubleArray3d(hid_t parent, const char* name,
+                              amrex::TableData<double, 3>& out,
+                              const std::array<int, 3>& expectedDims)
+{
+  return ReadWeakLibArray3d<double>(parent, name, out, expectedDims, H5T_NATIVE_DOUBLE);
 }
 
 inline amrex::Array<int, 4> MakeHiArray(int nd, const std::array<int, 5>& extents,

@@ -251,6 +251,81 @@ void CreateWeakLibEosTestFileFull(const std::filesystem::path& filePath)
   H5Fclose(file);
 }
 
+void CreateWeakLibEosTestFileFullCOrder(const std::filesystem::path& filePath)
+{
+  constexpr int nRho = 2;
+  constexpr int nT = 3;
+  constexpr int nYe = 4;
+  constexpr int nVariables = 3;
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  hid_t thermoGroup = H5Gcreate(file, "ThermoState", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(thermoGroup >= 0);
+
+  WriteIntArrayDataset(thermoGroup, "LogInterp", {1, 1, 0});
+  WriteIntArrayDataset(thermoGroup, "Dimensions", {nRho, nT, nYe});
+  WriteStringArrayDataset(thermoGroup, "Names",
+                          {"Density", "Temperature", "Electron Fraction"});
+  WriteStringArrayDataset(thermoGroup, "Units",
+                          {"g/cm^3", "MeV", "dimensionless"});
+
+  WriteDoubleArrayDataset(thermoGroup, "Density", {1.0, 2.0});
+  WriteDoubleArrayDataset(thermoGroup, "Temperature", {0.5, 1.0, 2.0});
+  WriteDoubleArrayDataset(thermoGroup, "Electron Fraction", {0.1, 0.2, 0.3, 0.4});
+
+  H5Gclose(thermoGroup);
+
+  hid_t dvGroup = H5Gcreate(file, "DependentVariables", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(dvGroup >= 0);
+
+  WriteIntArrayDataset(dvGroup, "nVariables", {nVariables});
+
+  const std::vector<std::string> varNames = {
+      "Pressure", "Entropy Per Baryon", "Gamma1"};
+  WriteStringArrayDataset(dvGroup, "Names", varNames);
+  WriteStringArrayDataset(dvGroup, "Units",
+                          {"dyn/cm^2", "kb/baryon", "dimensionless"});
+  WriteDoubleArrayDataset(dvGroup, "Offsets", {0.0, 0.1, 0.2});
+
+  const std::array<hsize_t, 3> fileDims = {
+      static_cast<hsize_t>(nRho),
+      static_cast<hsize_t>(nT),
+      static_cast<hsize_t>(nYe)};
+  const std::size_t totalSize = static_cast<std::size_t>(nRho * nT * nYe);
+
+  for (int iVar = 0; iVar < nVariables; ++iVar) {
+    std::vector<double> data(totalSize);
+    for (std::size_t i = 0; i < totalSize; ++i) {
+      data[i] = static_cast<double>(iVar) + 0.01 * static_cast<double>(i);
+    }
+    WriteDoubleArray3dDataset(dvGroup, varNames[iVar], fileDims, data);
+  }
+
+  std::vector<int> repaired(totalSize, 0);
+  WriteIntArray3dDataset(dvGroup, "Repaired", fileDims, repaired);
+
+  WriteIntArrayDataset(dvGroup, "iPressure", {1});
+  WriteIntArrayDataset(dvGroup, "iEntropyPerBaryon", {2});
+  WriteIntArrayDataset(dvGroup, "iInternalEnergyDensity", {1});
+  WriteIntArrayDataset(dvGroup, "iElectronChemicalPotential", {1});
+  WriteIntArrayDataset(dvGroup, "iProtonChemicalPotential", {1});
+  WriteIntArrayDataset(dvGroup, "iNeutronChemicalPotential", {1});
+  WriteIntArrayDataset(dvGroup, "iProtonMassFraction", {1});
+  WriteIntArrayDataset(dvGroup, "iNeutronMassFraction", {1});
+  WriteIntArrayDataset(dvGroup, "iAlphaMassFraction", {1});
+  WriteIntArrayDataset(dvGroup, "iHeavyMassFraction", {1});
+  WriteIntArrayDataset(dvGroup, "iHeavyChargeNumber", {1});
+  WriteIntArrayDataset(dvGroup, "iHeavyMassNumber", {1});
+  WriteIntArrayDataset(dvGroup, "iHeavyBindingEnergy", {1});
+  WriteIntArrayDataset(dvGroup, "iThermalEnergy", {1});
+  WriteIntArrayDataset(dvGroup, "iGamma1", {3});
+
+  H5Gclose(dvGroup);
+  H5Fclose(file);
+}
+
 std::vector<double> MakeDependentValues(double offset)
 {
   std::vector<double> values;
@@ -498,4 +573,19 @@ TEST_CASE("LoadWeakLibEosTableFullParallel fails for nonexistent file", "[weakli
   const Hdf5LoadStatus status = LoadWeakLibEosTableFullParallel("/nonexistent/path.h5", table);
 
   CHECK(status == Hdf5LoadStatus::FileOpenFailed);
+}
+
+TEST_CASE("LoadWeakLibEosTableFull rejects C-ordered dependent variables", "[weaklib][eos][validation]")
+{
+  EnsureAmrexInitialized();
+
+  const std::filesystem::path eosPath =
+      std::filesystem::temp_directory_path() / "weaklibreader_eos_c_order.h5";
+  CreateWeakLibEosTestFileFullCOrder(eosPath);
+
+  WeakLibEosTable table;
+  const auto status = LoadWeakLibEosTableFull(eosPath.string(), table);
+  CHECK(status == Hdf5LoadStatus::DatasetReadFailed);
+
+  std::filesystem::remove(eosPath);
 }

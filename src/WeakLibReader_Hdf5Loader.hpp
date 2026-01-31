@@ -175,6 +175,10 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
   if (!detail::ReadStringArray(dvGroup.Get(), "Units", result.variableUnits)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
+  if (result.variableNames.size() != static_cast<std::size_t>(result.nVariables) ||
+      result.variableUnits.size() != static_cast<std::size_t>(result.nVariables)) {
+    return Hdf5LoadStatus::DatasetReadFailed;
+  }
 
   // Read offsets
   result.offsets.resize(result.nVariables);
@@ -182,6 +186,21 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
     detail::ScopedHandle offsetsDs(H5Dopen(dvGroup.Get(), "Offsets", H5P_DEFAULT), H5Dclose);
     if (!offsetsDs.Valid()) {
       return Hdf5LoadStatus::DatasetOpenFailed;
+    }
+    detail::ScopedHandle offsetsSpace(H5Dget_space(offsetsDs.Get()), H5Sclose);
+    if (!offsetsSpace.Valid()) {
+      return Hdf5LoadStatus::DatasetReadFailed;
+    }
+    const int rank = H5Sget_simple_extent_ndims(offsetsSpace.Get());
+    if (rank != 1) {
+      return Hdf5LoadStatus::DatasetReadFailed;
+    }
+    hsize_t length = 0;
+    if (H5Sget_simple_extent_dims(offsetsSpace.Get(), &length, nullptr) < 0) {
+      return Hdf5LoadStatus::DatasetReadFailed;
+    }
+    if (length != static_cast<hsize_t>(result.nVariables)) {
+      return Hdf5LoadStatus::DatasetReadFailed;
     }
     if (H5Dread(offsetsDs.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
                 result.offsets.data()) < 0) {
@@ -191,19 +210,10 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
 
   // Read each variable's 3D data
   result.variables.resize(result.nVariables);
-  const amrex::Array<int, 3> lo{{0, 0, 0}};
-  const amrex::Array<int, 3> hi{{result.dimensions[0] - 1, result.dimensions[1] - 1, result.dimensions[2] - 1}};
-
   for (int iVar = 0; iVar < result.nVariables; ++iVar) {
     const std::string& varName = result.variableNames[iVar];
-    detail::ScopedHandle varDs(H5Dopen(dvGroup.Get(), varName.c_str(), H5P_DEFAULT), H5Dclose);
-    if (!varDs.Valid()) {
-      return Hdf5LoadStatus::DatasetOpenFailed;
-    }
-
-    result.variables[iVar].resize(lo, hi, amrex::The_Pinned_Arena());
-    if (H5Dread(varDs.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                result.variables[iVar].table().p) < 0) {
+    if (!detail::ReadDoubleArray3d(dvGroup.Get(), varName.c_str(),
+                                   result.variables[iVar], result.dimensions)) {
       return Hdf5LoadStatus::DatasetReadFailed;
     }
   }
