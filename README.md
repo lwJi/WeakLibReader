@@ -92,7 +92,6 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 |----------|-------------|
 | `LoadHdf5Table()` | Load HDF5 into `amrex::TableData` |
 | `LoadHdf5TableParallel()` | MPI-aware loader (rank 0 reads, broadcasts) |
-| `LoadWeakLibEosTable()` | Load single variable from native WeakLib format |
 | `LoadWeakLibEosTableFull()` | Load complete EOS table with all metadata |
 | `MakeDeviceCopy()` | Copy host table to GPU device |
 | `LogInterpolateSingleVariable*DCustomPoint()` | Single-point N-D interpolation |
