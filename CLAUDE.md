@@ -103,7 +103,7 @@ Validation: monotonic ascending, positive values for Log10 axes.
   {variable_name}[nYe,nT,nRho]      # Variable data arrays
 ```
 
-Use `LoadWeakLibEosTable()` for single variables or `LoadWeakLibEosTableFull()` for complete tables.
+Use `LoadWeakLibEosTableFull()` for complete tables.
 
 ## Fortran Reference
 
