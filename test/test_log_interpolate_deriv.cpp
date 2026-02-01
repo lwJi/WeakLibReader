@@ -82,9 +82,7 @@ TEST_CASE("Log derivative wrapper matches direct kernel for 3D tables", "[logint
   double deriv[3] = {0.0, 0.0, 0.0};
   const int rc = LogInterpolateDifferentiateSingleVariable3DCustomPoint(
       dCoord, tCoord, yCoord,
-      gridD.data(), 2,
-      gridT.data(), 2,
-      gridY.data(), 2,
+      axes,
       table.data(),
       0.0, interpolated, deriv);
   REQUIRE(rc == 0);
@@ -150,8 +148,7 @@ TEST_CASE("Aligned derivative wrapper mirrors kernel output", "[loginterp][deriv
 
   const int rc = LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
       sizeE, logTCoord, logXCoord,
-      gridT.data(), 2,
-      gridX.data(), 2,
+      axes,
       table.data(),
       0.0,
       planeInterp.data(),
@@ -212,6 +209,11 @@ TEST_CASE("Batch 3D derivative matches point version", "[loginterp][3d][derivati
     }
   }
 
+  Axis axes[3] = {
+      MakeAxis(gridD.data(), 2, AxisScale::Log10),
+      MakeAxis(gridT.data(), 2, AxisScale::Log10),
+      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
+
   std::array<double, count> dCoord{2.0, 5.0, 8.0};
   std::array<double, count> tCoord{10.0, 50.0, 80.0};
   std::array<double, count> yCoord{0.2, 0.5, 0.8};
@@ -221,9 +223,7 @@ TEST_CASE("Batch 3D derivative matches point version", "[loginterp][3d][derivati
 
   const int rcBatch = LogInterpolateDifferentiateSingleVariable3DCustom(
       dCoord.data(), tCoord.data(), yCoord.data(), count,
-      gridD.data(), 2,
-      gridT.data(), 2,
-      gridY.data(), 2,
+      axes,
       table.data(),
       0.0,
       interpBatch.data(),
@@ -236,9 +236,7 @@ TEST_CASE("Batch 3D derivative matches point version", "[loginterp][3d][derivati
 
     const int rcPoint = LogInterpolateDifferentiateSingleVariable3DCustomPoint(
         dCoord[i], tCoord[i], yCoord[i],
-        gridD.data(), 2,
-        gridT.data(), 2,
-        gridY.data(), 2,
+        axes,
         table.data(),
         0.0,
         interpPoint, derivPoint);
@@ -279,6 +277,12 @@ TEST_CASE("Batch 2D2D derivative matches point version", "[loginterp][2d2d][deri
     }
   }
 
+  Axis axes[4] = {
+      MakeAxis(gridE.data(), static_cast<int>(sizeE), AxisScale::Linear),
+      MakeAxis(gridE.data(), static_cast<int>(sizeE), AxisScale::Linear),
+      MakeAxis(gridT.data(), 2, AxisScale::Linear),
+      MakeAxis(gridX.data(), 2, AxisScale::Linear)};
+
   const std::array<double, count> logT{1.3, 1.7};
   const std::array<double, count> logX{1.5, 2.5};
   const std::size_t planeSize = sizeE * sizeE;
@@ -290,9 +294,7 @@ TEST_CASE("Batch 2D2D derivative matches point version", "[loginterp][2d2d][deri
   const int rcBatch = LogInterpolateDifferentiateSingleVariable2D2DCustom(
       gridE.data(), sizeE,
       logT.data(), logX.data(), count,
-      gridE.data(), static_cast<int>(sizeE),
-      gridT.data(), 2,
-      gridX.data(), 2,
+      axes,
       table.data(),
       0.0,
       interpBatch.data(),
@@ -308,9 +310,7 @@ TEST_CASE("Batch 2D2D derivative matches point version", "[loginterp][2d2d][deri
     const int rcPoint = LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
         gridE.data(), sizeE,
         logT[k], logX[k],
-        gridE.data(), static_cast<int>(sizeE),
-        gridT.data(), 2,
-        gridX.data(), 2,
+        axes,
         table.data(),
         0.0,
         interpPoint.data(),
@@ -358,6 +358,10 @@ TEST_CASE("Batch aligned 2D2D derivative matches point version", "[loginterp][2d
     }
   }
 
+  Axis axes[2] = {
+      MakeAxis(gridT.data(), 2, AxisScale::Linear),
+      MakeAxis(gridX.data(), 2, AxisScale::Linear)};
+
   const std::array<double, count> logT{1.3, 1.7};
   const std::array<double, count> logX{1.5, 2.5};
   const std::size_t planeSize = sizeE * sizeE;
@@ -369,8 +373,7 @@ TEST_CASE("Batch aligned 2D2D derivative matches point version", "[loginterp][2d
   const int rcBatch = LogInterpolateDifferentiateSingleVariable2D2DCustomAligned(
       sizeE,
       logT.data(), logX.data(), count,
-      gridT.data(), 2,
-      gridX.data(), 2,
+      axes,
       table.data(),
       0.0,
       interpBatch.data(),
@@ -386,8 +389,7 @@ TEST_CASE("Batch aligned 2D2D derivative matches point version", "[loginterp][2d
     const int rcPoint = LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
         sizeE,
         logT[k], logX[k],
-        gridT.data(), 2,
-        gridX.data(), 2,
+        axes,
         table.data(),
         0.0,
         interpPoint.data(),

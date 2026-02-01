@@ -46,20 +46,12 @@ extern "C" void TestWeakLibReader_Init(CCTK_ARGUMENTS) {
   const auto &ipress = eos_table->indices.iPressure;
   const double pressureOffset = eos_table->offsets[ipress];
   const double* pressureData = eos_table_device.VariableData(ipress);
-  const double* rhoGrid = axes[0].grid;
-  const double* tempGrid = axes[1].grid;
-  const double* yeGrid = axes[2].grid;
-  const int nRho = axes[0].n;
-  const int nTemp = axes[1].n;
-  const int nYe = axes[2].n;
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones, [=](const Loop::PointDesc &p) {
       energy(p.I) = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
           p.x, p.y, p.z,
-          rhoGrid, nRho,
-          tempGrid, nTemp,
-          yeGrid, nYe,
+          axes,
           pressureData, pressureOffset);
       });
 }

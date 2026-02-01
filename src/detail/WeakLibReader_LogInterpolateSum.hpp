@@ -12,8 +12,7 @@ inline int SumLogInterpolateSingleVariable2D2DCustomAligned(
     std::size_t sizeE,
     const double* logD, std::size_t nAlpha,
     const double* logT, std::size_t count,
-    const double* gridD, int nD,
-    const double* gridT, int nT,
+    const Axis axes[2],
     const double* alpha,
     const double* data,
     double offset,
@@ -21,21 +20,18 @@ inline int SumLogInterpolateSingleVariable2D2DCustomAligned(
 {
   if (logD == nullptr || logT == nullptr || data == nullptr ||
       alpha == nullptr || out == nullptr ||
-      gridD == nullptr || gridT == nullptr) {
+      axes[0].grid == nullptr || axes[1].grid == nullptr) {
     return 1;
   }
   if (sizeE == 0 || nAlpha == 0 || count == 0) {
     return 0;
   }
 
-  Axis axes[2] = {
-      MakeAxis(gridD, nD, AxisScale::Linear),
-      MakeAxis(gridT, nT, AxisScale::Linear)};
   int extents[4] = {
       static_cast<int>(sizeE),
       static_cast<int>(sizeE),
-      nD,
-      nT};
+      axes[0].n,
+      axes[1].n};
   const Layout layout = MakeLayout(extents, 4);
 
   const std::size_t planeSize = sizeE * sizeE;

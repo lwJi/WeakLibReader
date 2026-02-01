@@ -53,8 +53,7 @@ TEST_CASE("Aligned 2D plane interpolation mirrors underlying kernel", "[loginter
 
   const int rc = LogInterpolateSingleVariable2D2DCustomAlignedPoint(
       sizeE, logT, logX,
-      gridT.data(), 2,
-      gridX.data(), 2,
+      axes,
       table.data(), 0.0, plane.data());
   REQUIRE(rc == 0);
 
@@ -125,8 +124,7 @@ TEST_CASE("Weighted sum aligned helper reproduces manual accumulation", "[logint
       sizeE,
       logD.data(), nAlpha,
       logT.data(), count,
-      gridD.data(), 2,
-      gridT.data(), 2,
+      axes,
       alpha.data(),
       table.data(),
       0.0,
@@ -188,28 +186,27 @@ TEST_CASE("Non-aligned 2D2D single point interpolation", "[loginterp][2d2d][nona
   const double logX = 2.0;
   std::array<double, sizeE * sizeE> out{};
 
+  Axis axes4[4] = {
+      MakeAxis(gridE.data(), static_cast<int>(sizeE), AxisScale::Linear),
+      MakeAxis(gridE.data(), static_cast<int>(sizeE), AxisScale::Linear),
+      MakeAxis(gridT.data(), 2, AxisScale::Linear),
+      MakeAxis(gridX.data(), 2, AxisScale::Linear)};
+
   const int rc = LogInterpolateSingleVariable2D2DCustomPoint(
       gridE.data(), sizeE, logT, logX,
-      gridE.data(), static_cast<int>(sizeE),
-      gridT.data(), 2,
-      gridX.data(), 2,
+      axes4,
       table.data(), 0.0, out.data());
   REQUIRE(rc == 0);
 
   // Verify output against direct 4D interpolation
   // The function uses symmetric storage: out[i,j] = out[j,i] = interp(E[i], E[j], T, X)
-  Axis axes[4] = {
-      MakeAxis(gridE.data(), static_cast<int>(sizeE), AxisScale::Linear),
-      MakeAxis(gridE.data(), static_cast<int>(sizeE), AxisScale::Linear),
-      MakeAxis(gridT.data(), 2, AxisScale::Linear),
-      MakeAxis(gridX.data(), 2, AxisScale::Linear)};
 
   for (std::size_t j = 0; j < sizeE; ++j) {
     for (std::size_t i = 0; i <= j; ++i) {
       // For i <= j, coords are (E[i], E[j], T, X)
       double coords[4] = {gridE[i], gridE[j], logT, logX};
       const double expected = detail::LogInterpolatedValueDirect<4>(
-          table.data(), layout, axes, coords, 0.0);
+          table.data(), layout, axes4, coords, 0.0);
       // Check both symmetric positions
       const std::size_t lower = j * sizeE + i;
       const std::size_t upper = i * sizeE + j;
@@ -249,12 +246,16 @@ TEST_CASE("Non-aligned 2D2D batch interpolation", "[loginterp][2d2d][nonaligned]
   const std::array<double, count> logX{1.5, 2.5};
   std::array<double, sizeE * sizeE * count> out{};
 
+  Axis axes4[4] = {
+      MakeAxis(gridE.data(), static_cast<int>(sizeE), AxisScale::Linear),
+      MakeAxis(gridE.data(), static_cast<int>(sizeE), AxisScale::Linear),
+      MakeAxis(gridT.data(), 2, AxisScale::Linear),
+      MakeAxis(gridX.data(), 2, AxisScale::Linear)};
+
   const int rc = LogInterpolateSingleVariable2D2DCustom(
       gridE.data(), sizeE,
       logT.data(), logX.data(), count,
-      gridE.data(), static_cast<int>(sizeE),
-      gridT.data(), 2,
-      gridX.data(), 2,
+      axes4,
       table.data(), 0.0, out.data());
   REQUIRE(rc == 0);
 
@@ -263,9 +264,7 @@ TEST_CASE("Non-aligned 2D2D batch interpolation", "[loginterp][2d2d][nonaligned]
     std::array<double, sizeE * sizeE> plane{};
     const int rcPoint = LogInterpolateSingleVariable2D2DCustomPoint(
         gridE.data(), sizeE, logT[l], logX[l],
-        gridE.data(), static_cast<int>(sizeE),
-        gridT.data(), 2,
-        gridX.data(), 2,
+        axes4,
         table.data(), 0.0, plane.data());
     REQUIRE(rcPoint == 0);
 
@@ -301,6 +300,10 @@ TEST_CASE("Batch aligned 2D2D matches point version", "[loginterp][2d2d][aligned
     }
   }
 
+  Axis axes[2] = {
+      MakeAxis(gridT.data(), 2, AxisScale::Linear),
+      MakeAxis(gridX.data(), 2, AxisScale::Linear)};
+
   const std::array<double, count> logT{1.3, 1.7};
   const std::array<double, count> logX{1.5, 2.5};
   const std::size_t planeSize = sizeE * sizeE;
@@ -309,8 +312,7 @@ TEST_CASE("Batch aligned 2D2D matches point version", "[loginterp][2d2d][aligned
   const int rcBatch = LogInterpolateSingleVariable2D2DCustomAligned(
       sizeE,
       logT.data(), logX.data(), count,
-      gridT.data(), 2,
-      gridX.data(), 2,
+      axes,
       table.data(),
       0.0,
       outBatch.data());
@@ -320,8 +322,7 @@ TEST_CASE("Batch aligned 2D2D matches point version", "[loginterp][2d2d][aligned
     std::array<double, planeSize> outPoint{};
     const int rcPoint = LogInterpolateSingleVariable2D2DCustomAlignedPoint(
         sizeE, logT[k], logX[k],
-        gridT.data(), 2,
-        gridX.data(), 2,
+        axes,
         table.data(),
         0.0,
         outPoint.data());
