@@ -10,37 +10,29 @@ namespace WeakLibReader {
 /// GPU-optimized 3D log-interpolation with derivatives (single point)
 inline int LogInterpolateDifferentiateSingleVariable3DCustomPoint(
     double d, double t, double y,
-    const double* gridD, int nD,
-    const double* gridT, int nT,
-    const double* gridY, int nY,
+    const Axis axes[3],
     const double* data,
     double offset,
     double& interpolant,
     double derivatives[3]) noexcept
 {
   if (data == nullptr ||
-      gridD == nullptr || gridT == nullptr || gridY == nullptr) {
+      axes[0].grid == nullptr || axes[1].grid == nullptr || axes[2].grid == nullptr) {
     return 1;
   }
 
-  Axis axesLocal[3] = {
-      MakeAxis(gridD, nD, AxisScale::Log10),
-      MakeAxis(gridT, nT, AxisScale::Log10),
-      MakeAxis(gridY, nY, AxisScale::Linear)};
-  int extents[3] = {nD, nT, nY};
+  int extents[3] = {axes[0].n, axes[1].n, axes[2].n};
   const Layout layout = MakeLayout(extents, 3);
 
   detail::LogInterpolateDifferentiateSingleVariable3DCustomPointImpl(
-      d, t, y, data, layout, axesLocal, offset, interpolant, derivatives);
+      d, t, y, data, layout, axes, offset, interpolant, derivatives);
   return 0;
 }
 
 /// GPU-optimized 3D log-interpolation with derivatives (batch)
 inline int LogInterpolateDifferentiateSingleVariable3DCustom(
     const double* d, const double* t, const double* y, std::size_t count,
-    const double* gridD, int nD,
-    const double* gridT, int nT,
-    const double* gridY, int nY,
+    const Axis axes[3],
     const double* data,
     double offset,
     double* interpolants,
@@ -48,15 +40,11 @@ inline int LogInterpolateDifferentiateSingleVariable3DCustom(
 {
   if (d == nullptr || t == nullptr || y == nullptr ||
       data == nullptr || interpolants == nullptr || derivatives == nullptr ||
-      gridD == nullptr || gridT == nullptr || gridY == nullptr) {
+      axes[0].grid == nullptr || axes[1].grid == nullptr || axes[2].grid == nullptr) {
     return 1;
   }
 
-  Axis axesLocal[3] = {
-      MakeAxis(gridD, nD, AxisScale::Log10),
-      MakeAxis(gridT, nT, AxisScale::Log10),
-      MakeAxis(gridY, nY, AxisScale::Linear)};
-  int extents[3] = {nD, nT, nY};
+  int extents[3] = {axes[0].n, axes[1].n, axes[2].n};
   const Layout layout = MakeLayout(extents, 3);
 
   for (std::size_t i = 0; i < count; ++i) {
@@ -64,7 +52,7 @@ inline int LogInterpolateDifferentiateSingleVariable3DCustom(
     double interp = 0.0;
     detail::LogInterpolateDifferentiateSingleVariable3DCustomPointImpl(
         d[i], t[i], y[i],
-        data, layout, axesLocal,
+        data, layout, axes,
         offset, interp, deriv);
     interpolants[i] = interp;
     derivatives[i * 3 + 0] = deriv[0];
@@ -77,9 +65,7 @@ inline int LogInterpolateDifferentiateSingleVariable3DCustom(
 inline int LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
     const double* logE, std::size_t sizeE,
     double logT, double logX,
-    const double* gridE, int nE,
-    const double* gridT, int nT,
-    const double* gridX, int nX,
+    const Axis axes[4],
     const double* data,
     double offset,
     double* interpolantPlane,
@@ -88,19 +74,15 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
 {
   if (logE == nullptr || data == nullptr ||
       interpolantPlane == nullptr || derivativeTPlane == nullptr || derivativeXPlane == nullptr ||
-      gridE == nullptr || gridT == nullptr || gridX == nullptr) {
+      axes[0].grid == nullptr || axes[1].grid == nullptr ||
+      axes[2].grid == nullptr || axes[3].grid == nullptr) {
     return 1;
   }
   if (sizeE == 0) {
     return 0;
   }
 
-  Axis axes[4] = {
-      MakeAxis(gridE, nE, AxisScale::Linear),
-      MakeAxis(gridE, nE, AxisScale::Linear),
-      MakeAxis(gridT, nT, AxisScale::Linear),
-      MakeAxis(gridX, nX, AxisScale::Linear)};
-  int extents[4] = {nE, nE, nT, nX};
+  int extents[4] = {axes[0].n, axes[1].n, axes[2].n, axes[3].n};
   const Layout layout = MakeLayout(extents, 4);
 
   int idxT = 0;
@@ -151,9 +133,7 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
 inline int LogInterpolateDifferentiateSingleVariable2D2DCustom(
     const double* logE, std::size_t sizeE,
     const double* logT, const double* logX, std::size_t count,
-    const double* gridE, int nE,
-    const double* gridT, int nT,
-    const double* gridX, int nX,
+    const Axis axes[4],
     const double* data,
     double offset,
     double* interpolant,
@@ -163,7 +143,8 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustom(
   if (logE == nullptr || logT == nullptr || logX == nullptr ||
       data == nullptr || interpolant == nullptr ||
       derivativeT == nullptr || derivativeX == nullptr ||
-      gridE == nullptr || gridT == nullptr || gridX == nullptr) {
+      axes[0].grid == nullptr || axes[1].grid == nullptr ||
+      axes[2].grid == nullptr || axes[3].grid == nullptr) {
     return 1;
   }
   if (sizeE == 0 || count == 0) {
@@ -178,9 +159,7 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustom(
     const int rc = LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
         logE, sizeE,
         logT[l], logX[l],
-        gridE, nE,
-        gridT, nT,
-        gridX, nX,
+        axes,
         data, offset,
         planeInterp, planeDerivT, planeDerivX);
     if (rc != 0) {
@@ -194,8 +173,7 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustom(
 inline int LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
     std::size_t sizeE,
     double logT, double logX,
-    const double* gridT, int nT,
-    const double* gridX, int nX,
+    const Axis axes[2],
     const double* data,
     double offset,
     double* interpolantPlane,
@@ -204,21 +182,18 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
 {
   if (data == nullptr || interpolantPlane == nullptr ||
       derivativeTPlane == nullptr || derivativeXPlane == nullptr ||
-      gridT == nullptr || gridX == nullptr) {
+      axes[0].grid == nullptr || axes[1].grid == nullptr) {
     return 1;
   }
   if (sizeE == 0) {
     return 0;
   }
 
-  Axis axes[2] = {
-      MakeAxis(gridT, nT, AxisScale::Linear),
-      MakeAxis(gridX, nX, AxisScale::Linear)};
   int extents[4] = {
       static_cast<int>(sizeE),
       static_cast<int>(sizeE),
-      nT,
-      nX};
+      axes[0].n,
+      axes[1].n};
   const Layout layout = MakeLayout(extents, 4);
 
   int idxT = 0;
@@ -261,8 +236,7 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
 inline int LogInterpolateDifferentiateSingleVariable2D2DCustomAligned(
     std::size_t sizeE,
     const double* logT, const double* logX, std::size_t count,
-    const double* gridT, int nT,
-    const double* gridX, int nX,
+    const Axis axes[2],
     const double* data,
     double offset,
     double* interpolant,
@@ -272,7 +246,7 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustomAligned(
   if (logT == nullptr || logX == nullptr ||
       data == nullptr || interpolant == nullptr ||
       derivativeT == nullptr || derivativeX == nullptr ||
-      gridT == nullptr || gridX == nullptr) {
+      axes[0].grid == nullptr || axes[1].grid == nullptr) {
     return 1;
   }
   if (sizeE == 0 || count == 0) {
@@ -286,7 +260,7 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustomAligned(
     double* planeDerivX = derivativeX + k * planeSize;
     const int rc = LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
         sizeE, logT[k], logX[k],
-        gridT, nT, gridX, nX,
+        axes,
         data, offset,
         planeInterp, planeDerivT, planeDerivX);
     if (rc != 0) {

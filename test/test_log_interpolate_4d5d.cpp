@@ -43,24 +43,20 @@ TEST_CASE("4D log interpolation matches quadrilinear expectation", "[loginterp][
     }
   }
 
-  const double a = 1.5;
-  const double b = 2.0;
-  const double c = 0.4;
-  const double d = 7.0;
-  const double result = LogInterpolateSingleVariable4DCustomPoint(
-      a, b, c, d,
-      gridA.data(), 2,
-      gridB.data(), 2,
-      gridC.data(), 2,
-      gridD.data(), 2,
-      table.data(), 0.0);
-
-  // Verify by computing via 4D wrapper
   Axis axes[4] = {
       MakeAxis(gridA.data(), 2, AxisScale::Linear),
       MakeAxis(gridB.data(), 2, AxisScale::Linear),
       MakeAxis(gridC.data(), 2, AxisScale::Linear),
       MakeAxis(gridD.data(), 2, AxisScale::Linear)};
+
+  const double a = 1.5;
+  const double b = 2.0;
+  const double c = 0.4;
+  const double d = 7.0;
+  const double result = LogInterpolateSingleVariable4DCustomPoint(
+      a, b, c, d, axes, table.data(), 0.0);
+
+  // Verify by computing via 4D wrapper
   double coords[4] = {a, b, c, d};
   const double expected = detail::LogInterpolatedValueDirect<4>(
       table.data(), layout, axes, coords, 0.0);
@@ -92,6 +88,12 @@ TEST_CASE("Batch 4D log interpolation matches point wrapper", "[loginterp][4d][b
     }
   }
 
+  Axis axes[4] = {
+      MakeAxis(gridA.data(), 2, AxisScale::Linear),
+      MakeAxis(gridB.data(), 2, AxisScale::Linear),
+      MakeAxis(gridC.data(), 2, AxisScale::Linear),
+      MakeAxis(gridD.data(), 2, AxisScale::Linear)};
+
   std::array<double, 3> x0{1.0, 1.5, 2.0};
   std::array<double, 3> x1{1.0, 2.0, 3.0};
   std::array<double, 3> x2{0.0, 0.5, 1.0};
@@ -100,10 +102,7 @@ TEST_CASE("Batch 4D log interpolation matches point wrapper", "[loginterp][4d][b
 
   const int rc = LogInterpolateSingleVariable4DCustom(
       x0.data(), x1.data(), x2.data(), x3.data(), x0.size(),
-      gridA.data(), 2,
-      gridB.data(), 2,
-      gridC.data(), 2,
-      gridD.data(), 2,
+      axes,
       table.data(),
       0.0,
       out.data());
@@ -111,13 +110,7 @@ TEST_CASE("Batch 4D log interpolation matches point wrapper", "[loginterp][4d][b
 
   for (std::size_t i = 0; i < x0.size(); ++i) {
     const double point = LogInterpolateSingleVariable4DCustomPoint(
-        x0[i], x1[i], x2[i], x3[i],
-        gridA.data(), 2,
-        gridB.data(), 2,
-        gridC.data(), 2,
-        gridD.data(), 2,
-        table.data(),
-        0.0);
+        x0[i], x1[i], x2[i], x3[i], axes, table.data(), 0.0);
     CHECK(out[i] == Catch::Approx(point).margin(kTol));
   }
 }
@@ -438,23 +431,20 @@ TEST_CASE("1D3D sweep batch matches direct interpolation", "[loginterp][4d][batc
   std::array<double, count> y{0.25, 0.75};
   std::array<double, sizeE * count> out{};
 
-  const int rc = LogInterpolateSingleVariable1D3DCustom(
-      logE.data(), sizeE,
-      logD.data(), logT.data(), y.data(), count,
-      gridE.data(), 2,
-      gridD.data(), 2,
-      gridT.data(), 2,
-      gridY.data(), 2,
-      table.data(),
-      0.0,
-      out.data());
-  REQUIRE(rc == 0);
-
   Axis axes[4] = {
       MakeAxis(gridE.data(), 2, AxisScale::Linear),
       MakeAxis(gridD.data(), 2, AxisScale::Linear),
       MakeAxis(gridT.data(), 2, AxisScale::Linear),
       MakeAxis(gridY.data(), 2, AxisScale::Linear)};
+
+  const int rc = LogInterpolateSingleVariable1D3DCustom(
+      logE.data(), sizeE,
+      logD.data(), logT.data(), y.data(), count,
+      axes,
+      table.data(),
+      0.0,
+      out.data());
+  REQUIRE(rc == 0);
 
   for (std::size_t j = 0; j < count; ++j) {
     for (std::size_t i = 0; i < sizeE; ++i) {
@@ -497,6 +487,12 @@ TEST_CASE("1D3D single point matches batch with count=1", "[loginterp][4d][1d3d]
     }
   }
 
+  Axis axes[4] = {
+      MakeAxis(gridE.data(), 2, AxisScale::Linear),
+      MakeAxis(gridD.data(), 2, AxisScale::Linear),
+      MakeAxis(gridT.data(), 2, AxisScale::Linear),
+      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
+
   std::array<double, sizeE> logE{1.0, 1.5, 2.0};
   const double logD = 2.0;
   const double logT = 15.0;
@@ -506,10 +502,7 @@ TEST_CASE("1D3D single point matches batch with count=1", "[loginterp][4d][1d3d]
   const int rcPoint = LogInterpolateSingleVariable1D3DCustomPoint(
       logE.data(), sizeE,
       logD, logT, y,
-      gridE.data(), 2,
-      gridD.data(), 2,
-      gridT.data(), 2,
-      gridY.data(), 2,
+      axes,
       table.data(),
       0.0,
       outPoint.data());
@@ -524,10 +517,7 @@ TEST_CASE("1D3D single point matches batch with count=1", "[loginterp][4d][1d3d]
   const int rcBatch = LogInterpolateSingleVariable1D3DCustom(
       logE.data(), sizeE,
       logDArr.data(), logTArr.data(), yArr.data(), 1,
-      gridE.data(), 2,
-      gridD.data(), 2,
-      gridT.data(), 2,
-      gridY.data(), 2,
+      axes,
       table.data(),
       0.0,
       outBatch.data());

@@ -37,10 +37,7 @@ TEST_CASE("2D log interpolation matches bilinear expectation", "[loginterp][2d]"
   const double x = 1.5;
   const double y = 2.0;
   const double result = LogInterpolateSingleVariable2DCustomPoint(
-      x, y,
-      gridX.data(), 2,
-      gridY.data(), 2,
-      table.data(), 0.0);
+      x, y, axes, table.data(), 0.0);
 
   const double dX = (x - gridX[0]) / (gridX[1] - gridX[0]);
   const double dY = (y - gridY[0]) / (gridY[1] - gridY[0]);
@@ -67,14 +64,17 @@ TEST_CASE("Batch 2D log interpolation matches point wrapper", "[loginterp][2d][b
       std::log10(4.0),
       std::log10(5.0)};
 
+  Axis axes[2] = {
+      MakeAxis(gridX.data(), 2, AxisScale::Linear),
+      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
+
   std::array<double, 3> x0{1.0, 1.5, 2.0};
   std::array<double, 3> x1{1.0, 2.0, 3.0};
   std::array<double, 3> out{};
 
   const int rc = LogInterpolateSingleVariable2DCustom(
       x0.data(), x1.data(), x0.size(),
-      gridX.data(), 2,
-      gridY.data(), 2,
+      axes,
       table.data(),
       0.0,
       out.data());
@@ -82,11 +82,7 @@ TEST_CASE("Batch 2D log interpolation matches point wrapper", "[loginterp][2d][b
 
   for (std::size_t i = 0; i < x0.size(); ++i) {
     const double point = LogInterpolateSingleVariable2DCustomPoint(
-        x0[i], x1[i],
-        gridX.data(), 2,
-        gridY.data(), 2,
-        table.data(),
-        0.0);
+        x0[i], x1[i], axes, table.data(), 0.0);
     CHECK(out[i] == Catch::Approx(point).margin(kTol));
   }
 }

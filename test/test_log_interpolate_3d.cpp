@@ -39,15 +39,16 @@ TEST_CASE("3D log interpolation matches trilinear expectation", "[loginterp][3d]
     }
   }
 
+  Axis axes[3] = {
+      MakeAxis(gridX.data(), 2, AxisScale::Log10),
+      MakeAxis(gridY.data(), 2, AxisScale::Log10),
+      MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
+
   const double x = 1.5;
   const double y = 2.0;
   const double z = 0.4;
   const double result = LogInterpolateSingleVariable3DCustomPoint(
-      x, y, z,
-      gridX.data(), 2,
-      gridY.data(), 2,
-      gridZ.data(), 2,
-      table.data(), 0.0);
+      x, y, z, axes, table.data(), 0.0);
 
   // Compute expected via trilinear interpolation in log space
   // X and Y axes use Log10 scale, Z axis uses Linear scale
@@ -98,6 +99,11 @@ TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][b
     }
   }
 
+  Axis axes[3] = {
+      MakeAxis(gridX.data(), 2, AxisScale::Log10),
+      MakeAxis(gridY.data(), 2, AxisScale::Log10),
+      MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
+
   std::array<double, 3> x0{1.0, 1.5, 2.0};
   std::array<double, 3> x1{1.0, 2.0, 3.0};
   std::array<double, 3> x2{0.0, 0.5, 1.0};
@@ -105,9 +111,7 @@ TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][b
 
   const int rc = LogInterpolateSingleVariable3DCustom(
       x0.data(), x1.data(), x2.data(), x0.size(),
-      gridX.data(), 2,
-      gridY.data(), 2,
-      gridZ.data(), 2,
+      axes,
       table.data(),
       0.0,
       out.data());
@@ -115,12 +119,61 @@ TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][b
 
   for (std::size_t i = 0; i < x0.size(); ++i) {
     const double point = LogInterpolateSingleVariable3DCustomPoint(
-        x0[i], x1[i], x2[i],
-        gridX.data(), 2,
-        gridY.data(), 2,
-        gridZ.data(), 2,
-        table.data(),
-        0.0);
+        x0[i], x1[i], x2[i], axes, table.data(), 0.0);
     CHECK(out[i] == Catch::Approx(point).margin(kTol));
   }
+}
+
+TEST_CASE("3D interpolation respects axis scales", "[loginterp][3d][scales]")
+{
+  using namespace WeakLibReader;
+
+  // Create a simple 2x2x2 grid with values that will produce
+  // different results depending on Linear vs Log10 interpolation
+  const std::array<double, 2> gridX{1.0, 10.0};  // Log10 range
+  const std::array<double, 2> gridY{1.0, 10.0};  // Log10 range
+  const std::array<double, 2> gridZ{0.0, 1.0};
+
+  const int extents[3] = {2, 2, 2};
+  const Layout layout = MakeLayout(extents, 3);
+  std::array<double, 8> table{};
+
+  // Fill with log10 of a simple function
+  for (int ix = 0; ix < 2; ++ix) {
+    for (int iy = 0; iy < 2; ++iy) {
+      for (int iz = 0; iz < 2; ++iz) {
+        table[layout.Offset(ix, iy, iz)] =
+            std::log10(1.0 + gridX[ix] + gridY[iy] + gridZ[iz]);
+      }
+    }
+  }
+
+  // Test point at geometric midpoint (for Log10) vs arithmetic midpoint (for Linear)
+  const double x = std::sqrt(1.0 * 10.0);  // Geometric mean = 3.162...
+  const double y = std::sqrt(1.0 * 10.0);
+  const double z = 0.5;
+
+  // With Log10 scales on X and Y
+  Axis axesLog[3] = {
+      MakeAxis(gridX.data(), 2, AxisScale::Log10),
+      MakeAxis(gridY.data(), 2, AxisScale::Log10),
+      MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
+  const double resultLog = LogInterpolateSingleVariable3DCustomPoint(
+      x, y, z, axesLog, table.data(), 0.0);
+
+  // With Linear scales on X and Y
+  Axis axesLin[3] = {
+      MakeAxis(gridX.data(), 2, AxisScale::Linear),
+      MakeAxis(gridY.data(), 2, AxisScale::Linear),
+      MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
+  const double resultLin = LogInterpolateSingleVariable3DCustomPoint(
+      x, y, z, axesLin, table.data(), 0.0);
+
+  // The results should be different because the interpolation
+  // fractions are computed differently for Log10 vs Linear
+  CHECK(resultLog != Catch::Approx(resultLin).margin(1e-6));
+
+  // For Log10 scale at geometric midpoint, fraction should be 0.5
+  // For Linear scale at x=3.162..., fraction should be (3.162-1)/(10-1) = 0.24
+  // So the Log10 result should be closer to the center of the interpolation range
 }
