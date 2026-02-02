@@ -325,6 +325,7 @@ inline WeakLibEosTableDevice MakeDeviceCopy(const WeakLibEosTable& host,
   device.dimensions = host.dimensions;
   device.layout = host.layout;
   device.indices = host.indices;
+  device.offsets = host.offsets;
 
   // Copy axes to device
   for (int dim = 0; dim < 3; ++dim) {

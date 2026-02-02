@@ -154,6 +154,7 @@ struct WeakLibEosTableDevice {
   Axis axes[3]{};
   Layout layout{};
 
+  std::vector<double> offsets;
   std::vector<amrex::TableData<double, 3>> variables;
   amrex::TableData<int, 3> repaired;
   WeakLibEosIndices indices;
