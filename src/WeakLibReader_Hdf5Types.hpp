@@ -118,7 +118,6 @@ struct WeakLibEosTable {
   std::array<int, 3> dimensions{{0, 0, 0}};  // [nRho, nT, nYe] after reversal
 
   // ThermoState data
-  std::array<AxisScale, 3> scales{{AxisScale::Linear, AxisScale::Linear, AxisScale::Linear}};
   std::array<amrex::Vector<double>, 3> axisStorage;  // Density, Temperature, Ye
   Axis axes[3]{};
   std::array<std::string, 3> axisNames;
@@ -151,7 +150,6 @@ struct WeakLibEosTable {
 struct WeakLibEosTableDevice {
   int nVariables = 0;
   std::array<int, 3> dimensions{{0, 0, 0}};
-  std::array<AxisScale, 3> scales{{AxisScale::Linear, AxisScale::Linear, AxisScale::Linear}};
   std::array<amrex::Gpu::DeviceVector<double>, 3> axisStorage;
   Axis axes[3]{};
   Layout layout{};
