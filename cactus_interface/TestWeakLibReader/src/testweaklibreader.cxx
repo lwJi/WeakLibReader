@@ -3,14 +3,11 @@
 #include <cctk_Parameters.h>
 #include <loop_device.hxx>
 
-#include <memory>
-
 #include <WeakLibReader_Hdf5Loader.hpp>
 #include <WeakLibReader_LogInterpolate.hpp>
 
 namespace TestWeakLibReader {
 
-std::unique_ptr<WeakLibReader::WeakLibEosTable> eos_table;
 WeakLibReader::WeakLibEosTableDevice eos_table_device;
 
 extern "C" void TestWeakLibReader_LoadTable(CCTK_ARGUMENTS) {
@@ -18,21 +15,20 @@ extern "C" void TestWeakLibReader_LoadTable(CCTK_ARGUMENTS) {
 
   CCTK_INFO("Loading EOS table");
 
-  eos_table = std::make_unique<WeakLibReader::WeakLibEosTable>();
+  WeakLibReader::WeakLibEosTable eos_table;
 
   const auto status =
-      WeakLibReader::LoadWeakLibEosTableFullParallel(eos_table_file, *eos_table);
+      WeakLibReader::LoadWeakLibEosTableFullParallel(eos_table_file, eos_table);
 
   if (status != WeakLibReader::Hdf5LoadStatus::Success) {
     CCTK_ERROR("Failed to load EOS table");
   }
 
-  eos_table_device = WeakLibReader::MakeDeviceCopy(*eos_table);
+  eos_table_device = WeakLibReader::MakeDeviceCopy(eos_table);
 }
 
 extern "C" void TestWeakLibReader_Cleanup(CCTK_ARGUMENTS) {
   CCTK_INFO("Cleaning up EOS table");
-  eos_table.reset();
   eos_table_device = WeakLibReader::WeakLibEosTableDevice{};
 }
 
@@ -43,8 +39,8 @@ extern "C" void TestWeakLibReader_Init(CCTK_ARGUMENTS) {
   CCTK_INFO("Initializing grid function");
 
   const auto &axes = eos_table_device.axes;
-  const auto &ipress = eos_table->indices.iPressure;
-  const double pressureOffset = eos_table->offsets[ipress];
+  const auto &ipress = eos_table_device.indices.iPressure;
+  const double pressureOffset = eos_table_device.offsets[ipress];
   const double* pressureData = eos_table_device.VariableData(ipress);
 
   grid.loop_int_device<0, 0, 0>(
