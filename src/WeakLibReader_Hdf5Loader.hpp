@@ -105,9 +105,11 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
   if (!detail::ReadIntArray(thermoGroup.Get(), "LogInterp", logInterp, 3)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
-  result.scales[0] = (logInterp[0] == 1) ? AxisScale::Log10 : AxisScale::Linear;
-  result.scales[1] = (logInterp[1] == 1) ? AxisScale::Log10 : AxisScale::Linear;
-  result.scales[2] = (logInterp[2] == 1) ? AxisScale::Log10 : AxisScale::Linear;
+  const std::array<AxisScale, 3> scales{{
+      (logInterp[0] == 1) ? AxisScale::Log10 : AxisScale::Linear,
+      (logInterp[1] == 1) ? AxisScale::Log10 : AxisScale::Linear,
+      (logInterp[2] == 1) ? AxisScale::Log10 : AxisScale::Linear
+  }};
 
   // Read Dimensions (file order: [nRho, nT, nYe], same as C order)
   int fileDims[3] = {0, 0, 0};
@@ -139,15 +141,15 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
 
   Hdf5LoadStatus axisStatus;
   axisStatus = detail::LoadWeakLibAxis(thermoGroup.Get(), "Density",
-                                       result.dimensions[0], result.scales[0], 0, tempTable);
+                                       result.dimensions[0], scales[0], 0, tempTable);
   if (axisStatus != Hdf5LoadStatus::Success) return axisStatus;
 
   axisStatus = detail::LoadWeakLibAxis(thermoGroup.Get(), "Temperature",
-                                       result.dimensions[1], result.scales[1], 1, tempTable);
+                                       result.dimensions[1], scales[1], 1, tempTable);
   if (axisStatus != Hdf5LoadStatus::Success) return axisStatus;
 
   axisStatus = detail::LoadWeakLibAxis(thermoGroup.Get(), "Electron Fraction",
-                                       result.dimensions[2], result.scales[2], 2, tempTable);
+                                       result.dimensions[2], scales[2], 2, tempTable);
   if (axisStatus != Hdf5LoadStatus::Success) return axisStatus;
 
   // Transfer axis data from temp table
@@ -321,7 +323,6 @@ inline WeakLibEosTableDevice MakeDeviceCopy(const WeakLibEosTable& host,
   WeakLibEosTableDevice device{};
   device.nVariables = host.nVariables;
   device.dimensions = host.dimensions;
-  device.scales = host.scales;
   device.layout = host.layout;
   device.indices = host.indices;
 
@@ -510,22 +511,22 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFullParallel(
     return status;
   }
 
-  // Broadcast header: [nVariables, dims x3, scales x3]
+  // Broadcast header: [nVariables, dims x3, axisScales x3]
   int header[7] = {0, 0, 0, 0, 0, 0, 0};
   if (myRank == root) {
     header[0] = localTable.nVariables;
     header[1] = localTable.dimensions[0];
     header[2] = localTable.dimensions[1];
     header[3] = localTable.dimensions[2];
-    header[4] = static_cast<int>(localTable.scales[0]);
-    header[5] = static_cast<int>(localTable.scales[1]);
-    header[6] = static_cast<int>(localTable.scales[2]);
+    header[4] = static_cast<int>(localTable.axes[0].scale);
+    header[5] = static_cast<int>(localTable.axes[1].scale);
+    header[6] = static_cast<int>(localTable.axes[2].scale);
   }
   amrex::ParallelDescriptor::Bcast(header, 7, root);
 
   const int nVariables = header[0];
   std::array<int, 3> dimensions{{header[1], header[2], header[3]}};
-  std::array<AxisScale, 3> scales{{
+  std::array<AxisScale, 3> axisScales{{
       static_cast<AxisScale>(header[4]),
       static_cast<AxisScale>(header[5]),
       static_cast<AxisScale>(header[6])
@@ -545,14 +546,13 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFullParallel(
     output = WeakLibEosTable{};
     output.nVariables = nVariables;
     output.dimensions = dimensions;
-    output.scales = scales;
 
     // Allocate axis storage
     for (int dim = 0; dim < 3; ++dim) {
       output.axisStorage[dim].resize(axisCounts[dim]);
       output.axes[dim].grid = output.axisStorage[dim].data();
       output.axes[dim].n = axisCounts[dim];
-      output.axes[dim].scale = scales[dim];
+      output.axes[dim].scale = axisScales[dim];
     }
 
     // Allocate variable arrays

@@ -443,9 +443,9 @@ TEST_CASE("LoadWeakLibEosTableFull reads complete EOS table", "[hdf5][weaklib]")
   CHECK(table.nVariables == 3);
 
   // Axis scales match LogInterp
-  CHECK(table.scales[0] == AxisScale::Log10);  // Density
-  CHECK(table.scales[1] == AxisScale::Log10);  // Temperature
-  CHECK(table.scales[2] == AxisScale::Linear); // Ye
+  CHECK(table.axes[0].scale == AxisScale::Log10);  // Density
+  CHECK(table.axes[1].scale == AxisScale::Log10);  // Temperature
+  CHECK(table.axes[2].scale == AxisScale::Linear); // Ye
 
   // Axis names are read correctly
   CHECK(table.axisNames[0] == "Density");
@@ -522,7 +522,9 @@ TEST_CASE("LoadWeakLibEosTableFullParallel loads complete table", "[weaklib][eos
   // Verify dimensions match
   CHECK(table.nVariables == seqTable.nVariables);
   CHECK(table.dimensions == seqTable.dimensions);
-  CHECK(table.scales == seqTable.scales);
+  for (int dim = 0; dim < 3; ++dim) {
+    CHECK(table.axes[dim].scale == seqTable.axes[dim].scale);
+  }
 
   // Verify axis names and units
   CHECK(table.axisNames == seqTable.axisNames);
