@@ -176,6 +176,20 @@ void WriteIntArray3dDataset(hid_t parent,
   H5Sclose(space);
 }
 
+void WriteDoubleArray4dDataset(hid_t parent,
+                               const std::string& name,
+                               const std::array<hsize_t, 4>& dims,
+                               const std::vector<double>& values)
+{
+  hid_t space = H5Screate_simple(4, dims.data(), nullptr);
+  hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_IEEE_F64LE, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(dataset >= 0);
+  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+}
+
 void CreateWeakLibEosTestFileFull(const std::filesystem::path& filePath)
 {
   constexpr int nRho = 2;
@@ -323,6 +337,80 @@ void CreateWeakLibEosTestFileFullCOrder(const std::filesystem::path& filePath)
   WriteIntArrayDataset(dvGroup, "iGamma1", {3});
 
   H5Gclose(dvGroup);
+  H5Fclose(file);
+}
+
+void CreateWeakLibEmAbTestFile(const std::filesystem::path& filePath)
+{
+  constexpr int nE = 4;
+  constexpr int nRho = 2;
+  constexpr int nT = 3;
+  constexpr int nYe = 2;
+  constexpr int nOpacities = 2;
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  hid_t energyGroup = H5Gcreate(file, "EnergyGrid", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(energyGroup >= 0);
+  WriteStringArrayDataset(energyGroup, "Name", {"Test Energy"});
+  WriteStringArrayDataset(energyGroup, "Unit", {"MeV"});
+  WriteIntArrayDataset(energyGroup, "nPoints", {nE});
+  WriteIntArrayDataset(energyGroup, "LogInterp", {0});
+  WriteDoubleArrayDataset(energyGroup, "Values", {1.0, 2.0, 3.0, 4.0});
+  H5Gclose(energyGroup);
+
+  hid_t thermoGroup = H5Gcreate(file, "ThermoState", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(thermoGroup >= 0);
+  WriteIntArrayDataset(thermoGroup, "LogInterp", {1, 1, 0});
+  WriteIntArrayDataset(thermoGroup, "Dimensions", {nRho, nT, nYe});
+  WriteStringArrayDataset(thermoGroup, "Names",
+                          {"Density", "Temperature", "Electron Fraction"});
+  WriteStringArrayDataset(thermoGroup, "Units",
+                          {"g/cm^3", "MeV", "dimensionless"});
+  WriteDoubleArrayDataset(thermoGroup, "Density", {1.0e3, 1.0e6});
+  WriteDoubleArrayDataset(thermoGroup, "Temperature", {0.5, 1.0, 2.0});
+  WriteDoubleArrayDataset(thermoGroup, "Electron Fraction", {0.1, 0.2});
+  H5Gclose(thermoGroup);
+
+  hid_t emabGroup =
+      H5Gcreate(file, "EmAb_CorrectedAbsorption", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(emabGroup >= 0);
+  WriteIntArrayDataset(emabGroup, "nOpacities", {nOpacities});
+  WriteStringArrayDataset(emabGroup, "Units", {"1/cm", "1/cm"});
+  WriteDoubleArrayDataset(emabGroup, "Offsets", {0.0, 0.1});
+
+  const std::array<hsize_t, 4> dims = {
+      static_cast<hsize_t>(nYe),
+      static_cast<hsize_t>(nT),
+      static_cast<hsize_t>(nRho),
+      static_cast<hsize_t>(nE)};
+  const std::size_t totalSize =
+      static_cast<std::size_t>(nE) * nRho * nT * nYe;
+
+  std::vector<double> data(totalSize, 0.0);
+  std::size_t idx = 0;
+  for (int ye = 0; ye < nYe; ++ye) {
+    for (int temp = 0; temp < nT; ++temp) {
+      for (int rho = 0; rho < nRho; ++rho) {
+        for (int e = 0; e < nE; ++e) {
+          data[idx++] =
+              1.0 + 10.0 * static_cast<double>(ye) +
+              1.0 * static_cast<double>(temp) +
+              0.1 * static_cast<double>(rho) +
+              0.01 * static_cast<double>(e);
+        }
+      }
+    }
+  }
+
+  WriteDoubleArray4dDataset(emabGroup, "Electron Neutrino", dims, data);
+  for (double& value : data) {
+    value += 100.0;
+  }
+  WriteDoubleArray4dDataset(emabGroup, "Electron Antineutrino", dims, data);
+
+  H5Gclose(emabGroup);
   H5Fclose(file);
 }
 
@@ -596,13 +684,9 @@ TEST_CASE("LoadWeakLibEmAbTable loads legacy EmAb opacity table", "[weaklib][opa
 {
   EnsureAmrexInitialized();
 
-  // Use real WeakLib opacity table file
-  const std::string filePath =
-      "/Users/liwei/docker-workspace/repos/weaklib-tables/SFHo/LowRes/"
-      "wl-Op-SFHo-15-25-50-E40-B85-AbEm.h5";
-
-  // Check if file exists - skip test if not available
-  REQUIRE(std::filesystem::exists(filePath));
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_emab_legacy.h5";
+  CreateWeakLibEmAbTestFile(filePath);
 
   hid_t file = H5Fopen(filePath.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
   REQUIRE(file >= 0);
@@ -611,34 +695,20 @@ TEST_CASE("LoadWeakLibEmAbTable loads legacy EmAb opacity table", "[weaklib][opa
   WeakLibOpacityGrid energyGrid;
   auto status = detail::LoadWeakLibOpacityGrid(file, "EnergyGrid", energyGrid);
   REQUIRE(status == Hdf5LoadStatus::Success);
-  CHECK(energyGrid.nPoints == 40);
-  CHECK(energyGrid.name == "Comoving Frame Neutrino Energy");
+  CHECK(energyGrid.nPoints == 4);
+  CHECK(energyGrid.name == "Test Energy");
+  CHECK(energyGrid.unit == "MeV");
 
-  // Load thermo state manually
+  // Load thermo state
   WeakLibOpacityThermoState thermoState;
-  {
-    hid_t tsGroup = H5Gopen(file, "ThermoState", H5P_DEFAULT);
-    REQUIRE(tsGroup >= 0);
-
-    int dims[3] = {0, 0, 0};
-    detail::ReadIntArray(tsGroup, "Dimensions", dims, 3);
-    thermoState.dimensions[0] = dims[0];
-    thermoState.dimensions[1] = dims[1];
-    thermoState.dimensions[2] = dims[2];
-
-    int logInterp[3] = {0, 0, 0};
-    detail::ReadIntArray(tsGroup, "LogInterp", logInterp, 3);
-    thermoState.scales[0] = (logInterp[0] == 1) ? AxisScale::Log10 : AxisScale::Linear;
-    thermoState.scales[1] = (logInterp[1] == 1) ? AxisScale::Log10 : AxisScale::Linear;
-    thermoState.scales[2] = (logInterp[2] == 1) ? AxisScale::Log10 : AxisScale::Linear;
-
-    H5Gclose(tsGroup);
-  }
-
-  // Verify thermo state dimensions match file (from h5dump output)
-  CHECK(thermoState.dimensions[0] == 185);  // nRho
-  CHECK(thermoState.dimensions[1] == 81);   // nT
-  CHECK(thermoState.dimensions[2] == 30);   // nYe
+  status = detail::LoadWeakLibOpacityThermoState(file, thermoState);
+  REQUIRE(status == Hdf5LoadStatus::Success);
+  CHECK(thermoState.dimensions[0] == 2);  // nRho
+  CHECK(thermoState.dimensions[1] == 3);  // nT
+  CHECK(thermoState.dimensions[2] == 2);  // nYe
+  CHECK(thermoState.scales[0] == AxisScale::Log10);
+  CHECK(thermoState.scales[1] == AxisScale::Log10);
+  CHECK(thermoState.scales[2] == AxisScale::Linear);
 
   // Load EmAb table
   WeakLibEmAbTable emAb;
@@ -646,16 +716,17 @@ TEST_CASE("LoadWeakLibEmAbTable loads legacy EmAb opacity table", "[weaklib][opa
   REQUIRE(status == Hdf5LoadStatus::Success);
 
   H5Fclose(file);
+  std::filesystem::remove(filePath);
 
   // Verify EmAb table was loaded correctly
   CHECK(emAb.IsLoaded());
   CHECK(emAb.nOpacities == 2);
 
   // Check dimensions: [nE, nRho, nT, nYe]
-  CHECK(emAb.dimensions[0] == 40);   // nE
-  CHECK(emAb.dimensions[1] == 185);  // nRho
-  CHECK(emAb.dimensions[2] == 81);   // nT
-  CHECK(emAb.dimensions[3] == 30);   // nYe
+  CHECK(emAb.dimensions[0] == 4);  // nE
+  CHECK(emAb.dimensions[1] == 2);  // nRho
+  CHECK(emAb.dimensions[2] == 3);  // nT
+  CHECK(emAb.dimensions[3] == 2);  // nYe
 
   // Legacy format detection
   CHECK(emAb.parameters.IsLegacy());
