@@ -591,3 +591,86 @@ TEST_CASE("LoadWeakLibEosTableFull rejects C-ordered dependent variables", "[wea
 
   std::filesystem::remove(eosPath);
 }
+
+TEST_CASE("LoadWeakLibEmAbTable loads legacy EmAb opacity table", "[weaklib][opacity][emab]")
+{
+  EnsureAmrexInitialized();
+
+  // Use real WeakLib opacity table file
+  const std::string filePath =
+      "/Users/liwei/docker-workspace/repos/weaklib-tables/SFHo/LowRes/"
+      "wl-Op-SFHo-15-25-50-E40-B85-AbEm.h5";
+
+  // Check if file exists - skip test if not available
+  REQUIRE(std::filesystem::exists(filePath));
+
+  hid_t file = H5Fopen(filePath.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  // Load energy grid
+  WeakLibOpacityGrid energyGrid;
+  auto status = detail::LoadWeakLibOpacityGrid(file, "EnergyGrid", energyGrid);
+  REQUIRE(status == Hdf5LoadStatus::Success);
+  CHECK(energyGrid.nPoints == 40);
+  CHECK(energyGrid.name == "Comoving Frame Neutrino Energy");
+
+  // Load thermo state manually
+  WeakLibOpacityThermoState thermoState;
+  {
+    hid_t tsGroup = H5Gopen(file, "ThermoState", H5P_DEFAULT);
+    REQUIRE(tsGroup >= 0);
+
+    int dims[3] = {0, 0, 0};
+    detail::ReadIntArray(tsGroup, "Dimensions", dims, 3);
+    thermoState.dimensions[0] = dims[0];
+    thermoState.dimensions[1] = dims[1];
+    thermoState.dimensions[2] = dims[2];
+
+    int logInterp[3] = {0, 0, 0};
+    detail::ReadIntArray(tsGroup, "LogInterp", logInterp, 3);
+    thermoState.scales[0] = (logInterp[0] == 1) ? AxisScale::Log10 : AxisScale::Linear;
+    thermoState.scales[1] = (logInterp[1] == 1) ? AxisScale::Log10 : AxisScale::Linear;
+    thermoState.scales[2] = (logInterp[2] == 1) ? AxisScale::Log10 : AxisScale::Linear;
+
+    H5Gclose(tsGroup);
+  }
+
+  // Verify thermo state dimensions match file (from h5dump output)
+  CHECK(thermoState.dimensions[0] == 185);  // nRho
+  CHECK(thermoState.dimensions[1] == 81);   // nT
+  CHECK(thermoState.dimensions[2] == 30);   // nYe
+
+  // Load EmAb table
+  WeakLibEmAbTable emAb;
+  status = LoadWeakLibEmAbTable(file, emAb, energyGrid, thermoState);
+  REQUIRE(status == Hdf5LoadStatus::Success);
+
+  H5Fclose(file);
+
+  // Verify EmAb table was loaded correctly
+  CHECK(emAb.IsLoaded());
+  CHECK(emAb.nOpacities == 2);
+
+  // Check dimensions: [nE, nRho, nT, nYe]
+  CHECK(emAb.dimensions[0] == 40);   // nE
+  CHECK(emAb.dimensions[1] == 185);  // nRho
+  CHECK(emAb.dimensions[2] == 81);   // nT
+  CHECK(emAb.dimensions[3] == 30);   // nYe
+
+  // Legacy format detection
+  CHECK(emAb.parameters.IsLegacy());
+
+  // Species names
+  CHECK(emAb.names[0] == "Electron Neutrino");
+  CHECK(emAb.names[1] == "Electron Antineutrino");
+
+  // Data pointers should be valid
+  const double* data0 = emAb.OpacityData(0);
+  const double* data1 = emAb.OpacityData(1);
+  REQUIRE(data0 != nullptr);
+  REQUIRE(data1 != nullptr);
+
+  // Layout should be computed
+  CHECK(emAb.layout.stride[0] == 1);  // nE stride
+  CHECK(emAb.layout.stride[1] == static_cast<std::size_t>(emAb.dimensions[0]));  // nRho stride
+}

@@ -347,6 +347,271 @@ inline bool ReadDoubleArray3d(hid_t parent, const char* name,
   return ReadWeakLibArray3d<double>(parent, name, out, expectedDims, H5T_NATIVE_DOUBLE);
 }
 
+// Read 2D array for offsets
+// Fortran order: [d1, d0] -> C order: [d0, d1]
+template <typename T>
+bool ReadWeakLibArray2d(hid_t group, const char* name,
+                        amrex::TableData<T, 2>& output,
+                        const std::array<int, 2>& expectedDims)
+{
+  ScopedHandle dataset(H5Dopen(group, name, H5P_DEFAULT), H5Dclose);
+  if (!dataset.Valid()) {
+    return false;
+  }
+
+  ScopedHandle dataspace(H5Dget_space(dataset.Get()), H5Sclose);
+  if (!dataspace.Valid()) {
+    return false;
+  }
+
+  const int rank = H5Sget_simple_extent_ndims(dataspace.Get());
+  if (rank != 2) {
+    return false;
+  }
+
+  hsize_t fileDims[2] = {0, 0};
+  if (H5Sget_simple_extent_dims(dataspace.Get(), fileDims, nullptr) < 0) {
+    return false;
+  }
+
+  // Fortran order: [d1, d0] -> C order: [d0, d1]
+  if (static_cast<int>(fileDims[0]) != expectedDims[1] ||
+      static_cast<int>(fileDims[1]) != expectedDims[0]) {
+    return false;
+  }
+
+  const amrex::Array<int, 2> lo{{0, 0}};
+  const amrex::Array<int, 2> hi{{expectedDims[0] - 1, expectedDims[1] - 1}};
+  output.resize(lo, hi, amrex::The_Pinned_Arena());
+
+  hid_t memType = std::is_same_v<T, double> ? H5T_NATIVE_DOUBLE : H5T_NATIVE_INT;
+  if (H5Dread(dataset.Get(), memType, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+              output.table().p) < 0) {
+    return false;
+  }
+
+  return true;
+}
+
+inline bool ReadDoubleArray2d(hid_t group, const char* name,
+                              amrex::TableData<double, 2>& output,
+                              const std::array<int, 2>& expectedDims)
+{
+  return ReadWeakLibArray2d<double>(group, name, output, expectedDims);
+}
+
+// Read 4D array in Fortran order [d3, d2, d1, d0] -> C order [d0, d1, d2, d3]
+template <typename T>
+bool ReadWeakLibArray4d(hid_t group, const char* name,
+                        amrex::TableData<T, 4>& output,
+                        const std::array<int, 4>& expectedDims)
+{
+  ScopedHandle dataset(H5Dopen(group, name, H5P_DEFAULT), H5Dclose);
+  if (!dataset.Valid()) {
+    return false;
+  }
+
+  ScopedHandle dataspace(H5Dget_space(dataset.Get()), H5Sclose);
+  if (!dataspace.Valid()) {
+    return false;
+  }
+
+  const int rank = H5Sget_simple_extent_ndims(dataspace.Get());
+  if (rank != 4) {
+    return false;
+  }
+
+  hsize_t fileDims[4] = {0, 0, 0, 0};
+  if (H5Sget_simple_extent_dims(dataspace.Get(), fileDims, nullptr) < 0) {
+    return false;
+  }
+
+  // Validate dimensions (Fortran order in file)
+  // File: [d3, d2, d1, d0], Expected C: [d0, d1, d2, d3]
+  if (static_cast<int>(fileDims[0]) != expectedDims[3] ||
+      static_cast<int>(fileDims[1]) != expectedDims[2] ||
+      static_cast<int>(fileDims[2]) != expectedDims[1] ||
+      static_cast<int>(fileDims[3]) != expectedDims[0]) {
+    return false;
+  }
+
+  const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
+  const amrex::Array<int, 4> hi{{expectedDims[0] - 1, expectedDims[1] - 1,
+                                  expectedDims[2] - 1, expectedDims[3] - 1}};
+  output.resize(lo, hi, amrex::The_Pinned_Arena());
+
+  hid_t memType = std::is_same_v<T, double> ? H5T_NATIVE_DOUBLE : H5T_NATIVE_INT;
+  if (H5Dread(dataset.Get(), memType, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+              output.table().p) < 0) {
+    return false;
+  }
+
+  return true;
+}
+
+inline bool ReadDoubleArray4d(hid_t group, const char* name,
+                              amrex::TableData<double, 4>& output,
+                              const std::array<int, 4>& expectedDims)
+{
+  return ReadWeakLibArray4d<double>(group, name, output, expectedDims);
+}
+
+// Read 5D array in Fortran order [d4, d3, d2, d1, d0] -> C order [d0, d1, d2, d3, d4]
+// Stores data in a flat amrex::Vector<T> since AMReX TableData only supports up to 4D.
+template <typename T>
+bool ReadWeakLibArray5d(hid_t group, const char* name,
+                        amrex::Vector<T>& output,
+                        const std::array<int, 5>& expectedDims)
+{
+  ScopedHandle dataset(H5Dopen(group, name, H5P_DEFAULT), H5Dclose);
+  if (!dataset.Valid()) {
+    return false;
+  }
+
+  ScopedHandle dataspace(H5Dget_space(dataset.Get()), H5Sclose);
+  if (!dataspace.Valid()) {
+    return false;
+  }
+
+  const int rank = H5Sget_simple_extent_ndims(dataspace.Get());
+  if (rank != 5) {
+    return false;
+  }
+
+  hsize_t fileDims[5] = {0, 0, 0, 0, 0};
+  if (H5Sget_simple_extent_dims(dataspace.Get(), fileDims, nullptr) < 0) {
+    return false;
+  }
+
+  // Validate dimensions (Fortran order in file)
+  if (static_cast<int>(fileDims[0]) != expectedDims[4] ||
+      static_cast<int>(fileDims[1]) != expectedDims[3] ||
+      static_cast<int>(fileDims[2]) != expectedDims[2] ||
+      static_cast<int>(fileDims[3]) != expectedDims[1] ||
+      static_cast<int>(fileDims[4]) != expectedDims[0]) {
+    return false;
+  }
+
+  // Compute total size and allocate
+  const std::size_t totalSize = static_cast<std::size_t>(expectedDims[0]) *
+                                 static_cast<std::size_t>(expectedDims[1]) *
+                                 static_cast<std::size_t>(expectedDims[2]) *
+                                 static_cast<std::size_t>(expectedDims[3]) *
+                                 static_cast<std::size_t>(expectedDims[4]);
+  output.resize(totalSize);
+
+  hid_t memType = std::is_same_v<T, double> ? H5T_NATIVE_DOUBLE : H5T_NATIVE_INT;
+  if (H5Dread(dataset.Get(), memType, H5S_ALL, H5S_ALL, H5P_DEFAULT, output.data()) < 0) {
+    return false;
+  }
+
+  return true;
+}
+
+inline bool ReadDoubleArray5d(hid_t group, const char* name,
+                              amrex::Vector<double>& output,
+                              const std::array<int, 5>& expectedDims)
+{
+  return ReadWeakLibArray5d<double>(group, name, output, expectedDims);
+}
+
+// Check if HDF5 group exists (suppress errors)
+inline bool GroupExists(hid_t loc, const char* name)
+{
+  H5E_auto2_t oldFunc;
+  void* oldClientData;
+  H5Eget_auto2(H5E_DEFAULT, &oldFunc, &oldClientData);
+  H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+
+  htri_t exists = H5Lexists(loc, name, H5P_DEFAULT);
+
+  H5Eset_auto2(H5E_DEFAULT, oldFunc, oldClientData);
+
+  return exists > 0;
+}
+
+// Load EnergyGrid or EtaGrid from opacity file
+inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char* groupName,
+                                              WeakLibOpacityGrid& grid)
+{
+  ScopedHandle group(H5Gopen(file, groupName, H5P_DEFAULT), H5Gclose);
+  if (!group.Valid()) {
+    return Hdf5LoadStatus::DatasetOpenFailed;
+  }
+
+  // Read Name and Unit
+  std::vector<std::string> nameVec, unitVec;
+  if (!ReadStringArray(group.Get(), "Name", nameVec) || nameVec.empty()) {
+    return Hdf5LoadStatus::DatasetReadFailed;
+  }
+  if (!ReadStringArray(group.Get(), "Unit", unitVec) || unitVec.empty()) {
+    return Hdf5LoadStatus::DatasetReadFailed;
+  }
+  grid.name = nameVec[0];
+  grid.unit = unitVec[0];
+
+  // Read nPoints
+  if (!ReadScalarInt(group.Get(), "nPoints", grid.nPoints)) {
+    return Hdf5LoadStatus::DatasetReadFailed;
+  }
+
+  // Read LogInterp
+  int logInterp = 0;
+  if (!ReadScalarInt(group.Get(), "LogInterp", logInterp)) {
+    return Hdf5LoadStatus::DatasetReadFailed;
+  }
+  grid.scale = (logInterp == 1) ? AxisScale::Log10 : AxisScale::Linear;
+
+  // Read Values
+  grid.values.resize(grid.nPoints);
+  {
+    ScopedHandle dataset(H5Dopen(group.Get(), "Values", H5P_DEFAULT), H5Dclose);
+    if (!dataset.Valid()) {
+      return Hdf5LoadStatus::DatasetOpenFailed;
+    }
+    if (H5Dread(dataset.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                grid.values.data()) < 0) {
+      return Hdf5LoadStatus::DatasetReadFailed;
+    }
+  }
+
+  // Validate monotonicity
+  for (int i = 1; i < grid.nPoints; ++i) {
+    if (grid.values[i] <= grid.values[i - 1]) {
+      return Hdf5LoadStatus::AxisNotMonotone;
+    }
+  }
+
+  // Validate Log10 positivity
+  if (grid.scale == AxisScale::Log10 && grid.values[0] <= 0.0) {
+    return Hdf5LoadStatus::AxisInvalidScale;
+  }
+
+  grid.minValue = grid.values[0];
+  grid.maxValue = grid.values[grid.nPoints - 1];
+
+  // Try to read optional Zoom (geometric grid)
+  {
+    H5E_auto2_t oldFunc;
+    void* oldClientData;
+    H5Eget_auto2(H5E_DEFAULT, &oldFunc, &oldClientData);
+    H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+
+    ScopedHandle zoomDs(H5Dopen(group.Get(), "Zoom", H5P_DEFAULT), H5Dclose);
+    if (zoomDs.Valid()) {
+      double zoom = 0.0;
+      if (H5Dread(zoomDs.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
+                  H5P_DEFAULT, &zoom) >= 0) {
+        grid.zoom = zoom;
+      }
+    }
+
+    H5Eset_auto2(H5E_DEFAULT, oldFunc, oldClientData);
+  }
+
+  return Hdf5LoadStatus::Success;
+}
+
 inline amrex::Array<int, 4> MakeHiArray(int nd, const std::array<int, 5>& extents,
                                         bool& overflow) noexcept
 {
