@@ -21,13 +21,13 @@ using namespace WeakLibReader;
 
 namespace {
 
-// Test file paths (adjust as needed for your environment)
-const std::string kTestDataDir = "/Users/liwei/docker-workspace/repos/weaklib-tables/SFHo/LowRes/";
-const std::string kEmAbFile = kTestDataDir + "wl-Op-SFHo-15-25-50-E40-B85-AbEm.h5";
-const std::string kIsoFile = kTestDataDir + "wl-Op-SFHo-15-25-50-E40-B85-Iso.h5";
-const std::string kNESFile = kTestDataDir + "wl-Op-SFHo-15-25-50-E40-B85-NES.h5";
-const std::string kPairFile = kTestDataDir + "wl-Op-SFHo-15-25-50-E40-B85-Pair.h5";
-const std::string kBremFile = kTestDataDir + "wl-Op-SFHo-15-25-50-E40-HR98-Brem.h5";
+constexpr int kTestNE = 4;
+constexpr int kTestNRho = 2;
+constexpr int kTestNT = 3;
+constexpr int kTestNYe = 2;
+constexpr int kTestNOpacities = 2;
+constexpr int kTestNMoments = 2;
+constexpr int kTestNEta = 3;
 
 /// Initialize AMReX if not already initialized.
 void EnsureAmrexInitialized()
@@ -118,30 +118,57 @@ void WriteDoubleArray4dDataset(hid_t parent,
   H5Sclose(space);
 }
 
-void CreateWeakLibEmAbTestFile(const std::filesystem::path& filePath)
+void WriteDoubleArray2dDataset(hid_t parent,
+                               const std::string& name,
+                               const std::array<hsize_t, 2>& dims,
+                               const std::vector<double>& values)
 {
-  constexpr int nE = 4;
-  constexpr int nRho = 2;
-  constexpr int nT = 3;
-  constexpr int nYe = 2;
-  constexpr int nOpacities = 2;
+  hid_t space = H5Screate_simple(2, dims.data(), nullptr);
+  hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_IEEE_F64LE, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(dataset >= 0);
+  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+}
 
-  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(file >= 0);
+void WriteDoubleArray5dDataset(hid_t parent,
+                               const std::string& name,
+                               const std::array<hsize_t, 5>& dims,
+                               const std::vector<double>& values)
+{
+  hid_t space = H5Screate_simple(5, dims.data(), nullptr);
+  hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_IEEE_F64LE, space,
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(dataset >= 0);
+  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
+  H5Dclose(dataset);
+  H5Sclose(space);
+}
 
-  hid_t energyGroup = H5Gcreate(file, "EnergyGrid", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(energyGroup >= 0);
-  WriteStringArrayDataset(energyGroup, "Name", {"Test Energy"});
-  WriteStringArrayDataset(energyGroup, "Unit", {"MeV"});
-  WriteIntArrayDataset(energyGroup, "nPoints", {nE});
-  WriteIntArrayDataset(energyGroup, "LogInterp", {0});
-  WriteDoubleArrayDataset(energyGroup, "Values", {1.0, 2.0, 3.0, 4.0});
-  H5Gclose(energyGroup);
+void WriteOpacityGridGroup(hid_t file,
+                           const std::string& groupName,
+                           const std::string& name,
+                           const std::string& unit,
+                           const std::vector<double>& values,
+                           int logInterp)
+{
+  hid_t group = H5Gcreate(file, groupName.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(group >= 0);
+  WriteStringArrayDataset(group, "Name", {name});
+  WriteStringArrayDataset(group, "Unit", {unit});
+  WriteIntArrayDataset(group, "nPoints", {static_cast<int>(values.size())});
+  WriteIntArrayDataset(group, "LogInterp", {logInterp});
+  WriteDoubleArrayDataset(group, "Values", values);
+  H5Gclose(group);
+}
 
+void WriteThermoStateGroup(hid_t file)
+{
   hid_t thermoGroup = H5Gcreate(file, "ThermoState", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(thermoGroup >= 0);
   WriteIntArrayDataset(thermoGroup, "LogInterp", {1, 1, 0});
-  WriteIntArrayDataset(thermoGroup, "Dimensions", {nRho, nT, nYe});
+  WriteIntArrayDataset(thermoGroup, "Dimensions", {kTestNRho, kTestNT, kTestNYe});
   WriteStringArrayDataset(thermoGroup, "Names",
                           {"Density", "Temperature", "Electron Fraction"});
   WriteStringArrayDataset(thermoGroup, "Units",
@@ -150,6 +177,31 @@ void CreateWeakLibEmAbTestFile(const std::filesystem::path& filePath)
   WriteDoubleArrayDataset(thermoGroup, "Temperature", {0.5, 1.0, 2.0});
   WriteDoubleArrayDataset(thermoGroup, "Electron Fraction", {0.1, 0.2});
   H5Gclose(thermoGroup);
+}
+
+void WriteOpacityBaseGroups(hid_t file, bool includeEtaGrid)
+{
+  WriteOpacityGridGroup(file, "EnergyGrid", "Test Energy", "MeV",
+                        {1.0, 2.0, 3.0, 4.0}, 0);
+  WriteThermoStateGroup(file);
+  if (includeEtaGrid) {
+    WriteOpacityGridGroup(file, "EtaGrid", "Test Eta", "dimensionless",
+                          {0.1, 0.2, 0.3}, 0);
+  }
+}
+
+void CreateWeakLibEmAbTestFile(const std::filesystem::path& filePath)
+{
+  constexpr int nE = kTestNE;
+  constexpr int nRho = kTestNRho;
+  constexpr int nT = kTestNT;
+  constexpr int nYe = kTestNYe;
+  constexpr int nOpacities = kTestNOpacities;
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  WriteOpacityBaseGroups(file, false);
 
   hid_t emabGroup =
       H5Gcreate(file, "EmAb_CorrectedAbsorption", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -189,6 +241,158 @@ void CreateWeakLibEmAbTestFile(const std::filesystem::path& filePath)
   WriteDoubleArray4dDataset(emabGroup, "Electron Antineutrino", dims, data);
 
   H5Gclose(emabGroup);
+  H5Fclose(file);
+}
+
+void CreateWeakLibIsoTestFile(const std::filesystem::path& filePath)
+{
+  constexpr int nMoments = kTestNMoments;
+  constexpr int nOpacities = kTestNOpacities;
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  WriteOpacityBaseGroups(file, false);
+
+  hid_t group = H5Gcreate(file, "Scat_Iso_Kernels", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(group >= 0);
+  WriteIntArrayDataset(group, "nOpacities", {nOpacities});
+  WriteIntArrayDataset(group, "nMoments", {nMoments});
+  WriteStringArrayDataset(group, "Units", {"1/cm", "1/cm"});
+
+  const std::array<hsize_t, 2> offsetDims = {
+      static_cast<hsize_t>(nMoments),
+      static_cast<hsize_t>(nOpacities)};
+  std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
+  WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
+
+  const std::array<hsize_t, 5> kernelDims = {
+      static_cast<hsize_t>(kTestNYe),
+      static_cast<hsize_t>(kTestNT),
+      static_cast<hsize_t>(kTestNRho),
+      static_cast<hsize_t>(nMoments),
+      static_cast<hsize_t>(kTestNE)};
+  const std::size_t kernelSize =
+      static_cast<std::size_t>(kTestNE) * nMoments * kTestNRho * kTestNT * kTestNYe;
+  std::vector<double> data(kernelSize, 0.0);
+  WriteDoubleArray5dDataset(group, "Electron Neutrino", kernelDims, data);
+  for (double& value : data) {
+    value += 1.0;
+  }
+  WriteDoubleArray5dDataset(group, "Electron Antineutrino", kernelDims, data);
+
+  H5Gclose(group);
+  H5Fclose(file);
+}
+
+void CreateWeakLibNESTestFile(const std::filesystem::path& filePath)
+{
+  constexpr int nMoments = 2;
+  constexpr int nOpacities = 1;
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  WriteOpacityBaseGroups(file, true);
+
+  hid_t group = H5Gcreate(file, "Scat_NES_Kernels", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(group >= 0);
+  WriteIntArrayDataset(group, "nOpacities", {nOpacities});
+  WriteIntArrayDataset(group, "nMoments", {nMoments});
+  WriteStringArrayDataset(group, "Units", {"1/cm"});
+
+  const std::array<hsize_t, 2> offsetDims = {
+      static_cast<hsize_t>(nMoments),
+      static_cast<hsize_t>(nOpacities)};
+  std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
+  WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
+
+  const std::array<hsize_t, 5> kernelDims = {
+      static_cast<hsize_t>(kTestNEta),
+      static_cast<hsize_t>(kTestNT),
+      static_cast<hsize_t>(nMoments),
+      static_cast<hsize_t>(kTestNE),
+      static_cast<hsize_t>(kTestNE)};
+  const std::size_t kernelSize =
+      static_cast<std::size_t>(kTestNE) * kTestNE * nMoments * kTestNT * kTestNEta;
+  std::vector<double> data(kernelSize, 0.0);
+  WriteDoubleArray5dDataset(group, "Kernels", kernelDims, data);
+
+  H5Gclose(group);
+  H5Fclose(file);
+}
+
+void CreateWeakLibPairTestFile(const std::filesystem::path& filePath)
+{
+  constexpr int nMoments = 2;
+  constexpr int nOpacities = 1;
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  WriteOpacityBaseGroups(file, true);
+
+  hid_t group = H5Gcreate(file, "Scat_Pair_Kernels", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(group >= 0);
+  WriteIntArrayDataset(group, "nOpacities", {nOpacities});
+  WriteIntArrayDataset(group, "nMoments", {nMoments});
+  WriteStringArrayDataset(group, "Units", {"1/cm"});
+
+  const std::array<hsize_t, 2> offsetDims = {
+      static_cast<hsize_t>(nMoments),
+      static_cast<hsize_t>(nOpacities)};
+  std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
+  WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
+
+  const std::array<hsize_t, 5> kernelDims = {
+      static_cast<hsize_t>(kTestNEta),
+      static_cast<hsize_t>(kTestNT),
+      static_cast<hsize_t>(nMoments),
+      static_cast<hsize_t>(kTestNE),
+      static_cast<hsize_t>(kTestNE)};
+  const std::size_t kernelSize =
+      static_cast<std::size_t>(kTestNE) * kTestNE * nMoments * kTestNT * kTestNEta;
+  std::vector<double> data(kernelSize, 0.0);
+  WriteDoubleArray5dDataset(group, "Kernels", kernelDims, data);
+
+  H5Gclose(group);
+  H5Fclose(file);
+}
+
+void CreateWeakLibBremTestFile(const std::filesystem::path& filePath)
+{
+  constexpr int nMoments = 1;
+  constexpr int nOpacities = 1;
+
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  WriteOpacityBaseGroups(file, false);
+
+  hid_t group = H5Gcreate(file, "Scat_Brem_Kernels", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(group >= 0);
+  WriteIntArrayDataset(group, "nOpacities", {nOpacities});
+  WriteIntArrayDataset(group, "nMoments", {nMoments});
+  WriteStringArrayDataset(group, "Units", {"1/cm"});
+
+  const std::array<hsize_t, 2> offsetDims = {
+      static_cast<hsize_t>(nMoments),
+      static_cast<hsize_t>(nOpacities)};
+  std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
+  WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
+
+  const std::array<hsize_t, 5> kernelDims = {
+      static_cast<hsize_t>(kTestNT),
+      static_cast<hsize_t>(kTestNRho),
+      static_cast<hsize_t>(nMoments),
+      static_cast<hsize_t>(kTestNE),
+      static_cast<hsize_t>(kTestNE)};
+  const std::size_t kernelSize =
+      static_cast<std::size_t>(kTestNE) * kTestNE * nMoments * kTestNRho * kTestNT;
+  std::vector<double> data(kernelSize, 0.0);
+  WriteDoubleArray5dDataset(group, "S_sigma", kernelDims, data);
+
+  H5Gclose(group);
   H5Fclose(file);
 }
 
@@ -264,30 +468,33 @@ TEST_CASE("LoadWeakLibOpacityTableFull loads EmAb table", "[hdf5][weaklib][opaci
 {
   EnsureAmrexInitialized();
 
-  // Require test data file exists
-  REQUIRE(std::filesystem::exists(kEmAbFile));
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_emab_full.h5";
+  CreateWeakLibEmAbTestFile(filePath);
 
   WeakLibOpacityTable table;
-  auto status = LoadWeakLibOpacityTableFull(table, kEmAbFile);
+  auto status = LoadWeakLibOpacityTableFull(table, filePath.string());
+
+  std::filesystem::remove(filePath);
 
   REQUIRE(status == Hdf5LoadStatus::Success);
   REQUIRE(table.HasEmAb());
 
   // Check EnergyGrid
-  CHECK(table.energyGrid.nPoints == 40);
-  CHECK(table.energyGrid.scale == AxisScale::Log10);
+  CHECK(table.energyGrid.nPoints == kTestNE);
+  CHECK(table.energyGrid.scale == AxisScale::Linear);
 
   // Check ThermoState
-  CHECK(table.thermoState.dimensions[0] == 185);  // nRho
-  CHECK(table.thermoState.dimensions[1] == 81);   // nT
-  CHECK(table.thermoState.dimensions[2] == 30);   // nYe
+  CHECK(table.thermoState.dimensions[0] == kTestNRho);  // nRho
+  CHECK(table.thermoState.dimensions[1] == kTestNT);    // nT
+  CHECK(table.thermoState.dimensions[2] == kTestNYe);   // nYe
 
   // Check EmAb
-  CHECK(table.emAb.nOpacities == 2);
-  CHECK(table.emAb.dimensions[0] == 40);   // nE
-  CHECK(table.emAb.dimensions[1] == 185);  // nRho
-  CHECK(table.emAb.dimensions[2] == 81);   // nT
-  CHECK(table.emAb.dimensions[3] == 30);   // nYe
+  CHECK(table.emAb.nOpacities == kTestNOpacities);
+  CHECK(table.emAb.dimensions[0] == kTestNE);    // nE
+  CHECK(table.emAb.dimensions[1] == kTestNRho);  // nRho
+  CHECK(table.emAb.dimensions[2] == kTestNT);    // nT
+  CHECK(table.emAb.dimensions[3] == kTestNYe);   // nYe
 
   CHECK(table.emAb.names[0] == "Electron Neutrino");
   CHECK(table.emAb.names[1] == "Electron Antineutrino");
@@ -296,68 +503,84 @@ TEST_CASE("LoadWeakLibOpacityTableFull loads EmAb table", "[hdf5][weaklib][opaci
 TEST_CASE("LoadWeakLibOpacityTableFull loads Iso table", "[hdf5][weaklib][opacity]")
 {
   EnsureAmrexInitialized();
-  REQUIRE(std::filesystem::exists(kIsoFile));
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_iso_full.h5";
+  CreateWeakLibIsoTestFile(filePath);
 
   WeakLibOpacityTable table;
-  auto status = LoadWeakLibOpacityTableFull(table, "", kIsoFile);
+  auto status = LoadWeakLibOpacityTableFull(table, "", filePath.string());
+
+  std::filesystem::remove(filePath);
 
   REQUIRE(status == Hdf5LoadStatus::Success);
   REQUIRE(table.HasScatIso());
 
-  CHECK(table.scatIso.nOpacities == 2);
-  CHECK(table.scatIso.nMoments == 2);
-  CHECK(table.scatIso.dimensions[0] == 40);   // nE
-  CHECK(table.scatIso.dimensions[1] == 2);    // nMom
-  CHECK(table.scatIso.dimensions[2] == 185);  // nRho
-  CHECK(table.scatIso.dimensions[3] == 81);   // nT
-  CHECK(table.scatIso.dimensions[4] == 30);   // nYe
+  CHECK(table.scatIso.nOpacities == kTestNOpacities);
+  CHECK(table.scatIso.nMoments == kTestNMoments);
+  CHECK(table.scatIso.dimensions[0] == kTestNE);    // nE
+  CHECK(table.scatIso.dimensions[1] == kTestNMoments);  // nMom
+  CHECK(table.scatIso.dimensions[2] == kTestNRho);  // nRho
+  CHECK(table.scatIso.dimensions[3] == kTestNT);    // nT
+  CHECK(table.scatIso.dimensions[4] == kTestNYe);   // nYe
 }
 
 TEST_CASE("LoadWeakLibOpacityTableFull loads NES table", "[hdf5][weaklib][opacity]")
 {
   EnsureAmrexInitialized();
-  REQUIRE(std::filesystem::exists(kNESFile));
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_nes_full.h5";
+  CreateWeakLibNESTestFile(filePath);
 
   WeakLibOpacityTable table;
-  auto status = LoadWeakLibOpacityTableFull(table, "", "", kNESFile);
+  auto status = LoadWeakLibOpacityTableFull(table, "", "", filePath.string());
+
+  std::filesystem::remove(filePath);
 
   REQUIRE(status == Hdf5LoadStatus::Success);
   REQUIRE(table.HasScatNES());
 
   // Check EtaGrid was loaded
-  CHECK(table.etaGrid.nPoints == 60);
+  CHECK(table.etaGrid.nPoints == kTestNEta);
 
   CHECK(table.scatNES.nOpacities == 1);
-  CHECK(table.scatNES.nMoments == 4);
-  CHECK(table.scatNES.dimensions[0] == 40);  // nE_in
-  CHECK(table.scatNES.dimensions[1] == 40);  // nE_out
-  CHECK(table.scatNES.dimensions[2] == 4);   // nMom
-  CHECK(table.scatNES.dimensions[3] == 81);  // nT
-  CHECK(table.scatNES.dimensions[4] == 60);  // nEta
+  CHECK(table.scatNES.nMoments == 2);
+  CHECK(table.scatNES.dimensions[0] == kTestNE);    // nE_in
+  CHECK(table.scatNES.dimensions[1] == kTestNE);    // nE_out
+  CHECK(table.scatNES.dimensions[2] == 2);          // nMom
+  CHECK(table.scatNES.dimensions[3] == kTestNT);    // nT
+  CHECK(table.scatNES.dimensions[4] == kTestNEta);  // nEta
 }
 
 TEST_CASE("LoadWeakLibOpacityTableFull loads Pair table", "[hdf5][weaklib][opacity]")
 {
   EnsureAmrexInitialized();
-  REQUIRE(std::filesystem::exists(kPairFile));
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_pair_full.h5";
+  CreateWeakLibPairTestFile(filePath);
 
   WeakLibOpacityTable table;
-  auto status = LoadWeakLibOpacityTableFull(table, "", "", "", kPairFile);
+  auto status = LoadWeakLibOpacityTableFull(table, "", "", "", filePath.string());
+
+  std::filesystem::remove(filePath);
 
   REQUIRE(status == Hdf5LoadStatus::Success);
   REQUIRE(table.HasScatPair());
 
   CHECK(table.scatPair.nOpacities == 1);
-  CHECK(table.scatPair.nMoments == 4);
+  CHECK(table.scatPair.nMoments == 2);
 }
 
 TEST_CASE("LoadWeakLibOpacityTableFull loads Brem table", "[hdf5][weaklib][opacity]")
 {
   EnsureAmrexInitialized();
-  REQUIRE(std::filesystem::exists(kBremFile));
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_brem_full.h5";
+  CreateWeakLibBremTestFile(filePath);
 
   WeakLibOpacityTable table;
-  auto status = LoadWeakLibOpacityTableFull(table, "", "", "", "", kBremFile);
+  auto status = LoadWeakLibOpacityTableFull(table, "", "", "", "", filePath.string());
+
+  std::filesystem::remove(filePath);
 
   REQUIRE(status == Hdf5LoadStatus::Success);
   REQUIRE(table.HasScatBrem());
@@ -370,11 +593,18 @@ TEST_CASE("LoadWeakLibOpacityTableFull loads Brem table", "[hdf5][weaklib][opaci
 TEST_CASE("LoadWeakLibOpacityTableFull loads multiple types", "[hdf5][weaklib][opacity]")
 {
   EnsureAmrexInitialized();
-  REQUIRE(std::filesystem::exists(kEmAbFile));
-  REQUIRE(std::filesystem::exists(kIsoFile));
+  const std::filesystem::path emabPath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_emab_multi.h5";
+  const std::filesystem::path isoPath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_iso_multi.h5";
+  CreateWeakLibEmAbTestFile(emabPath);
+  CreateWeakLibIsoTestFile(isoPath);
 
   WeakLibOpacityTable table;
-  auto status = LoadWeakLibOpacityTableFull(table, kEmAbFile, kIsoFile);
+  auto status = LoadWeakLibOpacityTableFull(table, emabPath.string(), isoPath.string());
+
+  std::filesystem::remove(emabPath);
+  std::filesystem::remove(isoPath);
 
   REQUIRE(status == Hdf5LoadStatus::Success);
   CHECK(table.HasEmAb());
@@ -407,11 +637,15 @@ TEST_CASE("LoadWeakLibOpacityTableFull returns error for no files", "[hdf5][weak
 TEST_CASE("MakeDeviceCopy creates device copy of opacity table", "[hdf5][weaklib][opacity][gpu]")
 {
   EnsureAmrexInitialized();
-  REQUIRE(std::filesystem::exists(kEmAbFile));
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_emab_device.h5";
+  CreateWeakLibEmAbTestFile(filePath);
 
   WeakLibOpacityTable hostTable;
-  auto status = LoadWeakLibOpacityTableFull(hostTable, kEmAbFile);
+  auto status = LoadWeakLibOpacityTableFull(hostTable, filePath.string());
   REQUIRE(status == Hdf5LoadStatus::Success);
+
+  std::filesystem::remove(filePath);
 
   auto deviceTable = MakeDeviceCopy(hostTable);
 
