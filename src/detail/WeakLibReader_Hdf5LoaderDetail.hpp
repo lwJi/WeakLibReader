@@ -274,87 +274,16 @@ inline bool ReadStringArray(hid_t parent, const char* name, std::vector<std::str
   return true;
 }
 
-// Read a 3D integer array dataset
-// Matches Fortran Read3dHDF_integer (wlIOModuleHDF.F90:361-375)
-template <typename T>
-inline bool ReadWeakLibArray3d(hid_t parent, const char* name,
-                               amrex::TableData<T, 3>& out,
-                               const std::array<int, 3>& expectedDims,
-                               hid_t nativeType)
+template <int Rank>
+inline bool OpenWeakLibDataset(hid_t parent, const char* name,
+                               ScopedHandle& dataset,
+                               std::array<hsize_t, Rank>& fileDims)
 {
   if (parent < 0) {
     return false;
   }
-  ScopedHandle dataset(H5Dopen(parent, name, H5P_DEFAULT), H5Dclose);
-  if (!dataset.Valid()) {
-    return false;
-  }
-  ScopedHandle space(H5Dget_space(dataset.Get()), H5Sclose);
-  if (!space.Valid()) {
-    return false;
-  }
 
-  const int rank = H5Sget_simple_extent_ndims(space.Get());
-  if (rank != 3) {
-    return false;
-  }
-
-  hsize_t dims[3] = {0, 0, 0};
-  if (H5Sget_simple_extent_dims(space.Get(), dims, nullptr) < 0) {
-    return false;
-  }
-
-  const int nRho = expectedDims[0];
-  const int nT = expectedDims[1];
-  const int nYe = expectedDims[2];
-  if (nRho <= 0 || nT <= 0 || nYe <= 0) {
-    return false;
-  }
-
-  const bool orderYeTRho =
-      (static_cast<int>(dims[0]) == nYe &&
-       static_cast<int>(dims[1]) == nT &&
-       static_cast<int>(dims[2]) == nRho);
-  if (!orderYeTRho) {
-    return false;
-  }
-
-  const amrex::Array<int, 3> lo{{0, 0, 0}};
-  const amrex::Array<int, 3> hi{{nRho - 1, nT - 1, nYe - 1}};
-  out.resize(lo, hi, amrex::The_Pinned_Arena());
-
-  T* dest = out.table().p;
-
-  if (H5Dread(dataset.Get(), nativeType, H5S_ALL, H5S_ALL, H5P_DEFAULT, dest) < 0) {
-    return false;
-  }
-  return true;
-}
-
-// Read a 3D integer array dataset
-// Expects Fortran-written (Ye,T,rho) datasets.
-inline bool ReadIntArray3d(hid_t parent, const char* name,
-                           amrex::TableData<int, 3>& out,
-                           const std::array<int, 3>& expectedDims)
-{
-  return ReadWeakLibArray3d<int>(parent, name, out, expectedDims, H5T_NATIVE_INT);
-}
-
-inline bool ReadDoubleArray3d(hid_t parent, const char* name,
-                              amrex::TableData<double, 3>& out,
-                              const std::array<int, 3>& expectedDims)
-{
-  return ReadWeakLibArray3d<double>(parent, name, out, expectedDims, H5T_NATIVE_DOUBLE);
-}
-
-// Read 2D array for offsets
-// Fortran order: [d1, d0] -> C order: [d0, d1]
-template <typename T>
-bool ReadWeakLibArray2d(hid_t group, const char* name,
-                        amrex::TableData<T, 2>& output,
-                        const std::array<int, 2>& expectedDims)
-{
-  ScopedHandle dataset(H5Dopen(group, name, H5P_DEFAULT), H5Dclose);
+  dataset = ScopedHandle(H5Dopen(parent, name, H5P_DEFAULT), H5Dclose);
   if (!dataset.Valid()) {
     return false;
   }
@@ -365,23 +294,58 @@ bool ReadWeakLibArray2d(hid_t group, const char* name,
   }
 
   const int rank = H5Sget_simple_extent_ndims(dataspace.Get());
-  if (rank != 2) {
+  if (rank != Rank) {
     return false;
   }
 
-  hsize_t fileDims[2] = {0, 0};
-  if (H5Sget_simple_extent_dims(dataspace.Get(), fileDims, nullptr) < 0) {
+  hsize_t dims[Rank] = {};
+  if (H5Sget_simple_extent_dims(dataspace.Get(), dims, nullptr) < 0) {
     return false;
   }
 
-  // Fortran order: [d1, d0] -> C order: [d0, d1]
-  if (static_cast<int>(fileDims[0]) != expectedDims[1] ||
-      static_cast<int>(fileDims[1]) != expectedDims[0]) {
+  for (int i = 0; i < Rank; ++i) {
+    fileDims[i] = dims[i];
+  }
+  return true;
+}
+
+template <int Rank>
+inline bool ValidateFortranDims(const std::array<hsize_t, Rank>& fileDims,
+                                const std::array<int, Rank>& expectedDims)
+{
+  for (int i = 0; i < Rank; ++i) {
+    if (expectedDims[i] <= 0) {
+      return false;
+    }
+    if (static_cast<int>(fileDims[i]) != expectedDims[Rank - 1 - i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+template <typename T, int Rank>
+bool ReadWeakLibArrayNd(hid_t parent, const char* name,
+                        amrex::TableData<T, Rank>& output,
+                        const std::array<int, Rank>& expectedDims)
+{
+  ScopedHandle dataset;
+  std::array<hsize_t, Rank> fileDims{};
+  if (!OpenWeakLibDataset<Rank>(parent, name, dataset, fileDims)) {
     return false;
   }
 
-  const amrex::Array<int, 2> lo{{0, 0}};
-  const amrex::Array<int, 2> hi{{expectedDims[0] - 1, expectedDims[1] - 1}};
+  if (!ValidateFortranDims<Rank>(fileDims, expectedDims)) {
+    return false;
+  }
+
+  amrex::Array<int, Rank> lo{};
+  amrex::Array<int, Rank> hi{};
+  for (int i = 0; i < Rank; ++i) {
+    lo[i] = 0;
+    hi[i] = expectedDims[i] - 1;
+  }
+
   output.resize(lo, hi, amrex::The_Pinned_Arena());
 
   hid_t memType = std::is_same_v<T, double> ? H5T_NATIVE_DOUBLE : H5T_NATIVE_INT;
@@ -391,6 +355,42 @@ bool ReadWeakLibArray2d(hid_t group, const char* name,
   }
 
   return true;
+}
+
+// Read a 3D integer array dataset
+// Matches Fortran Read3dHDF_integer (wlIOModuleHDF.F90:361-375)
+template <typename T>
+inline bool ReadWeakLibArray3d(hid_t parent, const char* name,
+                               amrex::TableData<T, 3>& out,
+                               const std::array<int, 3>& expectedDims)
+{
+  return ReadWeakLibArrayNd<T, 3>(parent, name, out, expectedDims);
+}
+
+// Read a 3D integer array dataset
+// Expects Fortran-written (Ye,T,rho) datasets.
+inline bool ReadIntArray3d(hid_t parent, const char* name,
+                           amrex::TableData<int, 3>& out,
+                           const std::array<int, 3>& expectedDims)
+{
+  return ReadWeakLibArray3d<int>(parent, name, out, expectedDims);
+}
+
+inline bool ReadDoubleArray3d(hid_t parent, const char* name,
+                              amrex::TableData<double, 3>& out,
+                              const std::array<int, 3>& expectedDims)
+{
+  return ReadWeakLibArray3d<double>(parent, name, out, expectedDims);
+}
+
+// Read 2D array for offsets
+// Fortran order: [d1, d0] -> C order: [d0, d1]
+template <typename T>
+bool ReadWeakLibArray2d(hid_t group, const char* name,
+                        amrex::TableData<T, 2>& output,
+                        const std::array<int, 2>& expectedDims)
+{
+  return ReadWeakLibArrayNd<T, 2>(group, name, output, expectedDims);
 }
 
 inline bool ReadDoubleArray2d(hid_t group, const char* name,
@@ -406,47 +406,7 @@ bool ReadWeakLibArray4d(hid_t group, const char* name,
                         amrex::TableData<T, 4>& output,
                         const std::array<int, 4>& expectedDims)
 {
-  ScopedHandle dataset(H5Dopen(group, name, H5P_DEFAULT), H5Dclose);
-  if (!dataset.Valid()) {
-    return false;
-  }
-
-  ScopedHandle dataspace(H5Dget_space(dataset.Get()), H5Sclose);
-  if (!dataspace.Valid()) {
-    return false;
-  }
-
-  const int rank = H5Sget_simple_extent_ndims(dataspace.Get());
-  if (rank != 4) {
-    return false;
-  }
-
-  hsize_t fileDims[4] = {0, 0, 0, 0};
-  if (H5Sget_simple_extent_dims(dataspace.Get(), fileDims, nullptr) < 0) {
-    return false;
-  }
-
-  // Validate dimensions (Fortran order in file)
-  // File: [d3, d2, d1, d0], Expected C: [d0, d1, d2, d3]
-  if (static_cast<int>(fileDims[0]) != expectedDims[3] ||
-      static_cast<int>(fileDims[1]) != expectedDims[2] ||
-      static_cast<int>(fileDims[2]) != expectedDims[1] ||
-      static_cast<int>(fileDims[3]) != expectedDims[0]) {
-    return false;
-  }
-
-  const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
-  const amrex::Array<int, 4> hi{{expectedDims[0] - 1, expectedDims[1] - 1,
-                                  expectedDims[2] - 1, expectedDims[3] - 1}};
-  output.resize(lo, hi, amrex::The_Pinned_Arena());
-
-  hid_t memType = std::is_same_v<T, double> ? H5T_NATIVE_DOUBLE : H5T_NATIVE_INT;
-  if (H5Dread(dataset.Get(), memType, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-              output.table().p) < 0) {
-    return false;
-  }
-
-  return true;
+  return ReadWeakLibArrayNd<T, 4>(group, name, output, expectedDims);
 }
 
 inline bool ReadDoubleArray4d(hid_t group, const char* name,
