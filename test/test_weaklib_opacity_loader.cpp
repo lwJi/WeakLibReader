@@ -29,6 +29,46 @@ constexpr int kTestNOpacities = 2;
 constexpr int kTestNMoments = 2;
 constexpr int kTestNEta = 3;
 
+double Encode5dIndexValue(int i0, int i1, int i2, int i3, int i4,
+                          double base = 0.0)
+{
+  return base +
+         static_cast<double>(i0) +
+         10.0 * static_cast<double>(i1) +
+         100.0 * static_cast<double>(i2) +
+         1000.0 * static_cast<double>(i3) +
+         10000.0 * static_cast<double>(i4);
+}
+
+std::vector<double> BuildFortranOrdered5dData(const std::array<int, 5>& cOrderDims,
+                                              double base = 0.0)
+{
+  const std::size_t totalSize =
+      static_cast<std::size_t>(cOrderDims[0]) *
+      static_cast<std::size_t>(cOrderDims[1]) *
+      static_cast<std::size_t>(cOrderDims[2]) *
+      static_cast<std::size_t>(cOrderDims[3]) *
+      static_cast<std::size_t>(cOrderDims[4]);
+
+  std::vector<double> data;
+  data.reserve(totalSize);
+
+  // Build linear data with i0 fastest, matching expected C-order indexing.
+  for (int i4 = 0; i4 < cOrderDims[4]; ++i4) {
+    for (int i3 = 0; i3 < cOrderDims[3]; ++i3) {
+      for (int i2 = 0; i2 < cOrderDims[2]; ++i2) {
+        for (int i1 = 0; i1 < cOrderDims[1]; ++i1) {
+          for (int i0 = 0; i0 < cOrderDims[0]; ++i0) {
+            data.push_back(Encode5dIndexValue(i0, i1, i2, i3, i4, base));
+          }
+        }
+      }
+    }
+  }
+
+  return data;
+}
+
 /// Initialize AMReX if not already initialized.
 void EnsureAmrexInitialized()
 {
@@ -248,6 +288,8 @@ void CreateWeakLibIsoTestFile(const std::filesystem::path& filePath)
 {
   constexpr int nMoments = kTestNMoments;
   constexpr int nOpacities = kTestNOpacities;
+  constexpr double kIsoNuBase = 100000.0;
+  constexpr double kIsoNuBarBase = 200000.0;
 
   hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(file >= 0);
@@ -266,20 +308,20 @@ void CreateWeakLibIsoTestFile(const std::filesystem::path& filePath)
   std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
   WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
 
+  const std::array<int, 5> kernelDimsC = {
+      kTestNE, nMoments, kTestNRho, kTestNT, kTestNYe};
   const std::array<hsize_t, 5> kernelDims = {
-      static_cast<hsize_t>(kTestNYe),
-      static_cast<hsize_t>(kTestNT),
-      static_cast<hsize_t>(kTestNRho),
-      static_cast<hsize_t>(nMoments),
-      static_cast<hsize_t>(kTestNE)};
-  const std::size_t kernelSize =
-      static_cast<std::size_t>(kTestNE) * nMoments * kTestNRho * kTestNT * kTestNYe;
-  std::vector<double> data(kernelSize, 0.0);
-  WriteDoubleArray5dDataset(group, "Electron Neutrino", kernelDims, data);
-  for (double& value : data) {
-    value += 1.0;
-  }
-  WriteDoubleArray5dDataset(group, "Electron Antineutrino", kernelDims, data);
+      static_cast<hsize_t>(kernelDimsC[4]),
+      static_cast<hsize_t>(kernelDimsC[3]),
+      static_cast<hsize_t>(kernelDimsC[2]),
+      static_cast<hsize_t>(kernelDimsC[1]),
+      static_cast<hsize_t>(kernelDimsC[0])};
+  const std::vector<double> nuData =
+      BuildFortranOrdered5dData(kernelDimsC, kIsoNuBase);
+  const std::vector<double> nuBarData =
+      BuildFortranOrdered5dData(kernelDimsC, kIsoNuBarBase);
+  WriteDoubleArray5dDataset(group, "Electron Neutrino", kernelDims, nuData);
+  WriteDoubleArray5dDataset(group, "Electron Antineutrino", kernelDims, nuBarData);
 
   H5Gclose(group);
   H5Fclose(file);
@@ -289,6 +331,7 @@ void CreateWeakLibNESTestFile(const std::filesystem::path& filePath)
 {
   constexpr int nMoments = 2;
   constexpr int nOpacities = 1;
+  constexpr double kNesBase = 300000.0;
 
   hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(file >= 0);
@@ -307,15 +350,16 @@ void CreateWeakLibNESTestFile(const std::filesystem::path& filePath)
   std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
   WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
 
+  const std::array<int, 5> kernelDimsC = {
+      kTestNE, kTestNE, nMoments, kTestNT, kTestNEta};
   const std::array<hsize_t, 5> kernelDims = {
-      static_cast<hsize_t>(kTestNEta),
-      static_cast<hsize_t>(kTestNT),
-      static_cast<hsize_t>(nMoments),
-      static_cast<hsize_t>(kTestNE),
-      static_cast<hsize_t>(kTestNE)};
-  const std::size_t kernelSize =
-      static_cast<std::size_t>(kTestNE) * kTestNE * nMoments * kTestNT * kTestNEta;
-  std::vector<double> data(kernelSize, 0.0);
+      static_cast<hsize_t>(kernelDimsC[4]),
+      static_cast<hsize_t>(kernelDimsC[3]),
+      static_cast<hsize_t>(kernelDimsC[2]),
+      static_cast<hsize_t>(kernelDimsC[1]),
+      static_cast<hsize_t>(kernelDimsC[0])};
+  const std::vector<double> data =
+      BuildFortranOrdered5dData(kernelDimsC, kNesBase);
   WriteDoubleArray5dDataset(group, "Kernels", kernelDims, data);
 
   H5Gclose(group);
@@ -326,6 +370,7 @@ void CreateWeakLibPairTestFile(const std::filesystem::path& filePath)
 {
   constexpr int nMoments = 2;
   constexpr int nOpacities = 1;
+  constexpr double kPairBase = 400000.0;
 
   hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(file >= 0);
@@ -344,15 +389,16 @@ void CreateWeakLibPairTestFile(const std::filesystem::path& filePath)
   std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
   WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
 
+  const std::array<int, 5> kernelDimsC = {
+      kTestNE, kTestNE, nMoments, kTestNT, kTestNEta};
   const std::array<hsize_t, 5> kernelDims = {
-      static_cast<hsize_t>(kTestNEta),
-      static_cast<hsize_t>(kTestNT),
-      static_cast<hsize_t>(nMoments),
-      static_cast<hsize_t>(kTestNE),
-      static_cast<hsize_t>(kTestNE)};
-  const std::size_t kernelSize =
-      static_cast<std::size_t>(kTestNE) * kTestNE * nMoments * kTestNT * kTestNEta;
-  std::vector<double> data(kernelSize, 0.0);
+      static_cast<hsize_t>(kernelDimsC[4]),
+      static_cast<hsize_t>(kernelDimsC[3]),
+      static_cast<hsize_t>(kernelDimsC[2]),
+      static_cast<hsize_t>(kernelDimsC[1]),
+      static_cast<hsize_t>(kernelDimsC[0])};
+  const std::vector<double> data =
+      BuildFortranOrdered5dData(kernelDimsC, kPairBase);
   WriteDoubleArray5dDataset(group, "Kernels", kernelDims, data);
 
   H5Gclose(group);
@@ -363,6 +409,7 @@ void CreateWeakLibBremTestFile(const std::filesystem::path& filePath)
 {
   constexpr int nMoments = 1;
   constexpr int nOpacities = 1;
+  constexpr double kBremBase = 500000.0;
 
   hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(file >= 0);
@@ -381,15 +428,16 @@ void CreateWeakLibBremTestFile(const std::filesystem::path& filePath)
   std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
   WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
 
+  const std::array<int, 5> kernelDimsC = {
+      kTestNE, kTestNE, nMoments, kTestNRho, kTestNT};
   const std::array<hsize_t, 5> kernelDims = {
-      static_cast<hsize_t>(kTestNT),
-      static_cast<hsize_t>(kTestNRho),
-      static_cast<hsize_t>(nMoments),
-      static_cast<hsize_t>(kTestNE),
-      static_cast<hsize_t>(kTestNE)};
-  const std::size_t kernelSize =
-      static_cast<std::size_t>(kTestNE) * kTestNE * nMoments * kTestNRho * kTestNT;
-  std::vector<double> data(kernelSize, 0.0);
+      static_cast<hsize_t>(kernelDimsC[4]),
+      static_cast<hsize_t>(kernelDimsC[3]),
+      static_cast<hsize_t>(kernelDimsC[2]),
+      static_cast<hsize_t>(kernelDimsC[1]),
+      static_cast<hsize_t>(kernelDimsC[0])};
+  const std::vector<double> data =
+      BuildFortranOrdered5dData(kernelDimsC, kBremBase);
   WriteDoubleArray5dDataset(group, "S_sigma", kernelDims, data);
 
   H5Gclose(group);
@@ -502,6 +550,9 @@ TEST_CASE("LoadWeakLibOpacityTableFull loads EmAb table", "[hdf5][weaklib][opaci
 
 TEST_CASE("LoadWeakLibOpacityTableFull loads Iso table", "[hdf5][weaklib][opacity]")
 {
+  constexpr double kIsoNuBase = 100000.0;
+  constexpr double kIsoNuBarBase = 200000.0;
+
   EnsureAmrexInitialized();
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_opacity_iso_full.h5";
@@ -522,10 +573,25 @@ TEST_CASE("LoadWeakLibOpacityTableFull loads Iso table", "[hdf5][weaklib][opacit
   CHECK(table.scatIso.dimensions[2] == kTestNRho);  // nRho
   CHECK(table.scatIso.dimensions[3] == kTestNT);    // nT
   CHECK(table.scatIso.dimensions[4] == kTestNYe);   // nYe
+
+  const double* nuData = table.scatIso.KernelData(0);
+  const double* nuBarData = table.scatIso.KernelData(1);
+  REQUIRE(nuData != nullptr);
+  REQUIRE(nuBarData != nullptr);
+
+  const auto& layout = table.scatIso.layout;
+  CHECK(nuData[layout.Offset(0, 0, 0, 0, 0)] ==
+        Catch::Approx(Encode5dIndexValue(0, 0, 0, 0, 0, kIsoNuBase)));
+  CHECK(nuData[layout.Offset(3, 1, 1, 2, 1)] ==
+        Catch::Approx(Encode5dIndexValue(3, 1, 1, 2, 1, kIsoNuBase)));
+  CHECK(nuBarData[layout.Offset(2, 0, 1, 1, 1)] ==
+        Catch::Approx(Encode5dIndexValue(2, 0, 1, 1, 1, kIsoNuBarBase)));
 }
 
 TEST_CASE("LoadWeakLibOpacityTableFull loads NES table", "[hdf5][weaklib][opacity]")
 {
+  constexpr double kNesBase = 300000.0;
+
   EnsureAmrexInitialized();
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_opacity_nes_full.h5";
@@ -549,10 +615,21 @@ TEST_CASE("LoadWeakLibOpacityTableFull loads NES table", "[hdf5][weaklib][opacit
   CHECK(table.scatNES.dimensions[2] == 2);          // nMom
   CHECK(table.scatNES.dimensions[3] == kTestNT);    // nT
   CHECK(table.scatNES.dimensions[4] == kTestNEta);  // nEta
+
+  const double* kernel = table.scatNES.KernelData();
+  REQUIRE(kernel != nullptr);
+
+  const auto& layout = table.scatNES.layout;
+  CHECK(kernel[layout.Offset(0, 0, 0, 0, 0)] ==
+        Catch::Approx(Encode5dIndexValue(0, 0, 0, 0, 0, kNesBase)));
+  CHECK(kernel[layout.Offset(3, 2, 1, 2, 2)] ==
+        Catch::Approx(Encode5dIndexValue(3, 2, 1, 2, 2, kNesBase)));
 }
 
 TEST_CASE("LoadWeakLibOpacityTableFull loads Pair table", "[hdf5][weaklib][opacity]")
 {
+  constexpr double kPairBase = 400000.0;
+
   EnsureAmrexInitialized();
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_opacity_pair_full.h5";
@@ -568,10 +645,21 @@ TEST_CASE("LoadWeakLibOpacityTableFull loads Pair table", "[hdf5][weaklib][opaci
 
   CHECK(table.scatPair.nOpacities == 1);
   CHECK(table.scatPair.nMoments == 2);
+
+  const double* kernel = table.scatPair.KernelData();
+  REQUIRE(kernel != nullptr);
+
+  const auto& layout = table.scatPair.layout;
+  CHECK(kernel[layout.Offset(1, 0, 0, 0, 0)] ==
+        Catch::Approx(Encode5dIndexValue(1, 0, 0, 0, 0, kPairBase)));
+  CHECK(kernel[layout.Offset(3, 3, 1, 2, 2)] ==
+        Catch::Approx(Encode5dIndexValue(3, 3, 1, 2, 2, kPairBase)));
 }
 
 TEST_CASE("LoadWeakLibOpacityTableFull loads Brem table", "[hdf5][weaklib][opacity]")
 {
+  constexpr double kBremBase = 500000.0;
+
   EnsureAmrexInitialized();
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_opacity_brem_full.h5";
@@ -588,6 +676,15 @@ TEST_CASE("LoadWeakLibOpacityTableFull loads Brem table", "[hdf5][weaklib][opaci
   CHECK(table.scatBrem.nOpacities == 1);
   CHECK(table.scatBrem.nMoments == 1);
   CHECK(table.scatBrem.name == "S_sigma");
+
+  const double* kernel = table.scatBrem.KernelData();
+  REQUIRE(kernel != nullptr);
+
+  const auto& layout = table.scatBrem.layout;
+  CHECK(kernel[layout.Offset(0, 0, 0, 0, 0)] ==
+        Catch::Approx(Encode5dIndexValue(0, 0, 0, 0, 0, kBremBase)));
+  CHECK(kernel[layout.Offset(3, 1, 0, 1, 2)] ==
+        Catch::Approx(Encode5dIndexValue(3, 1, 0, 1, 2, kBremBase)));
 }
 
 TEST_CASE("LoadWeakLibOpacityTableFull loads multiple types", "[hdf5][weaklib][opacity]")
