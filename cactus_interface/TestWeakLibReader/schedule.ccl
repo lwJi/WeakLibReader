@@ -1,6 +1,10 @@
 # Schedule definitions for thorn TestWeakLibReader
 
 STORAGE: energy
+STORAGE: opacity_emab
+STORAGE: opacity_iso
+STORAGE: eos_log_eta eos_dxp eos_dxn eos_dxpn
+STORAGE: opacity_nes opacity_pair opacity_brem
 
 SCHEDULE TestWeakLibReader_LoadTable AT INITIAL
 {
@@ -15,8 +19,65 @@ SCHEDULE TestWeakLibReader_Init AT INITIAL AFTER TestWeakLibReader_LoadTable
   SYNC: energy
 } "Initialize grid function"
 
+SCHEDULE TestWeakLibReader_LoadOpacityTable AT INITIAL AFTER TestWeakLibReader_LoadTable
+{
+  LANG: C
+  OPTIONS: global
+} "Load opacity tables"
+
+SCHEDULE TestWeakLibReader_InitEmAb AT INITIAL AFTER TestWeakLibReader_LoadOpacityTable
+{
+  LANG: C
+  WRITES: opacity_emab(interior)
+  SYNC: opacity_emab
+} "Test EmAb 4D interpolation"
+
+SCHEDULE TestWeakLibReader_InitIso AT INITIAL AFTER TestWeakLibReader_LoadOpacityTable
+{
+  LANG: C
+  WRITES: opacity_iso(interior)
+  SYNC: opacity_iso
+} "Test Iso 4D interpolation"
+
+SCHEDULE TestWeakLibReader_ComputeEosDerived AT INITIAL AFTER TestWeakLibReader_LoadOpacityTable
+{
+  LANG: C
+  WRITES: eos_log_eta(interior) eos_dxp(interior) eos_dxn(interior) eos_dxpn(interior)
+  SYNC: eos_log_eta eos_dxp eos_dxn eos_dxpn
+} "Compute EOS-derived quantities for opacity tests"
+
+SCHEDULE TestWeakLibReader_InitNES AT INITIAL AFTER TestWeakLibReader_ComputeEosDerived
+{
+  LANG: C
+  READS: eos_log_eta(interior)
+  WRITES: opacity_nes(interior)
+  SYNC: opacity_nes
+} "Test NES aligned interpolation"
+
+SCHEDULE TestWeakLibReader_InitPair AT INITIAL AFTER TestWeakLibReader_ComputeEosDerived
+{
+  LANG: C
+  READS: eos_log_eta(interior)
+  WRITES: opacity_pair(interior)
+  SYNC: opacity_pair
+} "Test Pair aligned interpolation"
+
+SCHEDULE TestWeakLibReader_InitBrem AT INITIAL AFTER TestWeakLibReader_ComputeEosDerived
+{
+  LANG: C
+  READS: eos_dxp(interior) eos_dxn(interior) eos_dxpn(interior)
+  WRITES: opacity_brem(interior)
+  SYNC: opacity_brem
+} "Test Brem sum-aligned interpolation"
+
 SCHEDULE TestWeakLibReader_Cleanup AT TERMINATE
 {
   LANG: C
   OPTIONS: global
 } "Clean up EOS table before AMReX finalizes"
+
+SCHEDULE TestWeakLibReader_CleanupOpacity AT TERMINATE
+{
+  LANG: C
+  OPTIONS: global
+} "Clean up opacity tables"

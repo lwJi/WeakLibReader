@@ -6,3 +6,28 @@ STRING eos_table_file "eos table name (hdf5)" STEERABLE=RECOVER
 {
   ".*" :: "can be anything"
 } "foo.h5"
+
+STRING opacity_emab_file "EmAb opacity table (hdf5)" STEERABLE=RECOVER
+{
+  ".*" :: "can be anything"
+} ""
+
+STRING opacity_iso_file "Iso scattering opacity table (hdf5)" STEERABLE=RECOVER
+{
+  ".*" :: "can be anything"
+} ""
+
+STRING opacity_nes_file "NES scattering opacity table (hdf5)" STEERABLE=RECOVER
+{
+  ".*" :: "can be anything"
+} ""
+
+STRING opacity_pair_file "Pair production opacity table (hdf5)" STEERABLE=RECOVER
+{
+  ".*" :: "can be anything"
+} ""
+
+STRING opacity_brem_file "Bremsstrahlung opacity table (hdf5)" STEERABLE=RECOVER
+{
+  ".*" :: "can be anything"
+} ""

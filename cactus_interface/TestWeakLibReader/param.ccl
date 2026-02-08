@@ -3,3 +3,8 @@
 SHARES: WeakLibReader
 
 USES STRING eos_table_file
+USES STRING opacity_emab_file
+USES STRING opacity_iso_file
+USES STRING opacity_nes_file
+USES STRING opacity_pair_file
+USES STRING opacity_brem_file

@@ -610,6 +610,51 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
   return Hdf5LoadStatus::Success;
 }
 
+/// Extract a contiguous 4D slice [nE, nRho, nT, nYe] from a 5D Iso kernel
+/// at a fixed moment index.
+///
+/// The 5D kernel has dimensions [nE, nMom, nRho, nT, nYe] with column-major
+/// strides [1, nE, nE*nMom, ...]. A slice at fixed iMom is not contiguous
+/// because nMom interleaves the Rho stride.
+///
+/// @param kernel5d   Flat 5D kernel data (column-major ordered)
+/// @param dims       5D dimensions: [nE, nMom, nRho, nT, nYe]
+/// @param iMom       Moment index to extract (0-based)
+/// @return           Contiguous 4D array [nE, nRho, nT, nYe]
+inline amrex::Vector<double> ExtractIsoMomentSlice4D(
+    const double* kernel5d,
+    const std::array<int, 5>& dims,
+    int iMom)
+{
+  const int nE   = dims[0];
+  const int nMom = dims[1];
+  const int nRho = dims[2];
+  const int nT   = dims[3];
+  const int nYe  = dims[4];
+
+  const Layout layout5d = MakeLayout(dims.data(), 5);
+  const std::size_t size4d =
+      static_cast<std::size_t>(nE) * nRho * nT * nYe;
+  amrex::Vector<double> result(size4d);
+
+  const std::array<int, 4> dims4d{{nE, nRho, nT, nYe}};
+  const Layout layout4d = MakeLayout(dims4d.data(), 4);
+
+  for (int iYe = 0; iYe < nYe; ++iYe) {
+    for (int iT = 0; iT < nT; ++iT) {
+      for (int iRho = 0; iRho < nRho; ++iRho) {
+        for (int iE = 0; iE < nE; ++iE) {
+          const int src[5] = {iE, iMom, iRho, iT, iYe};
+          const int dst[4] = {iE, iRho, iT, iYe};
+          result[layout4d.Offset(dst)] = kernel5d[layout5d.Offset(src)];
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
 inline Hdf5LoadStatus LoadWeakLibScatNESTable(hid_t file,
                                                WeakLibScatNESTable& scatNES,
                                                const WeakLibOpacityGrid& energyGrid,
@@ -651,8 +696,15 @@ inline Hdf5LoadStatus LoadWeakLibScatNESTable(hid_t file,
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
-  // Read NPS flag (optional)
-  detail::ReadScalarInt(group.Get(), "NPS", scatNES.NPS);
+  // Read NPS flag (optional — suppress HDF5 error if absent)
+  {
+    H5E_auto2_t oldFunc;
+    void* oldClientData;
+    H5Eget_auto2(H5E_DEFAULT, &oldFunc, &oldClientData);
+    H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+    detail::ReadScalarInt(group.Get(), "NPS", scatNES.NPS);
+    H5Eset_auto2(H5E_DEFAULT, oldFunc, oldClientData);
+  }
 
   // Set kernel name
   scatNES.name = "Kernels";

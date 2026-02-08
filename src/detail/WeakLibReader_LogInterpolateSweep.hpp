@@ -216,4 +216,60 @@ inline int LogInterpolateSingleVariable2D2DCustomAligned(
   return 0;
 }
 
+/// Pre-align one moment of a scattering kernel onto aligned energy nodes.
+///
+/// Transforms a 5D raw kernel [nE, nE, nMom, nDim3, nDim4] into a 4D aligned
+/// table [nAlignedE, nAlignedE, nDim3, nDim4] stored as log10(value + offset).
+///
+/// Relies on column-major layout: the 2D energy slice [nE_in, nE_out] at any
+/// fixed (iMom, iD3, iD4) is contiguous in memory, so we can pass a pointer
+/// directly to LogInterpolateSingleVariable2DCustomPoint.
+///
+/// @param rawKernel    Flat 5D kernel data
+/// @param rawLayout    Layout of the 5D kernel [nE, nE, nMom, nDim3, nDim4]
+/// @param energyAxis   Energy axis (raw values, same for both E dims)
+/// @param iMom         Which moment to extract (0-based index into dim 2)
+/// @param nDim3        Size of dimension 3 (nT for NES/Pair, nRho for Brem)
+/// @param nDim4        Size of dimension 4 (nEta for NES/Pair, nT for Brem)
+/// @param alignedE     Raw energy values for aligned grid
+/// @param nAlignedE    Number of aligned energy points
+/// @param offset       Opacity offset
+/// @param output       Output: [nAlignedE, nAlignedE, nDim3, nDim4] log10-stored
+inline void PreAlignScatteringKernelMoment(
+    const double* rawKernel,
+    const Layout& rawLayout,
+    const Axis& energyAxis,
+    int iMom, int nDim3, int nDim4,
+    const double* alignedE, int nAlignedE,
+    double offset,
+    double* output) noexcept
+{
+  // Output layout: [nAlignedE, nAlignedE, nDim3, nDim4]
+  const int outExtents[4] = {nAlignedE, nAlignedE, nDim3, nDim4};
+  const Layout outLayout = MakeLayout(outExtents, 4);
+
+  // 2D energy axes for interpolation
+  const Axis energyAxes[2] = {energyAxis, energyAxis};
+
+  for (int iD4 = 0; iD4 < nDim4; ++iD4) {
+    for (int iD3 = 0; iD3 < nDim3; ++iD3) {
+      // Pointer to contiguous 2D energy slice [nE, nE] at (iMom, iD3, iD4)
+      // Column-major: first two dims (E_in, E_out) are fastest-varying
+      const int sliceIdx[5] = {0, 0, iMom, iD3, iD4};
+      const double* slice2d = rawKernel + rawLayout.Offset(sliceIdx);
+
+      for (int iA2 = 0; iA2 < nAlignedE; ++iA2) {
+        for (int iA1 = 0; iA1 < nAlignedE; ++iA1) {
+          const double value = LogInterpolateSingleVariable2DCustomPoint(
+              alignedE[iA1], alignedE[iA2],
+              energyAxes, slice2d, offset);
+
+          const int outIdx[4] = {iA1, iA2, iD3, iD4};
+          output[outLayout.Offset(outIdx)] = math::Log10(value + offset);
+        }
+      }
+    }
+  }
+}
+
 } // namespace WeakLibReader
