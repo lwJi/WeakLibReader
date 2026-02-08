@@ -4,10 +4,9 @@
 #include "WeakLibReader_Hdf5Loader.hpp"
 
 #include <AMReX.H>
-#include <AMReX_Arena.H>
 #include <AMReX_GpuContainers.H>
 #include <AMReX_GpuDevice.H>
-#include <AMReX_TableData.H>
+
 #include <hdf5.h>
 
 #include <cstring>
@@ -162,22 +161,15 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
   CHECK(axis2.n == 4);
   CHECK(axis2.grid[3] == Catch::Approx(4.0));
 
-  CHECK(table.values.arena() == amrex::The_Pinned_Arena());
-
   const auto deviceTable = WeakLibReader::MakeDeviceCopy(table);
-  CHECK(deviceTable.values.arena() == amrex::The_Device_Arena());
 
-  amrex::TableData<double, 4> roundtrip;
-  const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
-  bool overflow = false;
-  const amrex::Array<int, 4> hi =
-      WeakLibReader::detail::MakeHiArray(table.nd, table.extents, overflow);
-  REQUIRE_FALSE(overflow);
-  roundtrip.resize(lo, hi, amrex::The_Pinned_Arena());
-  roundtrip.copy(deviceTable.values);
+  amrex::Gpu::PinnedVector<double> roundtrip(deviceTable.values.size());
+  amrex::Gpu::copy(amrex::Gpu::deviceToHost,
+                   deviceTable.values.begin(), deviceTable.values.end(),
+                   roundtrip.begin());
 
   const double* originalPtr = table.DataPtr();
-  const double* roundtripPtr = roundtrip.const_table().p;
+  const double* roundtripPtr = roundtrip.data();
   std::size_t total = 1;
   for (int dim = 0; dim < table.nd; ++dim) {
     total *= static_cast<std::size_t>(table.extents[dim]);
@@ -604,24 +596,20 @@ TEST_CASE("HDF5 loader handles 5D tables correctly", "[hdf5][loader][5d]")
   const double* data = table.DataPtr();
   CHECK(data[offset] == Catch::Approx(54321.0));
 
-  // Test MakeDeviceCopy (exercises MakeHiArray 5D flattening)
+  // Test MakeDeviceCopy for 5D table
   const auto deviceTable = WeakLibReader::MakeDeviceCopy(table);
   CHECK(deviceTable.nd == 5);
   CHECK(deviceTable.layout.nd == 5);
 
   // Round-trip: copy device data back to host and verify
-  amrex::TableData<double, 4> roundtrip;
-  const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
-  bool overflow = false;
-  const amrex::Array<int, 4> hi =
-      WeakLibReader::detail::MakeHiArray(table.nd, table.extents, overflow);
-  REQUIRE_FALSE(overflow);
-  roundtrip.resize(lo, hi, amrex::The_Pinned_Arena());
-  roundtrip.copy(deviceTable.values);
+  amrex::Gpu::PinnedVector<double> roundtrip(deviceTable.values.size());
+  amrex::Gpu::copy(amrex::Gpu::deviceToHost,
+                   deviceTable.values.begin(), deviceTable.values.end(),
+                   roundtrip.begin());
 
   // Verify all data matches
   const double* originalPtr = table.DataPtr();
-  const double* roundtripPtr = roundtrip.const_table().p;
+  const double* roundtripPtr = roundtrip.data();
   for (std::size_t i = 0; i < totalSize; ++i) {
     CHECK(roundtripPtr[i] == Catch::Approx(originalPtr[i]).margin(kTol));
   }

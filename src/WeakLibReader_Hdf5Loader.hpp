@@ -61,16 +61,10 @@ inline Hdf5LoadStatus LoadHdf5Table(const std::string& filePath,
     return Hdf5LoadStatus::IncompatibleDatasetExtent;
   }
 
-  const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
-  bool extentOverflow = false;
-  amrex::Array<int, 4> hi = detail::MakeHiArray(rank, extents, extentOverflow);
-  if (extentOverflow) {
-    return Hdf5LoadStatus::IncompatibleDatasetExtent;
-  }
-  result.values.resize(lo, hi, amrex::The_Pinned_Arena());
+  result.values.resize(totalSize);
 
   if (H5Dread(dataset.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-              result.values.table().p) < 0) {
+              result.values.data()) < 0) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
@@ -285,13 +279,10 @@ inline TableDevice MakeDeviceCopy(const Hdf5Table& host,
   device.nd = host.nd;
   device.layout = host.layout;
 
-  const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
-  bool overflow = false;
-  const amrex::Array<int, 4> hi = detail::MakeHiArray(host.nd, host.extents, overflow);
-  AMREX_ASSERT(!overflow);
-
-  device.values.resize(lo, hi, arena);
-  device.values.copy(host.values);
+  device.values.resize(host.values.size());
+  amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                   host.values.begin(), host.values.end(),
+                   device.values.begin());
 
   for (int dim = 0; dim < host.nd; ++dim) {
     const auto& hostAxis = host.axisStorage[dim];
@@ -1054,18 +1045,19 @@ inline WeakLibEosTableDevice MakeDeviceCopy(const WeakLibEosTable& host,
   }
 
   // Copy all variable data to device
-  const amrex::Array<int, 3> lo{{0, 0, 0}};
-  const amrex::Array<int, 3> hi{{host.dimensions[0] - 1, host.dimensions[1] - 1, host.dimensions[2] - 1}};
-
   device.variables.resize(host.nVariables);
   for (int iVar = 0; iVar < host.nVariables; ++iVar) {
-    device.variables[iVar].resize(lo, hi, arena);
-    device.variables[iVar].copy(host.variables[iVar]);
+    device.variables[iVar].resize(host.variables[iVar].size());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                     host.variables[iVar].begin(), host.variables[iVar].end(),
+                     device.variables[iVar].begin());
   }
 
   // Copy Repaired mask to device
-  device.repaired.resize(lo, hi, arena);
-  device.repaired.copy(host.repaired);
+  device.repaired.resize(host.repaired.size());
+  amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                   host.repaired.begin(), host.repaired.end(),
+                   device.repaired.begin());
 
   return device;
 }
@@ -1127,14 +1119,12 @@ inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host,
     device.emAb.parameters = host.emAb.parameters;
     device.emAb.layout = host.emAb.layout;
 
-    const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
-    const amrex::Array<int, 4> hi{{host.emAb.dimensions[0] - 1, host.emAb.dimensions[1] - 1,
-                                    host.emAb.dimensions[2] - 1, host.emAb.dimensions[3] - 1}};
-
     for (int i = 0; i < WeakLibEmAbTable::kNumSpecies; ++i) {
       if (host.emAb.opacities[i].size() > 0) {
-        device.emAb.opacities[i].resize(lo, hi, arena);
-        device.emAb.opacities[i].copy(host.emAb.opacities[i]);
+        device.emAb.opacities[i].resize(host.emAb.opacities[i].size());
+        amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                         host.emAb.opacities[i].begin(), host.emAb.opacities[i].end(),
+                         device.emAb.opacities[i].begin());
       }
     }
 
@@ -1168,15 +1158,15 @@ inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host,
       amrex::Gpu::copy(amrex::Gpu::hostToDevice, hostEC.yeValues.begin(), hostEC.yeValues.end(), deviceEC.yeValues.begin());
 
       // Copy spectrum and rate
-      const amrex::Array<int, 4> specLo{{0, 0, 0, 0}};
-      const amrex::Array<int, 4> specHi{{hostEC.nRho - 1, hostEC.nT - 1, hostEC.nYe - 1, hostEC.nE - 1}};
-      deviceEC.spectrum.resize(specLo, specHi, arena);
-      deviceEC.spectrum.copy(hostEC.spectrum);
+      deviceEC.spectrum.resize(hostEC.spectrum.size());
+      amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                       hostEC.spectrum.begin(), hostEC.spectrum.end(),
+                       deviceEC.spectrum.begin());
 
-      const amrex::Array<int, 3> rateLo{{0, 0, 0}};
-      const amrex::Array<int, 3> rateHi{{hostEC.nRho - 1, hostEC.nT - 1, hostEC.nYe - 1}};
-      deviceEC.rate.resize(rateLo, rateHi, arena);
-      deviceEC.rate.copy(hostEC.rate);
+      deviceEC.rate.resize(hostEC.rate.size());
+      amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                       hostEC.rate.begin(), hostEC.rate.end(),
+                       deviceEC.rate.begin());
     }
   }
 
@@ -1191,10 +1181,10 @@ inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host,
     device.scatIso.ga_strange = host.scatIso.ga_strange;
     device.scatIso.layout = host.scatIso.layout;
 
-    const amrex::Array<int, 2> offLo{{0, 0}};
-    const amrex::Array<int, 2> offHi{{host.scatIso.nOpacities - 1, host.scatIso.nMoments - 1}};
-    device.scatIso.offsets.resize(offLo, offHi, arena);
-    device.scatIso.offsets.copy(host.scatIso.offsets);
+    device.scatIso.offsets.resize(host.scatIso.offsets.size());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                     host.scatIso.offsets.begin(), host.scatIso.offsets.end(),
+                     device.scatIso.offsets.begin());
 
     // Kernels are stored as flat vectors
     for (int i = 0; i < WeakLibScatIsoTable::kNumSpecies; ++i) {
@@ -1215,10 +1205,10 @@ inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host,
     device.scatNES.NPS = host.scatNES.NPS;
     device.scatNES.layout = host.scatNES.layout;
 
-    const amrex::Array<int, 2> offLo{{0, 0}};
-    const amrex::Array<int, 2> offHi{{host.scatNES.nOpacities - 1, host.scatNES.nMoments - 1}};
-    device.scatNES.offsets.resize(offLo, offHi, arena);
-    device.scatNES.offsets.copy(host.scatNES.offsets);
+    device.scatNES.offsets.resize(host.scatNES.offsets.size());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                     host.scatNES.offsets.begin(), host.scatNES.offsets.end(),
+                     device.scatNES.offsets.begin());
 
     // Kernel is stored as flat vector
     if (!host.scatNES.kernel.empty()) {
@@ -1236,10 +1226,10 @@ inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host,
     device.scatPair.dimensions = host.scatPair.dimensions;
     device.scatPair.layout = host.scatPair.layout;
 
-    const amrex::Array<int, 2> offLo{{0, 0}};
-    const amrex::Array<int, 2> offHi{{host.scatPair.nOpacities - 1, host.scatPair.nMoments - 1}};
-    device.scatPair.offsets.resize(offLo, offHi, arena);
-    device.scatPair.offsets.copy(host.scatPair.offsets);
+    device.scatPair.offsets.resize(host.scatPair.offsets.size());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                     host.scatPair.offsets.begin(), host.scatPair.offsets.end(),
+                     device.scatPair.offsets.begin());
 
     // Kernel is stored as flat vector
     if (!host.scatPair.kernel.empty()) {
@@ -1257,10 +1247,10 @@ inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host,
     device.scatBrem.dimensions = host.scatBrem.dimensions;
     device.scatBrem.layout = host.scatBrem.layout;
 
-    const amrex::Array<int, 2> offLo{{0, 0}};
-    const amrex::Array<int, 2> offHi{{host.scatBrem.nOpacities - 1, host.scatBrem.nMoments - 1}};
-    device.scatBrem.offsets.resize(offLo, offHi, arena);
-    device.scatBrem.offsets.copy(host.scatBrem.offsets);
+    device.scatBrem.offsets.resize(host.scatBrem.offsets.size());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                     host.scatBrem.offsets.begin(), host.scatBrem.offsets.end(),
+                     device.scatBrem.offsets.begin());
 
     // Kernel is stored as flat vector
     if (!host.scatBrem.kernel.empty()) {
@@ -1345,13 +1335,10 @@ inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
     output = Hdf5Table{};
     output.nd = nd;
     output.extents = extents;
-    bool overflow = false;
-    const amrex::Array<int, 4> lo{{0, 0, 0, 0}};
-    const amrex::Array<int, 4> hi = detail::MakeHiArray(nd, output.extents, overflow);
-    if (overflow || totalSize == 0) {
+    if (totalSize == 0) {
       return Hdf5LoadStatus::IncompatibleDatasetExtent;
     }
-    output.values.resize(lo, hi, amrex::The_Pinned_Arena());
+    output.values.resize(totalSize);
     output.layout = MakeLayout(output.extents.data(), output.nd);
     for (int dim = 0; dim < 5; ++dim) {
       amrex::Vector<double>& storage = output.axisStorage[dim];
@@ -1367,8 +1354,8 @@ inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
   }
 
   double* dataPtr = (myRank == root)
-                        ? localTable.values.table().p
-                        : output.values.table().p;
+                        ? localTable.values.data()
+                        : output.values.data();
   if (totalSize > 0) {
     amrex::ParallelDescriptor::Bcast(dataPtr,
                                      static_cast<int>(totalSize),
@@ -1472,15 +1459,16 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFullParallel(
     }
 
     // Allocate variable arrays
-    const amrex::Array<int, 3> lo{{0, 0, 0}};
-    const amrex::Array<int, 3> hi{{dimensions[0] - 1, dimensions[1] - 1, dimensions[2] - 1}};
+    const std::size_t varSize = static_cast<std::size_t>(dimensions[0]) *
+                                static_cast<std::size_t>(dimensions[1]) *
+                                static_cast<std::size_t>(dimensions[2]);
     output.variables.resize(nVariables);
     for (int iVar = 0; iVar < nVariables; ++iVar) {
-      output.variables[iVar].resize(lo, hi, amrex::The_Pinned_Arena());
+      output.variables[iVar].resize(varSize);
     }
 
     // Allocate repaired mask
-    output.repaired.resize(lo, hi, amrex::The_Pinned_Arena());
+    output.repaired.resize(varSize);
 
     // Allocate offset/string vectors
     output.offsets.resize(nVariables);
@@ -1519,14 +1507,14 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFullParallel(
                               static_cast<std::size_t>(dimensions[2]);
   if (varSize > 0) {
     for (int iVar = 0; iVar < nVariables; ++iVar) {
-      amrex::ParallelDescriptor::Bcast(table.variables[iVar].table().p,
+      amrex::ParallelDescriptor::Bcast(table.variables[iVar].data(),
                                        static_cast<int>(varSize), root);
     }
   }
 
   // Broadcast repaired mask
   if (varSize > 0) {
-    amrex::ParallelDescriptor::Bcast(table.repaired.table().p,
+    amrex::ParallelDescriptor::Bcast(table.repaired.data(),
                                      static_cast<int>(varSize), root);
   }
 

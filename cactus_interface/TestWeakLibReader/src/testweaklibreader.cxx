@@ -135,7 +135,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
 
     nes_aligned.resize(nMom);
     for (int iMom = 0; iMom < nMom; ++iMom) {
-      const double nesOffset = nes.offsets.const_table()(0, iMom);
+      const double nesOffset = nes.OffsetValue(0, iMom);
       const std::size_t alignedSize =
           static_cast<std::size_t>(nE) * nE * nT * nEta;
       amrex::Vector<double> hostBuf(alignedSize);
@@ -171,7 +171,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
 
     pair_aligned.resize(nMom);
     for (int iMom = 0; iMom < nMom; ++iMom) {
-      const double pairOffset = pair.offsets.const_table()(0, iMom);
+      const double pairOffset = pair.OffsetValue(0, iMom);
       const std::size_t alignedSize =
           static_cast<std::size_t>(nE) * nE * nT * nEta;
       amrex::Vector<double> hostBuf(alignedSize);
@@ -207,7 +207,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
 
     brem_aligned.resize(nMom);
     for (int iMom = 0; iMom < nMom; ++iMom) {
-      const double bremOffset = brem.offsets.const_table()(0, iMom);
+      const double bremOffset = brem.OffsetValue(0, iMom);
       const std::size_t alignedSize =
           static_cast<std::size_t>(nE) * nE * nRho * nT;
       amrex::Vector<double> hostBuf(alignedSize);
@@ -296,7 +296,7 @@ extern "C" void TestWeakLibReader_InitIso(CCTK_ARGUMENTS) {
   const double fixedE = fixedEnergyMidpoint;
 
   // Offset for species=0, moment=0 from the 2D offset table
-  const double offset = opacity_table_device.scatIso.offsets.const_table()(0, 0);
+  const double offset = opacity_table_device.scatIso.OffsetValue(0, 0);
   const double* sliceData = iso_slice_device.data();
 
   grid.loop_int_device<0, 0, 0>(
@@ -393,7 +393,7 @@ extern "C" void TestWeakLibReader_InitNES(CCTK_ARGUMENTS) {
     opacity_table_device.etaGrid.MakeAxis(),   // Eta
   };
 
-  const double nesOffset = opacity_table_device.scatNES.offsets.const_table()(0, 0);
+  const double nesOffset = opacity_table_device.scatNES.OffsetValue(0, 0);
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
@@ -436,7 +436,7 @@ extern "C" void TestWeakLibReader_InitPair(CCTK_ARGUMENTS) {
     opacity_table_device.etaGrid.MakeAxis(),   // Eta
   };
 
-  const double pairOffset = opacity_table_device.scatPair.offsets.const_table()(0, 0);
+  const double pairOffset = opacity_table_device.scatPair.OffsetValue(0, 0);
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
@@ -479,7 +479,7 @@ extern "C" void TestWeakLibReader_InitBrem(CCTK_ARGUMENTS) {
     opacity_table_device.thermoState.axes[1],  // T
   };
 
-  const double bremOffset = opacity_table_device.scatBrem.offsets.const_table()(0, 0);
+  const double bremOffset = opacity_table_device.scatBrem.OffsetValue(0, 0);
 
   // Brem alpha coefficients: [pp, nn, pn]
   constexpr double alpha[3] = {1.0, 1.0, 28.0 / 3.0};
