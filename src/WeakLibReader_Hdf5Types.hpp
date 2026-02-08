@@ -2,7 +2,6 @@
 
 #include <AMReX_Array.H>
 #include <AMReX_GpuContainers.H>
-#include <AMReX_TableData.H>
 #include <AMReX_Vector.H>
 
 #include <array>
@@ -46,7 +45,7 @@ struct TableDevice {
   int nd = 0;
   Layout layout{};
   Axis axes[5]{};
-  amrex::TableData<double, 4> values{};
+  amrex::Gpu::DeviceVector<double> values;
   std::array<amrex::Gpu::DeviceVector<double>, 5> axisStorage{};
 
   [[nodiscard]] TableView View() const noexcept
@@ -54,7 +53,7 @@ struct TableDevice {
     TableView view{};
     view.nd = nd;
     view.layout = layout;
-    view.data = values.const_table().p;
+    view.data = values.data();
     for (int dim = 0; dim < 5; ++dim) {
       view.axes[dim] = axes[dim];
     }
@@ -67,7 +66,7 @@ struct Hdf5Table {
   std::array<int, 5> extents{{1, 1, 1, 1, 1}};
   Layout layout{};
   Axis axes[5]{};
-  amrex::TableData<double, 4> values{};
+  amrex::Gpu::PinnedVector<double> values;
   std::array<amrex::Vector<double>, 5> axisStorage{};
 
   Hdf5Table() = default;
@@ -76,15 +75,15 @@ struct Hdf5Table {
   Hdf5Table(const Hdf5Table&) = delete;
   Hdf5Table& operator=(const Hdf5Table&) = delete;
 
-  [[nodiscard]] double* DataPtr() noexcept { return values.table().p; }
-  [[nodiscard]] const double* DataPtr() const noexcept { return values.const_table().p; }
+  [[nodiscard]] double* DataPtr() noexcept { return values.data(); }
+  [[nodiscard]] const double* DataPtr() const noexcept { return values.data(); }
 
   [[nodiscard]] TableView View() const noexcept
   {
     TableView view{};
     view.nd = nd;
     view.layout = layout;
-    view.data = values.const_table().p;
+    view.data = values.data();
     for (int dim = 0; dim < 5; ++dim) {
       view.axes[dim] = axes[dim];
     }
@@ -127,8 +126,8 @@ struct WeakLibEosTable {
   std::vector<std::string> variableNames;
   std::vector<std::string> variableUnits;
   std::vector<double> offsets;
-  std::vector<amrex::TableData<double, 3>> variables;
-  amrex::TableData<int, 3> repaired;
+  std::vector<amrex::Gpu::PinnedVector<double>> variables;
+  amrex::Gpu::PinnedVector<int> repaired;
   WeakLibEosIndices indices;
 
   // Layout for interpolation
@@ -142,7 +141,7 @@ struct WeakLibEosTable {
 
   // Get data pointer for a specific variable
   [[nodiscard]] const double* VariableData(int varIndex) const noexcept {
-    return variables[varIndex].const_table().p;
+    return variables[varIndex].data();
   }
 };
 
@@ -155,13 +154,13 @@ struct WeakLibEosTableDevice {
   Layout layout{};
 
   std::vector<double> offsets;
-  std::vector<amrex::TableData<double, 3>> variables;
-  amrex::TableData<int, 3> repaired;
+  std::vector<amrex::Gpu::DeviceVector<double>> variables;
+  amrex::Gpu::DeviceVector<int> repaired;
   WeakLibEosIndices indices;
 
   // Get device data pointer for a specific variable
   [[nodiscard]] const double* VariableData(int varIndex) const noexcept {
-    return variables[varIndex].const_table().p;
+    return variables[varIndex].data();
   }
 };
 
@@ -218,9 +217,9 @@ struct WeakLibECTable {
   double rateOffset = 0.0;
 
   // Spectrum: 4D [nRho, nT, nYe, nE]
-  amrex::TableData<double, 4> spectrum;
+  amrex::Gpu::PinnedVector<double> spectrum;
   // Rate: 3D [nRho, nT, nYe]
-  amrex::TableData<double, 3> rate;
+  amrex::Gpu::PinnedVector<double> rate;
 
   [[nodiscard]] bool IsPresent() const noexcept { return nE > 0; }
 };
@@ -243,8 +242,8 @@ struct WeakLibECTableDevice {
   double specOffset = 0.0;
   double rateOffset = 0.0;
 
-  amrex::TableData<double, 4> spectrum;
-  amrex::TableData<double, 3> rate;
+  amrex::Gpu::DeviceVector<double> spectrum;
+  amrex::Gpu::DeviceVector<double> rate;
 
   [[nodiscard]] bool IsPresent() const noexcept { return nE > 0; }
 };
@@ -274,7 +273,7 @@ struct WeakLibEmAbTable {
   std::array<double, kNumSpecies> offsets{{0.0, 0.0}};
 
   // Opacity data: 4D [nE, nRho, nT, nYe] per species
-  std::array<amrex::TableData<double, 4>, kNumSpecies> opacities;
+  std::array<amrex::Gpu::PinnedVector<double>, kNumSpecies> opacities;
 
   WeakLibEmAbParameters parameters;
   WeakLibECTable ecTable;
@@ -289,7 +288,7 @@ struct WeakLibEmAbTable {
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
   [[nodiscard]] const double* OpacityData(int species) const noexcept {
-    return opacities[species].const_table().p;
+    return opacities[species].data();
   }
 };
 
@@ -299,14 +298,14 @@ struct WeakLibEmAbTableDevice {
   int nOpacities = 0;
   std::array<int, 4> dimensions{{0, 0, 0, 0}};
   std::array<double, kNumSpecies> offsets{{0.0, 0.0}};
-  std::array<amrex::TableData<double, 4>, kNumSpecies> opacities;
+  std::array<amrex::Gpu::DeviceVector<double>, kNumSpecies> opacities;
   WeakLibEmAbParameters parameters;
   WeakLibECTableDevice ecTable;
   Layout layout{};
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
   [[nodiscard]] const double* OpacityData(int species) const noexcept {
-    return opacities[species].const_table().p;
+    return opacities[species].data();
   }
 };
 
@@ -320,8 +319,8 @@ struct WeakLibScatIsoTable {
 
   std::array<std::string, kNumSpecies> names;
   std::array<std::string, kNumSpecies> units;
-  // Offsets: 2D [nOpacities, nMoments]
-  amrex::TableData<double, 2> offsets;
+  // Offsets: 2D [nOpacities, nMoments] — column-major (species stride=1)
+  amrex::Gpu::PinnedVector<double> offsets;
 
   // Kernel data: 5D per species (stored as flat arrays)
   std::array<amrex::Vector<double>, kNumSpecies> kernels;
@@ -344,6 +343,10 @@ struct WeakLibScatIsoTable {
   [[nodiscard]] const double* KernelData(int species) const noexcept {
     return kernels[species].data();
   }
+  [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
+    return offsets[static_cast<std::size_t>(species)
+                   + static_cast<std::size_t>(moment) * nOpacities];
+  }
 };
 
 struct WeakLibScatIsoTableDevice {
@@ -352,7 +355,7 @@ struct WeakLibScatIsoTableDevice {
   int nOpacities = 0;
   int nMoments = 0;
   std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
-  amrex::TableData<double, 2> offsets;
+  amrex::Gpu::DeviceVector<double> offsets;
   std::array<amrex::Gpu::DeviceVector<double>, kNumSpecies> kernels;
 
   int weak_magnetism_corrections = -1;
@@ -366,6 +369,10 @@ struct WeakLibScatIsoTableDevice {
   [[nodiscard]] const double* KernelData(int species) const noexcept {
     return kernels[species].data();
   }
+  [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
+    return offsets[static_cast<std::size_t>(species)
+                   + static_cast<std::size_t>(moment) * nOpacities];
+  }
 };
 
 // NES scattering table (5D: nE_in x nE_out x nMom x nT x nEta)
@@ -376,7 +383,8 @@ struct WeakLibScatNESTable {
 
   std::string name;
   std::string unit;
-  amrex::TableData<double, 2> offsets;  // [nMom, nOpacities]
+  // Offsets: 2D [nOpacities, nMoments] — column-major (species stride=1)
+  amrex::Gpu::PinnedVector<double> offsets;
 
   // Single kernel: "Kernels" (stored as flat array)
   amrex::Vector<double> kernel;
@@ -393,19 +401,27 @@ struct WeakLibScatNESTable {
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
   [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
+  [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
+    return offsets[static_cast<std::size_t>(species)
+                   + static_cast<std::size_t>(moment) * nOpacities];
+  }
 };
 
 struct WeakLibScatNESTableDevice {
   int nOpacities = 0;
   int nMoments = 0;
   std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
-  amrex::TableData<double, 2> offsets;
+  amrex::Gpu::DeviceVector<double> offsets;
   amrex::Gpu::DeviceVector<double> kernel;
   int NPS = -1;
   Layout layout{};
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
   [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
+  [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
+    return offsets[static_cast<std::size_t>(species)
+                   + static_cast<std::size_t>(moment) * nOpacities];
+  }
 };
 
 // Pair production table (same structure as NES)
@@ -416,7 +432,8 @@ struct WeakLibScatPairTable {
 
   std::string name;
   std::string unit;
-  amrex::TableData<double, 2> offsets;
+  // Offsets: 2D [nOpacities, nMoments] — column-major (species stride=1)
+  amrex::Gpu::PinnedVector<double> offsets;
   amrex::Vector<double> kernel;  // Stored as flat array
 
   Layout layout{};
@@ -429,18 +446,26 @@ struct WeakLibScatPairTable {
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
   [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
+  [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
+    return offsets[static_cast<std::size_t>(species)
+                   + static_cast<std::size_t>(moment) * nOpacities];
+  }
 };
 
 struct WeakLibScatPairTableDevice {
   int nOpacities = 0;
   int nMoments = 0;
   std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
-  amrex::TableData<double, 2> offsets;
+  amrex::Gpu::DeviceVector<double> offsets;
   amrex::Gpu::DeviceVector<double> kernel;
   Layout layout{};
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
   [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
+  [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
+    return offsets[static_cast<std::size_t>(species)
+                   + static_cast<std::size_t>(moment) * nOpacities];
+  }
 };
 
 // Bremsstrahlung table (5D: nE_in x nE_out x nMom x nRho x nT)
@@ -451,7 +476,8 @@ struct WeakLibScatBremTable {
 
   std::string name;
   std::string unit;
-  amrex::TableData<double, 2> offsets;
+  // Offsets: 2D [nOpacities, nMoments] — column-major (species stride=1)
+  amrex::Gpu::PinnedVector<double> offsets;
   amrex::Vector<double> kernel;  // "S_sigma" (stored as flat array)
 
   Layout layout{};
@@ -464,18 +490,26 @@ struct WeakLibScatBremTable {
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
   [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
+  [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
+    return offsets[static_cast<std::size_t>(species)
+                   + static_cast<std::size_t>(moment) * nOpacities];
+  }
 };
 
 struct WeakLibScatBremTableDevice {
   int nOpacities = 0;
   int nMoments = 0;
   std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
-  amrex::TableData<double, 2> offsets;
+  amrex::Gpu::DeviceVector<double> offsets;
   amrex::Gpu::DeviceVector<double> kernel;
   Layout layout{};
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
   [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
+  [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
+    return offsets[static_cast<std::size_t>(species)
+                   + static_cast<std::size_t>(moment) * nOpacities];
+  }
 };
 
 // ThermoState for opacity tables (shared across types)

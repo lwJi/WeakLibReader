@@ -326,7 +326,7 @@ inline bool ValidateFortranDims(const std::array<hsize_t, Rank>& fileDims,
 
 template <typename T, int Rank>
 bool ReadWeakLibArrayNd(hid_t parent, const char* name,
-                        amrex::TableData<T, Rank>& output,
+                        amrex::Gpu::PinnedVector<T>& output,
                         const std::array<int, Rank>& expectedDims)
 {
   ScopedHandle dataset;
@@ -339,29 +339,26 @@ bool ReadWeakLibArrayNd(hid_t parent, const char* name,
     return false;
   }
 
-  amrex::Array<int, Rank> lo{};
-  amrex::Array<int, Rank> hi{};
+  std::size_t totalSize = 1;
   for (int i = 0; i < Rank; ++i) {
-    lo[i] = 0;
-    hi[i] = expectedDims[i] - 1;
+    totalSize *= static_cast<std::size_t>(expectedDims[i]);
   }
-
-  output.resize(lo, hi, amrex::The_Pinned_Arena());
+  output.resize(totalSize);
 
   hid_t memType = std::is_same_v<T, double> ? H5T_NATIVE_DOUBLE : H5T_NATIVE_INT;
   if (H5Dread(dataset.Get(), memType, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-              output.table().p) < 0) {
+              output.data()) < 0) {
     return false;
   }
 
   return true;
 }
 
-// Read a 3D integer array dataset
+// Read a 3D array dataset
 // Matches Fortran Read3dHDF_integer (wlIOModuleHDF.F90:361-375)
 template <typename T>
 inline bool ReadWeakLibArray3d(hid_t parent, const char* name,
-                               amrex::TableData<T, 3>& out,
+                               amrex::Gpu::PinnedVector<T>& out,
                                const std::array<int, 3>& expectedDims)
 {
   return ReadWeakLibArrayNd<T, 3>(parent, name, out, expectedDims);
@@ -370,14 +367,14 @@ inline bool ReadWeakLibArray3d(hid_t parent, const char* name,
 // Read a 3D integer array dataset
 // Expects Fortran-written (Ye,T,rho) datasets.
 inline bool ReadIntArray3d(hid_t parent, const char* name,
-                           amrex::TableData<int, 3>& out,
+                           amrex::Gpu::PinnedVector<int>& out,
                            const std::array<int, 3>& expectedDims)
 {
   return ReadWeakLibArray3d<int>(parent, name, out, expectedDims);
 }
 
 inline bool ReadDoubleArray3d(hid_t parent, const char* name,
-                              amrex::TableData<double, 3>& out,
+                              amrex::Gpu::PinnedVector<double>& out,
                               const std::array<int, 3>& expectedDims)
 {
   return ReadWeakLibArray3d<double>(parent, name, out, expectedDims);
@@ -387,14 +384,14 @@ inline bool ReadDoubleArray3d(hid_t parent, const char* name,
 // Fortran order: [d1, d0] -> C order: [d0, d1]
 template <typename T>
 bool ReadWeakLibArray2d(hid_t group, const char* name,
-                        amrex::TableData<T, 2>& output,
+                        amrex::Gpu::PinnedVector<T>& output,
                         const std::array<int, 2>& expectedDims)
 {
   return ReadWeakLibArrayNd<T, 2>(group, name, output, expectedDims);
 }
 
 inline bool ReadDoubleArray2d(hid_t group, const char* name,
-                              amrex::TableData<double, 2>& output,
+                              amrex::Gpu::PinnedVector<double>& output,
                               const std::array<int, 2>& expectedDims)
 {
   return ReadWeakLibArray2d<double>(group, name, output, expectedDims);
@@ -403,21 +400,21 @@ inline bool ReadDoubleArray2d(hid_t group, const char* name,
 // Read 4D array in Fortran order [d3, d2, d1, d0] -> C order [d0, d1, d2, d3]
 template <typename T>
 bool ReadWeakLibArray4d(hid_t group, const char* name,
-                        amrex::TableData<T, 4>& output,
+                        amrex::Gpu::PinnedVector<T>& output,
                         const std::array<int, 4>& expectedDims)
 {
   return ReadWeakLibArrayNd<T, 4>(group, name, output, expectedDims);
 }
 
 inline bool ReadDoubleArray4d(hid_t group, const char* name,
-                              amrex::TableData<double, 4>& output,
+                              amrex::Gpu::PinnedVector<double>& output,
                               const std::array<int, 4>& expectedDims)
 {
   return ReadWeakLibArray4d<double>(group, name, output, expectedDims);
 }
 
 // Read 5D array in Fortran order [d4, d3, d2, d1, d0] -> C order [d0, d1, d2, d3, d4]
-// Stores data in a flat amrex::Vector<T> since AMReX TableData only supports up to 4D.
+// Stores data in a flat amrex::Vector<T>.
 template <typename T>
 bool ReadWeakLibArray5d(hid_t group, const char* name,
                         amrex::Vector<T>& output,
@@ -570,33 +567,6 @@ inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char* groupName,
   }
 
   return Hdf5LoadStatus::Success;
-}
-
-inline amrex::Array<int, 4> MakeHiArray(int nd, const std::array<int, 5>& extents,
-                                        bool& overflow) noexcept
-{
-  amrex::Array<int, 4> hi{{0, 0, 0, 0}};
-  if (nd >= 1) {
-    hi[0] = extents[0] - 1;
-  }
-  if (nd >= 2) {
-    hi[1] = extents[1] - 1;
-  }
-  if (nd >= 3) {
-    hi[2] = extents[2] - 1;
-  }
-  if (nd == 4) {
-    hi[3] = extents[3] - 1;
-  } else if (nd == 5) {
-    const long long product =
-        static_cast<long long>(extents[3]) * static_cast<long long>(extents[4]);
-    if (product > static_cast<long long>(std::numeric_limits<int>::max())) {
-      overflow = true;
-      return hi;
-    }
-    hi[3] = static_cast<int>(product) - 1;
-  }
-  return hi;
 }
 
 inline std::size_t ComputeTotalSize(int nd, const std::array<int, 5>& extents)

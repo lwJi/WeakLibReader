@@ -466,11 +466,11 @@ TEST_CASE("LoadWeakLibEosTableFull reads complete EOS table", "[hdf5][weaklib]")
   // Variable data has correct size
   for (int iVar = 0; iVar < table.nVariables; ++iVar) {
     const auto& var = table.variables[iVar];
-    CHECK(var.const_table().p != nullptr);
+    CHECK(var.data() != nullptr);
   }
 
   // Repaired mask is loaded
-  CHECK(table.repaired.const_table().p != nullptr);
+  CHECK(table.repaired.data() != nullptr);
 
   // Layout is computed correctly (row-major)
   // stride[0] = 1, stride[1] = n[0], stride[2] = n[0]*n[1]
@@ -549,16 +549,16 @@ TEST_CASE("LoadWeakLibEosTableFullParallel loads complete table", "[weaklib][eos
   const std::size_t varSize = static_cast<std::size_t>(table.dimensions[0]) *
                               table.dimensions[1] * table.dimensions[2];
   for (int iVar = 0; iVar < table.nVariables; ++iVar) {
-    const double* parData = table.variables[iVar].const_table().p;
-    const double* seqData = seqTable.variables[iVar].const_table().p;
+    const double* parData = table.variables[iVar].data();
+    const double* seqData = seqTable.variables[iVar].data();
     for (std::size_t i = 0; i < varSize; ++i) {
       CHECK(parData[i] == seqData[i]);
     }
   }
 
   // Verify repaired mask matches
-  const int* parRepaired = table.repaired.const_table().p;
-  const int* seqRepaired = seqTable.repaired.const_table().p;
+  const int* parRepaired = table.repaired.data();
+  const int* seqRepaired = seqTable.repaired.data();
   for (std::size_t i = 0; i < varSize; ++i) {
     CHECK(parRepaired[i] == seqRepaired[i]);
   }
