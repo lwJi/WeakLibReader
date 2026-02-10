@@ -208,14 +208,14 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
   result.variables.resize(result.nVariables);
   for (int iVar = 0; iVar < result.nVariables; ++iVar) {
     const std::string& varName = result.variableNames[iVar];
-    if (!detail::ReadDoubleArray3d(dvGroup.Get(), varName.c_str(),
+    if (!detail::ReadWeakLibArrayNd<double, 3>(dvGroup.Get(), varName.c_str(),
                                    result.variables[iVar], result.dimensions)) {
       return Hdf5LoadStatus::DatasetReadFailed;
     }
   }
 
   // Read Repaired mask
-  if (!detail::ReadIntArray3d(dvGroup.Get(), "Repaired", result.repaired, result.dimensions)) {
+  if (!detail::ReadWeakLibArrayNd<int, 3>(dvGroup.Get(), "Repaired", result.repaired, result.dimensions)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
@@ -418,13 +418,13 @@ inline Hdf5LoadStatus LoadECTable(hid_t file, WeakLibECTable& ecTable)
 
   // Read Spectrum (4D: [nRho, nT, nYe, nE])
   std::array<int, 4> specDims{{ecTable.nRho, ecTable.nT, ecTable.nYe, ecTable.nE}};
-  if (!ReadDoubleArray4d(group.Get(), "Spectrum", ecTable.spectrum, specDims)) {
+  if (!ReadWeakLibArrayNd<double, 4>(group.Get(), "Spectrum", ecTable.spectrum, specDims)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
   // Read Rate (3D: [nRho, nT, nYe])
   std::array<int, 3> rateDims{{ecTable.nRho, ecTable.nT, ecTable.nYe}};
-  if (!ReadDoubleArray3d(group.Get(), "Rate", ecTable.rate, rateDims)) {
+  if (!ReadWeakLibArrayNd<double, 3>(group.Get(), "Rate", ecTable.rate, rateDims)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
@@ -500,7 +500,7 @@ inline Hdf5LoadStatus LoadWeakLibEmAbTable(hid_t file,
 
   // Read opacity data for each species
   for (int iSpecies = 0; iSpecies < WeakLibEmAbTable::kNumSpecies && iSpecies < emAb.nOpacities; ++iSpecies) {
-    if (!detail::ReadDoubleArray4d(group.Get(), emAb.names[iSpecies].c_str(),
+    if (!detail::ReadWeakLibArrayNd<double, 4>(group.Get(), emAb.names[iSpecies].c_str(),
                                    emAb.opacities[iSpecies], emAb.dimensions)) {
       return Hdf5LoadStatus::DatasetReadFailed;
     }
@@ -559,17 +559,13 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
 
   // Read Offsets (2D: [nOpacities, nMoments])
   std::array<int, 2> offsetDims{{scatIso.nOpacities, scatIso.nMoments}};
-  if (!detail::ReadDoubleArray2d(group.Get(), "Offsets", scatIso.offsets, offsetDims)) {
+  if (!detail::ReadWeakLibArrayNd<double, 2>(group.Get(), "Offsets", scatIso.offsets, offsetDims)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
   // Read correction flags and ga_strange (optional, may not exist in legacy files)
-  // Suppress HDF5 error messages for optional fields
   {
-    H5E_auto2_t oldFunc;
-    void* oldClientData;
-    H5Eget_auto2(H5E_DEFAULT, &oldFunc, &oldClientData);
-    H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+    detail::ScopedH5ErrorSuppressor suppress;
 
     detail::ReadScalarInt(group.Get(), "weak_magnetism_corr", scatIso.weak_magnetism_corrections);
     detail::ReadScalarInt(group.Get(), "ion_ion_corr", scatIso.ion_ion_corrections);
@@ -579,8 +575,6 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
     if (ds.Valid()) {
       H5Dread(ds.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &scatIso.ga_strange);
     }
-
-    H5Eset_auto2(H5E_DEFAULT, oldFunc, oldClientData);
   }
 
   // Set species names
@@ -589,8 +583,8 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
 
   // Read kernel data for each species
   for (int iSpecies = 0; iSpecies < WeakLibScatIsoTable::kNumSpecies && iSpecies < scatIso.nOpacities; ++iSpecies) {
-    if (!detail::ReadDoubleArray5d(group.Get(), scatIso.names[iSpecies].c_str(),
-                                   scatIso.kernels[iSpecies], scatIso.dimensions)) {
+    if (!detail::ReadWeakLibArrayNd<double, 5>(group.Get(), scatIso.names[iSpecies].c_str(),
+                                               scatIso.kernels[iSpecies], scatIso.dimensions)) {
       return Hdf5LoadStatus::DatasetReadFailed;
     }
   }
@@ -646,67 +640,83 @@ inline amrex::Vector<double> ExtractIsoMomentSlice4D(
   return result;
 }
 
+namespace detail {
+
+inline Hdf5LoadStatus LoadScatKernelTable(
+    hid_t file,
+    const char* groupName,
+    const char* kernelDatasetName,
+    const std::array<int, 5>& dims,
+    WeakLibScatKernelTable& table)
+{
+  if (!GroupExists(file, groupName)) {
+    return Hdf5LoadStatus::DatasetOpenFailed;
+  }
+
+  ScopedHandle group(H5Gopen(file, groupName, H5P_DEFAULT), H5Gclose);
+  if (!group.Valid()) {
+    return Hdf5LoadStatus::DatasetOpenFailed;
+  }
+
+  // Read nOpacities and nMoments
+  if (!ReadScalarInt(group.Get(), "nOpacities", table.nOpacities) ||
+      !ReadScalarInt(group.Get(), "nMoments", table.nMoments)) {
+    return Hdf5LoadStatus::DatasetReadFailed;
+  }
+
+  table.dimensions = dims;
+  table.dimensions[2] = table.nMoments;
+
+  // Read Units
+  std::vector<std::string> unitVec;
+  if (ReadStringArray(group.Get(), "Units", unitVec) && !unitVec.empty()) {
+    table.unit = unitVec[0];
+  }
+
+  // Read Offsets (2D: [nOpacities, nMoments] in C order)
+  std::array<int, 2> offsetDims{{table.nOpacities, table.nMoments}};
+  if (!ReadWeakLibArrayNd<double, 2>(group.Get(), "Offsets", table.offsets, offsetDims)) {
+    return Hdf5LoadStatus::DatasetReadFailed;
+  }
+
+  // Set kernel name and read kernel data
+  table.name = kernelDatasetName;
+  if (!ReadWeakLibArrayNd<double, 5>(group.Get(), kernelDatasetName, table.kernel, table.dimensions)) {
+    return Hdf5LoadStatus::DatasetReadFailed;
+  }
+
+  // Compute layout
+  table.layout = MakeLayout(table.dimensions.data(), 5);
+
+  return Hdf5LoadStatus::Success;
+}
+
+} // namespace detail
+
 inline Hdf5LoadStatus LoadWeakLibScatNESTable(hid_t file,
                                                WeakLibScatNESTable& scatNES,
                                                const WeakLibOpacityGrid& energyGrid,
                                                const WeakLibOpacityGrid& etaGrid,
                                                const WeakLibOpacityThermoState& thermoState)
 {
-  if (!detail::GroupExists(file, "Scat_NES_Kernels")) {
-    return Hdf5LoadStatus::DatasetOpenFailed;
-  }
+  const std::array<int, 5> dims{{
+      energyGrid.nPoints, energyGrid.nPoints, 0 /*placeholder*/,
+      thermoState.dimensions[1], etaGrid.nPoints}};
 
-  detail::ScopedHandle group(H5Gopen(file, "Scat_NES_Kernels", H5P_DEFAULT), H5Gclose);
-  if (!group.Valid()) {
-    return Hdf5LoadStatus::DatasetOpenFailed;
-  }
-
-  // Read nOpacities and nMoments
-  if (!detail::ReadScalarInt(group.Get(), "nOpacities", scatNES.nOpacities) ||
-      !detail::ReadScalarInt(group.Get(), "nMoments", scatNES.nMoments)) {
-    return Hdf5LoadStatus::DatasetReadFailed;
-  }
-
-  // Set dimensions: [nE_in, nE_out, nMom, nT, nEta]
-  scatNES.dimensions[0] = energyGrid.nPoints;   // nE_in
-  scatNES.dimensions[1] = energyGrid.nPoints;   // nE_out
-  scatNES.dimensions[2] = scatNES.nMoments;
-  scatNES.dimensions[3] = thermoState.dimensions[1];  // nT
-  scatNES.dimensions[4] = etaGrid.nPoints;
-
-  // Read Units
-  std::vector<std::string> unitVec;
-  if (detail::ReadStringArray(group.Get(), "Units", unitVec) && !unitVec.empty()) {
-    scatNES.unit = unitVec[0];
-  }
-
-  // Read Offsets (2D: [nOpacities, nMoments] in C order)
-  // File stores Fortran order (nMoments, nOpacities), so C order is reversed
-  std::array<int, 2> offsetDims{{scatNES.nOpacities, scatNES.nMoments}};
-  if (!detail::ReadDoubleArray2d(group.Get(), "Offsets", scatNES.offsets, offsetDims)) {
-    return Hdf5LoadStatus::DatasetReadFailed;
+  Hdf5LoadStatus status = detail::LoadScatKernelTable(
+      file, "Scat_NES_Kernels", "Kernels", dims, scatNES);
+  if (status != Hdf5LoadStatus::Success) {
+    return status;
   }
 
   // Read NPS flag (optional — suppress HDF5 error if absent)
   {
-    H5E_auto2_t oldFunc;
-    void* oldClientData;
-    H5Eget_auto2(H5E_DEFAULT, &oldFunc, &oldClientData);
-    H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
-    detail::ReadScalarInt(group.Get(), "NPS", scatNES.NPS);
-    H5Eset_auto2(H5E_DEFAULT, oldFunc, oldClientData);
+    detail::ScopedH5ErrorSuppressor suppress;
+    detail::ScopedHandle group(H5Gopen(file, "Scat_NES_Kernels", H5P_DEFAULT), H5Gclose);
+    if (group.Valid()) {
+      detail::ReadScalarInt(group.Get(), "NPS", scatNES.NPS);
+    }
   }
-
-  // Set kernel name
-  scatNES.name = "Kernels";
-
-  // Read kernel data
-  if (!detail::ReadDoubleArray5d(group.Get(), "Kernels", scatNES.kernel, scatNES.dimensions)) {
-    return Hdf5LoadStatus::DatasetReadFailed;
-  }
-
-  // Compute layout
-  scatNES.layout = MakeLayout(scatNES.dimensions.data(), 5);
 
   return Hdf5LoadStatus::Success;
 }
@@ -717,53 +727,12 @@ inline Hdf5LoadStatus LoadWeakLibScatPairTable(hid_t file,
                                                 const WeakLibOpacityGrid& etaGrid,
                                                 const WeakLibOpacityThermoState& thermoState)
 {
-  if (!detail::GroupExists(file, "Scat_Pair_Kernels")) {
-    return Hdf5LoadStatus::DatasetOpenFailed;
-  }
+  const std::array<int, 5> dims{{
+      energyGrid.nPoints, energyGrid.nPoints, 0 /*placeholder*/,
+      thermoState.dimensions[1], etaGrid.nPoints}};
 
-  detail::ScopedHandle group(H5Gopen(file, "Scat_Pair_Kernels", H5P_DEFAULT), H5Gclose);
-  if (!group.Valid()) {
-    return Hdf5LoadStatus::DatasetOpenFailed;
-  }
-
-  // Read nOpacities and nMoments
-  if (!detail::ReadScalarInt(group.Get(), "nOpacities", scatPair.nOpacities) ||
-      !detail::ReadScalarInt(group.Get(), "nMoments", scatPair.nMoments)) {
-    return Hdf5LoadStatus::DatasetReadFailed;
-  }
-
-  // Set dimensions: [nE_in, nE_out, nMom, nT, nEta]
-  scatPair.dimensions[0] = energyGrid.nPoints;
-  scatPair.dimensions[1] = energyGrid.nPoints;
-  scatPair.dimensions[2] = scatPair.nMoments;
-  scatPair.dimensions[3] = thermoState.dimensions[1];  // nT
-  scatPair.dimensions[4] = etaGrid.nPoints;
-
-  // Read Units
-  std::vector<std::string> unitVec;
-  if (detail::ReadStringArray(group.Get(), "Units", unitVec) && !unitVec.empty()) {
-    scatPair.unit = unitVec[0];
-  }
-
-  // Read Offsets (2D: [nOpacities, nMoments] in C order)
-  // File stores Fortran order (nMoments, nOpacities), so C order is reversed
-  std::array<int, 2> offsetDims{{scatPair.nOpacities, scatPair.nMoments}};
-  if (!detail::ReadDoubleArray2d(group.Get(), "Offsets", scatPair.offsets, offsetDims)) {
-    return Hdf5LoadStatus::DatasetReadFailed;
-  }
-
-  // Set kernel name
-  scatPair.name = "Kernels";
-
-  // Read kernel data
-  if (!detail::ReadDoubleArray5d(group.Get(), "Kernels", scatPair.kernel, scatPair.dimensions)) {
-    return Hdf5LoadStatus::DatasetReadFailed;
-  }
-
-  // Compute layout
-  scatPair.layout = MakeLayout(scatPair.dimensions.data(), 5);
-
-  return Hdf5LoadStatus::Success;
+  return detail::LoadScatKernelTable(
+      file, "Scat_Pair_Kernels", "Kernels", dims, scatPair);
 }
 
 inline Hdf5LoadStatus LoadWeakLibScatBremTable(hid_t file,
@@ -771,53 +740,12 @@ inline Hdf5LoadStatus LoadWeakLibScatBremTable(hid_t file,
                                                 const WeakLibOpacityGrid& energyGrid,
                                                 const WeakLibOpacityThermoState& thermoState)
 {
-  if (!detail::GroupExists(file, "Scat_Brem_Kernels")) {
-    return Hdf5LoadStatus::DatasetOpenFailed;
-  }
+  const std::array<int, 5> dims{{
+      energyGrid.nPoints, energyGrid.nPoints, 0 /*placeholder*/,
+      thermoState.dimensions[0], thermoState.dimensions[1]}};
 
-  detail::ScopedHandle group(H5Gopen(file, "Scat_Brem_Kernels", H5P_DEFAULT), H5Gclose);
-  if (!group.Valid()) {
-    return Hdf5LoadStatus::DatasetOpenFailed;
-  }
-
-  // Read nOpacities and nMoments
-  if (!detail::ReadScalarInt(group.Get(), "nOpacities", scatBrem.nOpacities) ||
-      !detail::ReadScalarInt(group.Get(), "nMoments", scatBrem.nMoments)) {
-    return Hdf5LoadStatus::DatasetReadFailed;
-  }
-
-  // Set dimensions: [nE_in, nE_out, nMom, nRho, nT]
-  scatBrem.dimensions[0] = energyGrid.nPoints;
-  scatBrem.dimensions[1] = energyGrid.nPoints;
-  scatBrem.dimensions[2] = scatBrem.nMoments;
-  scatBrem.dimensions[3] = thermoState.dimensions[0];  // nRho
-  scatBrem.dimensions[4] = thermoState.dimensions[1];  // nT
-
-  // Read Units
-  std::vector<std::string> unitVec;
-  if (detail::ReadStringArray(group.Get(), "Units", unitVec) && !unitVec.empty()) {
-    scatBrem.unit = unitVec[0];
-  }
-
-  // Read Offsets (2D: [nOpacities, nMoments] in C order)
-  // File stores Fortran order (nMoments, nOpacities), so C order is reversed
-  std::array<int, 2> offsetDims{{scatBrem.nOpacities, scatBrem.nMoments}};
-  if (!detail::ReadDoubleArray2d(group.Get(), "Offsets", scatBrem.offsets, offsetDims)) {
-    return Hdf5LoadStatus::DatasetReadFailed;
-  }
-
-  // Set kernel name
-  scatBrem.name = "S_sigma";
-
-  // Read kernel data
-  if (!detail::ReadDoubleArray5d(group.Get(), "S_sigma", scatBrem.kernel, scatBrem.dimensions)) {
-    return Hdf5LoadStatus::DatasetReadFailed;
-  }
-
-  // Compute layout
-  scatBrem.layout = MakeLayout(scatBrem.dimensions.data(), 5);
-
-  return Hdf5LoadStatus::Success;
+  return detail::LoadScatKernelTable(
+      file, "Scat_Brem_Kernels", "S_sigma", dims, scatBrem);
 }
 
 namespace detail {
@@ -1099,6 +1027,29 @@ inline void CopyThermoStateToDevice(const WeakLibOpacityThermoState& host,
   }
 }
 
+inline void CopyScatKernelToDevice(
+    const WeakLibScatKernelTable& host,
+    WeakLibScatKernelTableDevice& device)
+{
+  device.nOpacities = host.nOpacities;
+  device.nMoments = host.nMoments;
+  device.dimensions = host.dimensions;
+  device.NPS = host.NPS;
+  device.layout = host.layout;
+
+  device.offsets.resize(host.offsets.size());
+  amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                   host.offsets.begin(), host.offsets.end(),
+                   device.offsets.begin());
+
+  if (!host.kernel.empty()) {
+    device.kernel.resize(host.kernel.size());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                     host.kernel.begin(), host.kernel.end(),
+                     device.kernel.begin());
+  }
+}
+
 } // namespace detail
 
 inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host,
@@ -1197,69 +1148,10 @@ inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host,
     }
   }
 
-  // Copy ScatNES
-  if (host.scatNES.IsLoaded()) {
-    device.scatNES.nOpacities = host.scatNES.nOpacities;
-    device.scatNES.nMoments = host.scatNES.nMoments;
-    device.scatNES.dimensions = host.scatNES.dimensions;
-    device.scatNES.NPS = host.scatNES.NPS;
-    device.scatNES.layout = host.scatNES.layout;
-
-    device.scatNES.offsets.resize(host.scatNES.offsets.size());
-    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                     host.scatNES.offsets.begin(), host.scatNES.offsets.end(),
-                     device.scatNES.offsets.begin());
-
-    // Kernel is stored as flat vector
-    if (!host.scatNES.kernel.empty()) {
-      device.scatNES.kernel.resize(host.scatNES.kernel.size());
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                       host.scatNES.kernel.begin(), host.scatNES.kernel.end(),
-                       device.scatNES.kernel.begin());
-    }
-  }
-
-  // Copy ScatPair
-  if (host.scatPair.IsLoaded()) {
-    device.scatPair.nOpacities = host.scatPair.nOpacities;
-    device.scatPair.nMoments = host.scatPair.nMoments;
-    device.scatPair.dimensions = host.scatPair.dimensions;
-    device.scatPair.layout = host.scatPair.layout;
-
-    device.scatPair.offsets.resize(host.scatPair.offsets.size());
-    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                     host.scatPair.offsets.begin(), host.scatPair.offsets.end(),
-                     device.scatPair.offsets.begin());
-
-    // Kernel is stored as flat vector
-    if (!host.scatPair.kernel.empty()) {
-      device.scatPair.kernel.resize(host.scatPair.kernel.size());
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                       host.scatPair.kernel.begin(), host.scatPair.kernel.end(),
-                       device.scatPair.kernel.begin());
-    }
-  }
-
-  // Copy ScatBrem
-  if (host.scatBrem.IsLoaded()) {
-    device.scatBrem.nOpacities = host.scatBrem.nOpacities;
-    device.scatBrem.nMoments = host.scatBrem.nMoments;
-    device.scatBrem.dimensions = host.scatBrem.dimensions;
-    device.scatBrem.layout = host.scatBrem.layout;
-
-    device.scatBrem.offsets.resize(host.scatBrem.offsets.size());
-    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                     host.scatBrem.offsets.begin(), host.scatBrem.offsets.end(),
-                     device.scatBrem.offsets.begin());
-
-    // Kernel is stored as flat vector
-    if (!host.scatBrem.kernel.empty()) {
-      device.scatBrem.kernel.resize(host.scatBrem.kernel.size());
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                       host.scatBrem.kernel.begin(), host.scatBrem.kernel.end(),
-                       device.scatBrem.kernel.begin());
-    }
-  }
+  // Copy ScatNES / ScatPair / ScatBrem
+  if (host.scatNES.IsLoaded()) detail::CopyScatKernelToDevice(host.scatNES, device.scatNES);
+  if (host.scatPair.IsLoaded()) detail::CopyScatKernelToDevice(host.scatPair, device.scatPair);
+  if (host.scatBrem.IsLoaded()) detail::CopyScatKernelToDevice(host.scatBrem, device.scatBrem);
 
   return device;
 }
