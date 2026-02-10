@@ -375,29 +375,30 @@ struct WeakLibScatIsoTableDevice {
   }
 };
 
-// NES scattering table (5D: nE_in x nE_out x nMom x nT x nEta)
-struct WeakLibScatNESTable {
+// Unified scattering kernel table (NES, Pair, Brem)
+// NES: 5D [nE_in, nE_out, nMom, nT, nEta]
+// Pair: 5D [nE_in, nE_out, nMom, nT, nEta]
+// Brem: 5D [nE_in, nE_out, nMom, nRho, nT]
+struct WeakLibScatKernelTable {
   int nOpacities = 0;
   int nMoments = 0;
-  std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};  // [nE_in, nE_out, nMom, nT, nEta]
+  std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
 
   std::string name;
   std::string unit;
   // Offsets: 2D [nOpacities, nMoments] — column-major (species stride=1)
   amrex::Gpu::PinnedVector<double> offsets;
+  amrex::Vector<double> kernel;  // Stored as flat array
 
-  // Single kernel: "Kernels" (stored as flat array)
-  amrex::Vector<double> kernel;
-
-  int NPS = -1;  // Neutrino-positron scattering flag
+  int NPS = -1;  // Neutrino-positron scattering flag (NES only; -1 = not set)
 
   Layout layout{};
 
-  WeakLibScatNESTable() = default;
-  WeakLibScatNESTable(WeakLibScatNESTable&&) = default;
-  WeakLibScatNESTable& operator=(WeakLibScatNESTable&&) = default;
-  WeakLibScatNESTable(const WeakLibScatNESTable&) = delete;
-  WeakLibScatNESTable& operator=(const WeakLibScatNESTable&) = delete;
+  WeakLibScatKernelTable() = default;
+  WeakLibScatKernelTable(WeakLibScatKernelTable&&) = default;
+  WeakLibScatKernelTable& operator=(WeakLibScatKernelTable&&) = default;
+  WeakLibScatKernelTable(const WeakLibScatKernelTable&) = delete;
+  WeakLibScatKernelTable& operator=(const WeakLibScatKernelTable&) = delete;
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
   [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
@@ -407,7 +408,7 @@ struct WeakLibScatNESTable {
   }
 };
 
-struct WeakLibScatNESTableDevice {
+struct WeakLibScatKernelTableDevice {
   int nOpacities = 0;
   int nMoments = 0;
   std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
@@ -424,93 +425,12 @@ struct WeakLibScatNESTableDevice {
   }
 };
 
-// Pair production table (same structure as NES)
-struct WeakLibScatPairTable {
-  int nOpacities = 0;
-  int nMoments = 0;
-  std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
-
-  std::string name;
-  std::string unit;
-  // Offsets: 2D [nOpacities, nMoments] — column-major (species stride=1)
-  amrex::Gpu::PinnedVector<double> offsets;
-  amrex::Vector<double> kernel;  // Stored as flat array
-
-  Layout layout{};
-
-  WeakLibScatPairTable() = default;
-  WeakLibScatPairTable(WeakLibScatPairTable&&) = default;
-  WeakLibScatPairTable& operator=(WeakLibScatPairTable&&) = default;
-  WeakLibScatPairTable(const WeakLibScatPairTable&) = delete;
-  WeakLibScatPairTable& operator=(const WeakLibScatPairTable&) = delete;
-
-  [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
-  [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
-  [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
-    return offsets[static_cast<std::size_t>(species)
-                   + static_cast<std::size_t>(moment) * nOpacities];
-  }
-};
-
-struct WeakLibScatPairTableDevice {
-  int nOpacities = 0;
-  int nMoments = 0;
-  std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
-  amrex::Gpu::DeviceVector<double> offsets;
-  amrex::Gpu::DeviceVector<double> kernel;
-  Layout layout{};
-
-  [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
-  [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
-  [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
-    return offsets[static_cast<std::size_t>(species)
-                   + static_cast<std::size_t>(moment) * nOpacities];
-  }
-};
-
-// Bremsstrahlung table (5D: nE_in x nE_out x nMom x nRho x nT)
-struct WeakLibScatBremTable {
-  int nOpacities = 0;
-  int nMoments = 0;
-  std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};  // [nE_in, nE_out, nMom, nRho, nT]
-
-  std::string name;
-  std::string unit;
-  // Offsets: 2D [nOpacities, nMoments] — column-major (species stride=1)
-  amrex::Gpu::PinnedVector<double> offsets;
-  amrex::Vector<double> kernel;  // "S_sigma" (stored as flat array)
-
-  Layout layout{};
-
-  WeakLibScatBremTable() = default;
-  WeakLibScatBremTable(WeakLibScatBremTable&&) = default;
-  WeakLibScatBremTable& operator=(WeakLibScatBremTable&&) = default;
-  WeakLibScatBremTable(const WeakLibScatBremTable&) = delete;
-  WeakLibScatBremTable& operator=(const WeakLibScatBremTable&) = delete;
-
-  [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
-  [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
-  [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
-    return offsets[static_cast<std::size_t>(species)
-                   + static_cast<std::size_t>(moment) * nOpacities];
-  }
-};
-
-struct WeakLibScatBremTableDevice {
-  int nOpacities = 0;
-  int nMoments = 0;
-  std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
-  amrex::Gpu::DeviceVector<double> offsets;
-  amrex::Gpu::DeviceVector<double> kernel;
-  Layout layout{};
-
-  [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
-  [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
-  [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
-    return offsets[static_cast<std::size_t>(species)
-                   + static_cast<std::size_t>(moment) * nOpacities];
-  }
-};
+using WeakLibScatNESTable = WeakLibScatKernelTable;
+using WeakLibScatPairTable = WeakLibScatKernelTable;
+using WeakLibScatBremTable = WeakLibScatKernelTable;
+using WeakLibScatNESTableDevice = WeakLibScatKernelTableDevice;
+using WeakLibScatPairTableDevice = WeakLibScatKernelTableDevice;
+using WeakLibScatBremTableDevice = WeakLibScatKernelTableDevice;
 
 // ThermoState for opacity tables (shared across types)
 struct WeakLibOpacityThermoState {

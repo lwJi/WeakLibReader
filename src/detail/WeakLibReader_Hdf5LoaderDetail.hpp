@@ -24,6 +24,20 @@ inline void CloseHandle(hid_t handle, herr_t (*closer)(hid_t)) noexcept
   }
 }
 
+struct ScopedH5ErrorSuppressor {
+  H5E_auto2_t oldFunc;
+  void* oldClientData;
+  ScopedH5ErrorSuppressor() {
+    H5Eget_auto2(H5E_DEFAULT, &oldFunc, &oldClientData);
+    H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+  }
+  ~ScopedH5ErrorSuppressor() {
+    H5Eset_auto2(H5E_DEFAULT, oldFunc, oldClientData);
+  }
+  ScopedH5ErrorSuppressor(const ScopedH5ErrorSuppressor&) = delete;
+  ScopedH5ErrorSuppressor& operator=(const ScopedH5ErrorSuppressor&) = delete;
+};
+
 struct ScopedHandle {
   hid_t id = -1;
   herr_t (*closer)(hid_t) = nullptr;
@@ -324,10 +338,10 @@ inline bool ValidateFortranDims(const std::array<hsize_t, Rank>& fileDims,
   return true;
 }
 
-template <typename T, int Rank>
-bool ReadWeakLibArrayNd(hid_t parent, const char* name,
-                        amrex::Gpu::PinnedVector<T>& output,
-                        const std::array<int, Rank>& expectedDims)
+template <typename Container, typename T, int Rank>
+bool ReadWeakLibArrayNdImpl(hid_t parent, const char* name,
+                             Container& output,
+                             const std::array<int, Rank>& expectedDims)
 {
   ScopedHandle dataset;
   std::array<hsize_t, Rank> fileDims{};
@@ -354,63 +368,13 @@ bool ReadWeakLibArrayNd(hid_t parent, const char* name,
   return true;
 }
 
-// Read a 3D array dataset
-// Matches Fortran Read3dHDF_integer (wlIOModuleHDF.F90:361-375)
-template <typename T>
-inline bool ReadWeakLibArray3d(hid_t parent, const char* name,
-                               amrex::Gpu::PinnedVector<T>& out,
-                               const std::array<int, 3>& expectedDims)
-{
-  return ReadWeakLibArrayNd<T, 3>(parent, name, out, expectedDims);
-}
-
-// Read a 3D integer array dataset
-// Expects Fortran-written (Ye,T,rho) datasets.
-inline bool ReadIntArray3d(hid_t parent, const char* name,
-                           amrex::Gpu::PinnedVector<int>& out,
-                           const std::array<int, 3>& expectedDims)
-{
-  return ReadWeakLibArray3d<int>(parent, name, out, expectedDims);
-}
-
-inline bool ReadDoubleArray3d(hid_t parent, const char* name,
-                              amrex::Gpu::PinnedVector<double>& out,
-                              const std::array<int, 3>& expectedDims)
-{
-  return ReadWeakLibArray3d<double>(parent, name, out, expectedDims);
-}
-
-// Read 2D array for offsets
-// Fortran order: [d1, d0] -> C order: [d0, d1]
-template <typename T>
-bool ReadWeakLibArray2d(hid_t group, const char* name,
+template <typename T, int Rank>
+bool ReadWeakLibArrayNd(hid_t parent, const char* name,
                         amrex::Gpu::PinnedVector<T>& output,
-                        const std::array<int, 2>& expectedDims)
+                        const std::array<int, Rank>& expectedDims)
 {
-  return ReadWeakLibArrayNd<T, 2>(group, name, output, expectedDims);
-}
-
-inline bool ReadDoubleArray2d(hid_t group, const char* name,
-                              amrex::Gpu::PinnedVector<double>& output,
-                              const std::array<int, 2>& expectedDims)
-{
-  return ReadWeakLibArray2d<double>(group, name, output, expectedDims);
-}
-
-// Read 4D array in Fortran order [d3, d2, d1, d0] -> C order [d0, d1, d2, d3]
-template <typename T>
-bool ReadWeakLibArray4d(hid_t group, const char* name,
-                        amrex::Gpu::PinnedVector<T>& output,
-                        const std::array<int, 4>& expectedDims)
-{
-  return ReadWeakLibArrayNd<T, 4>(group, name, output, expectedDims);
-}
-
-inline bool ReadDoubleArray4d(hid_t group, const char* name,
-                              amrex::Gpu::PinnedVector<double>& output,
-                              const std::array<int, 4>& expectedDims)
-{
-  return ReadWeakLibArray4d<double>(group, name, output, expectedDims);
+  return ReadWeakLibArrayNdImpl<amrex::Gpu::PinnedVector<T>, T, Rank>(
+      parent, name, output, expectedDims);
 }
 
 // Read 5D array in Fortran order [d4, d3, d2, d1, d0] -> C order [d0, d1, d2, d3, d4]
@@ -420,70 +384,15 @@ bool ReadWeakLibArray5d(hid_t group, const char* name,
                         amrex::Vector<T>& output,
                         const std::array<int, 5>& expectedDims)
 {
-  ScopedHandle dataset(H5Dopen(group, name, H5P_DEFAULT), H5Dclose);
-  if (!dataset.Valid()) {
-    return false;
-  }
-
-  ScopedHandle dataspace(H5Dget_space(dataset.Get()), H5Sclose);
-  if (!dataspace.Valid()) {
-    return false;
-  }
-
-  const int rank = H5Sget_simple_extent_ndims(dataspace.Get());
-  if (rank != 5) {
-    return false;
-  }
-
-  hsize_t fileDims[5] = {0, 0, 0, 0, 0};
-  if (H5Sget_simple_extent_dims(dataspace.Get(), fileDims, nullptr) < 0) {
-    return false;
-  }
-
-  // Validate dimensions (Fortran order in file)
-  if (static_cast<int>(fileDims[0]) != expectedDims[4] ||
-      static_cast<int>(fileDims[1]) != expectedDims[3] ||
-      static_cast<int>(fileDims[2]) != expectedDims[2] ||
-      static_cast<int>(fileDims[3]) != expectedDims[1] ||
-      static_cast<int>(fileDims[4]) != expectedDims[0]) {
-    return false;
-  }
-
-  // Compute total size and allocate
-  const std::size_t totalSize = static_cast<std::size_t>(expectedDims[0]) *
-                                 static_cast<std::size_t>(expectedDims[1]) *
-                                 static_cast<std::size_t>(expectedDims[2]) *
-                                 static_cast<std::size_t>(expectedDims[3]) *
-                                 static_cast<std::size_t>(expectedDims[4]);
-  output.resize(totalSize);
-
-  hid_t memType = std::is_same_v<T, double> ? H5T_NATIVE_DOUBLE : H5T_NATIVE_INT;
-  if (H5Dread(dataset.Get(), memType, H5S_ALL, H5S_ALL, H5P_DEFAULT, output.data()) < 0) {
-    return false;
-  }
-
-  return true;
-}
-
-inline bool ReadDoubleArray5d(hid_t group, const char* name,
-                              amrex::Vector<double>& output,
-                              const std::array<int, 5>& expectedDims)
-{
-  return ReadWeakLibArray5d<double>(group, name, output, expectedDims);
+  return ReadWeakLibArrayNdImpl<amrex::Vector<T>, T, 5>(
+      group, name, output, expectedDims);
 }
 
 // Check if HDF5 group exists (suppress errors)
 inline bool GroupExists(hid_t loc, const char* name)
 {
-  H5E_auto2_t oldFunc;
-  void* oldClientData;
-  H5Eget_auto2(H5E_DEFAULT, &oldFunc, &oldClientData);
-  H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
-
+  ScopedH5ErrorSuppressor suppress;
   htri_t exists = H5Lexists(loc, name, H5P_DEFAULT);
-
-  H5Eset_auto2(H5E_DEFAULT, oldFunc, oldClientData);
-
   return exists > 0;
 }
 
@@ -549,11 +458,7 @@ inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char* groupName,
 
   // Try to read optional Zoom (geometric grid)
   {
-    H5E_auto2_t oldFunc;
-    void* oldClientData;
-    H5Eget_auto2(H5E_DEFAULT, &oldFunc, &oldClientData);
-    H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
-
+    ScopedH5ErrorSuppressor suppress;
     ScopedHandle zoomDs(H5Dopen(group.Get(), "Zoom", H5P_DEFAULT), H5Dclose);
     if (zoomDs.Valid()) {
       double zoom = 0.0;
@@ -562,8 +467,6 @@ inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char* groupName,
         grid.zoom = zoom;
       }
     }
-
-    H5Eset_auto2(H5E_DEFAULT, oldFunc, oldClientData);
   }
 
   return Hdf5LoadStatus::Success;
