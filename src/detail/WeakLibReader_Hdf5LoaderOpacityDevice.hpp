@@ -3,8 +3,7 @@
 namespace WeakLibReader {
 namespace detail {
 
-inline void CopyGridToDevice(const WeakLibOpacityGrid& host, WeakLibOpacityGridDevice& device,
-                              amrex::Arena* arena = amrex::The_Device_Arena())
+inline void CopyGridToDevice(const WeakLibOpacityGrid& host, WeakLibOpacityGridDevice& device)
 {
   device.nPoints = host.nPoints;
   device.scale = host.scale;
@@ -17,8 +16,7 @@ inline void CopyGridToDevice(const WeakLibOpacityGrid& host, WeakLibOpacityGridD
 }
 
 inline void CopyThermoStateToDevice(const WeakLibOpacityThermoState& host,
-                                     WeakLibOpacityThermoStateDevice& device,
-                                     amrex::Arena* arena = amrex::The_Device_Arena())
+                                    WeakLibOpacityThermoStateDevice& device)
 {
   device.dimensions = host.dimensions;
   device.scales = host.scales;
@@ -63,15 +61,14 @@ inline void CopyScatKernelToDevice(
 
 } // namespace detail
 
-inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host,
-                                                 amrex::Arena* arena = amrex::The_Device_Arena())
+inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host)
 {
   WeakLibOpacityTableDevice device{};
 
   // Copy grids
-  detail::CopyGridToDevice(host.energyGrid, device.energyGrid, arena);
-  detail::CopyGridToDevice(host.etaGrid, device.etaGrid, arena);
-  detail::CopyThermoStateToDevice(host.thermoState, device.thermoState, arena);
+  detail::CopyGridToDevice(host.energyGrid, device.energyGrid);
+  detail::CopyGridToDevice(host.etaGrid, device.etaGrid);
+  detail::CopyThermoStateToDevice(host.thermoState, device.thermoState);
 
   // Copy EmAb
   if (host.emAb.IsLoaded()) {

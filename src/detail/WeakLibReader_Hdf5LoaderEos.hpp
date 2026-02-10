@@ -195,8 +195,7 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
   return Hdf5LoadStatus::Success;
 }
 
-inline WeakLibEosTableDevice MakeDeviceCopy(const WeakLibEosTable& host,
-                                             amrex::Arena* arena = amrex::The_Device_Arena())
+inline WeakLibEosTableDevice MakeDeviceCopy(const WeakLibEosTable& host)
 {
   WeakLibEosTableDevice device{};
   device.nVariables = host.nVariables;
