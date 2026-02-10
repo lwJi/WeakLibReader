@@ -583,8 +583,8 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
 
   // Read kernel data for each species
   for (int iSpecies = 0; iSpecies < WeakLibScatIsoTable::kNumSpecies && iSpecies < scatIso.nOpacities; ++iSpecies) {
-    if (!detail::ReadWeakLibArray5d<double>(group.Get(), scatIso.names[iSpecies].c_str(),
-                                   scatIso.kernels[iSpecies], scatIso.dimensions)) {
+    if (!detail::ReadWeakLibArrayNd<double, 5>(group.Get(), scatIso.names[iSpecies].c_str(),
+                                               scatIso.kernels[iSpecies], scatIso.dimensions)) {
       return Hdf5LoadStatus::DatasetReadFailed;
     }
   }
@@ -681,7 +681,7 @@ inline Hdf5LoadStatus LoadScatKernelTable(
 
   // Set kernel name and read kernel data
   table.name = kernelDatasetName;
-  if (!ReadWeakLibArray5d<double>(group.Get(), kernelDatasetName, table.kernel, table.dimensions)) {
+  if (!ReadWeakLibArrayNd<double, 5>(group.Get(), kernelDatasetName, table.kernel, table.dimensions)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 

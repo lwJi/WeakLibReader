@@ -323,7 +323,7 @@ struct WeakLibScatIsoTable {
   amrex::Gpu::PinnedVector<double> offsets;
 
   // Kernel data: 5D per species (stored as flat arrays)
-  std::array<amrex::Vector<double>, kNumSpecies> kernels;
+  std::array<amrex::Gpu::PinnedVector<double>, kNumSpecies> kernels;
 
   // Correction flags
   int weak_magnetism_corrections = -1;
@@ -388,7 +388,7 @@ struct WeakLibScatKernelTable {
   std::string unit;
   // Offsets: 2D [nOpacities, nMoments] — column-major (species stride=1)
   amrex::Gpu::PinnedVector<double> offsets;
-  amrex::Vector<double> kernel;  // Stored as flat array
+  amrex::Gpu::PinnedVector<double> kernel;  // Stored as flat array
 
   int NPS = -1;  // Neutrino-positron scattering flag (NES only; -1 = not set)
 

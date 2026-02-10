@@ -377,17 +377,6 @@ bool ReadWeakLibArrayNd(hid_t parent, const char* name,
       parent, name, output, expectedDims);
 }
 
-// Read 5D array in Fortran order [d4, d3, d2, d1, d0] -> C order [d0, d1, d2, d3, d4]
-// Stores data in a flat amrex::Vector<T>.
-template <typename T>
-bool ReadWeakLibArray5d(hid_t group, const char* name,
-                        amrex::Vector<T>& output,
-                        const std::array<int, 5>& expectedDims)
-{
-  return ReadWeakLibArrayNdImpl<amrex::Vector<T>, T, 5>(
-      group, name, output, expectedDims);
-}
-
 // Check if HDF5 group exists (suppress errors)
 inline bool GroupExists(hid_t loc, const char* name)
 {
