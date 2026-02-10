@@ -4,68 +4,24 @@
 
 Translate WeakLib's EOS & opacity **interpolators** from Fortran into **GPU-friendly C++** that integrates with **AMReX**. Target: numerical parity with Fortran (≤1e-12 relative error), CUDA first (HIP later).
 
-## Repository Structure
+## Tech Stack
+
+- **C++17 header-only library** (all code in `src/` headers)
+- **AMReX** for GPU portability (`AMREX_GPU_HOST_DEVICE`, `Gpu::DeviceVector`, `Gpu::PinnedVector`)
+- **HDF5** for table I/O (only supported format)
+- **Catch2** test framework (`test/`)
+- **CMake 3.18+** build system
+
+## Project Structure
 
 ```
-src/                                        # Public API headers
-  WeakLibReader_AxisTypes.hpp               # Axis, AxisScale
-  WeakLibReader_Hdf5Loader.hpp              # HDF5 table loader API
-  WeakLibReader_Hdf5Types.hpp               # HDF5-related types (TableView, Hdf5Table, etc.)
-  WeakLibReader_IndexDelta.hpp              # Linear/log10 indexing helpers
-  WeakLibReader_InterpBasis.hpp             # Linear through penta-linear basis routines
-  WeakLibReader_InterpLogTable.hpp          # Aggregator for log-table interpolation headers
-  WeakLibReader_Layout.hpp                  # Row-major stride helpers
-  WeakLibReader_LogInterpolate.hpp          # Aggregator for high-level interpolation API
-  WeakLibReader_Math.hpp                    # GPU math utilities (Log10, Pow10)
-  detail/                                   # Implementation details (internal)
-    WeakLibReader_Hdf5LoaderDetail.hpp      # HDF5 loading implementation
-    WeakLibReader_InterpLogTableDeriv.hpp   # Point derivative kernels
-    WeakLibReader_InterpLogTablePoint.hpp   # Point interpolation kernels
-    WeakLibReader_InterpLogTableSlice.hpp   # Slice and symmetric plane ops
-    WeakLibReader_LogInterpolateCore.hpp    # Template dispatch by dimension
-    WeakLibReader_LogInterpolateDeriv.hpp   # Derivative API wrappers
-    WeakLibReader_LogInterpolatePoint.hpp   # Single-point API wrappers
-    WeakLibReader_LogInterpolateSum.hpp     # Sum utilities
-    WeakLibReader_LogInterpolateSweep.hpp   # Batch/sweep operations
-test/                                       # Regression tests (Catch2)
-  test_hdf5_loader.cpp                      # HDF5 loader tests
-  test_log_interpolate_2d.cpp               # 2D interpolation tests
-  test_log_interpolate_3d.cpp               # 3D interpolation tests
-  test_log_interpolate_4d5d.cpp             # 4D/5D interpolation tests
-  test_log_interpolate_basis.cpp            # Basis function tests
-  test_log_interpolate_deriv.cpp            # Derivative tests
-  test_log_interpolate_kernel.cpp           # Kernel unit tests
-  test_log_interpolate_sweep.cpp            # Sweep operation tests
-  test_weaklib_eos_loader.cpp               # WeakLib EOS table loader tests
-ref/weaklib/                                # Fortran reference implementation
-  wlInterpolationModule.F90                 # Main interpolation routines
-  wlInterpolationUtilitiesModule.F90        # Utility functions
-  wlIOModuleHDF.F90                         # HDF5 I/O module
-  wlKindModule.f90                          # Kind parameter definitions
-cactus_interface/                           # Cactus thorn integration
-  WeakLibReader/                            # Library thorn
-  TestWeakLibReader/                        # Test thorn with example usage
-scripts/                                    # Build & test automation
-  build.sh                                  # Build only
-  test.sh                                   # Run tests only
-  check.sh                                  # Build and test together
+src/              # Public API headers + detail/ subdirectory for internals
+test/             # Catch2 regression tests (EOS, opacity, interpolation, HDF5)
+ref/weaklib/      # Fortran reference implementation (consult before new interp logic)
+cactus_interface/ # Cactus thorns: WeakLibReader (library) + TestWeakLibReader (example)
+scripts/          # build.sh, test.sh, check.sh
+agent_docs/       # Detailed reference docs (HDF5 formats, opacity tables, Cactus patterns)
 ```
-
-## Naming Conventions
-
-- **Namespace:** `WeakLibReader`
-- **Types/Functions:** `PascalCase` (e.g., `Axis`, `IndexAndDeltaLin`)
-- **Variables:** `lowerCamelCase` (e.g., `fracT`, `rowStride`)
-- **Standard:** C++17+
-
-## Key Design Principles
-
-1. **Row-major layout** with precomputed strides
-2. **No STL containers** in device code; no dynamic allocations in kernels
-3. **Pass by value** for small structs (`Axis`, `Layout`)
-4. **Out-of-range handling:** Extrapolation (matches Fortran behavior)
-5. **Strict monotonicity** for axis grids (validated at load time)
-6. **Device functions** must be `noexcept`, inline, `AMREX_GPU_HOST_DEVICE`
 
 ## Build & Test
 
@@ -77,45 +33,16 @@ scripts/check.sh   # Build and test together
 
 Set `VERBOSE=1` for full test output (e.g., `VERBOSE=1 scripts/test.sh`).
 
-## HDF5 Table Format
+## Architecture
 
-### Simple Format (Generic Tables)
-
-```
-/values              # N-D array (row-major)
-/axis0, /axis1, ...  # 1D arrays with "scale" attribute ("linear" or "log10")
-```
-
-Validation: monotonic ascending, positive values for Log10 axes.
-
-### Native WeakLib EOS Format
-
-```
-/ThermoState/
-  Dimensions[3]                     # Grid dimensions [nRho, nT, nYe]
-  Density[nRho]                     # Density axis (log10 scale)
-  Temperature[nT]                   # Temperature axis (log10 scale)
-  Electron Fraction[nYe]            # Ye axis (linear scale)
-/DependentVariables/
-  nVariables                        # Number of dependent variables
-  Names[], Units[], Offsets[]       # Variable metadata
-  iPressure, iEntropyPerBaryon, ... # Index mappings for each variable
-  {variable_name}[nYe,nT,nRho]      # Variable data arrays
-```
-
-Use `LoadWeakLibEosTableFull()` for complete tables.
-
-## Fortran Reference
-
-Located in `ref/weaklib/`. Key modules: `wlInterpolationModule.F90`, `wlInterpolationUtilitiesModule.F90`. Always consult before implementing new interpolation logic.
-
-## Architectural Decisions (Locked)
-
-1. **Out-of-range behavior:** Natural extrapolation (matches Fortran)
-2. **Precision:** Double throughout
-3. **Table I/O:** HDF5 only
-4. **GPU backend:** CUDA first, HIP/DPCPP later
-5. **Memory layout:** Explicit row-major with precomputed strides
+- **Column-major layout** — `stride[0]=1`, first dimension varies fastest; precomputed strides via `MakeLayout()`
+- **No STL containers in device code** — no dynamic allocations in kernels
+- **Pass by value** for small structs (`Axis`, `Layout`)
+- **Out-of-range:** natural extrapolation (matches Fortran)
+- **Double precision** throughout
+- **Device functions** must be `noexcept`, inline, `AMREX_GPU_HOST_DEVICE`
+- **Strict monotonicity** for axis grids (validated at load time)
+- **GPU backend:** CUDA first, HIP/DPCPP later
 
 ## Do's and Don'ts
 
@@ -131,3 +58,15 @@ Located in `ref/weaklib/`. Key modules: `wlInterpolationModule.F90`, `wlInterpol
 - Use STL containers or dynamic allocations in device code
 - Add OpenACC or non-AMReX GPU pragmas
 - Skip host-side validation (monotonicity, Log10 positivity)
+
+## Fortran Reference
+
+Located in `ref/weaklib/`. Key modules: `wlInterpolationModule.F90`, `wlInterpolationUtilitiesModule.F90`. Always consult before implementing new interpolation logic.
+
+## Agent Docs
+
+Detailed reference material in `agent_docs/` — consult when working on specific subsystems:
+
+- **`hdf5_formats.md`** — HDF5 table schemas (simple, EOS, opacity) and loader function reference
+- **`opacity_tables.md`** — Opacity table types, dimensions, interpolation API, device patterns
+- **`cactus_integration.md`** — Cactus thorn CCL patterns, device loops, parameter sharing

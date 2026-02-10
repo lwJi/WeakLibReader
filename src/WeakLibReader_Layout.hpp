@@ -8,8 +8,8 @@ namespace WeakLibReader {
 
 struct Layout {
   int nd = 0;                  // number of dimensions, 1..5
-  int n[5] = {1, 1, 1, 1, 1};   // extent along each axis (row-major ordering)
-  std::size_t stride[5] = {0, 0, 0, 0, 0}; // row-major stride for each axis
+  int n[5] = {1, 1, 1, 1, 1};   // extent along each axis (column-major ordering)
+  std::size_t stride[5] = {0, 0, 0, 0, 0}; // column-major stride for each axis
 
   AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
   std::size_t Offset(const int idx[5]) const noexcept
