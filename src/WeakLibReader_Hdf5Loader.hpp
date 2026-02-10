@@ -1,6 +1,5 @@
 #pragma once
 
-#include <AMReX_Arena.H>
 #include <AMReX_Array.H>
 #include <AMReX_GpuContainers.H>
 #include <AMReX_ParallelDescriptor.H>

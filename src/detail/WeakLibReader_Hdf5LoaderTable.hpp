@@ -65,8 +65,7 @@ inline Hdf5LoadStatus LoadHdf5Table(const std::string& filePath,
   return Hdf5LoadStatus::Success;
 }
 
-inline TableDevice MakeDeviceCopy(const Hdf5Table& host,
-                                  amrex::Arena* arena = amrex::The_Device_Arena())
+inline TableDevice MakeDeviceCopy(const Hdf5Table& host)
 {
   TableDevice device{};
   device.nd = host.nd;
