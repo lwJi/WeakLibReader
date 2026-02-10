@@ -751,3 +751,80 @@ TEST_CASE("MakeDeviceCopy creates device copy of opacity table", "[hdf5][weaklib
   CHECK(deviceTable.emAb.dimensions == hostTable.emAb.dimensions);
   CHECK(deviceTable.energyGrid.nPoints == hostTable.energyGrid.nPoints);
 }
+
+TEST_CASE("Opacity accessor Try* APIs handle invalid indices", "[hdf5][weaklib][opacity][accessors]")
+{
+  EnsureAmrexInitialized();
+
+  const std::filesystem::path emabPath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_accessor_emab.h5";
+  const std::filesystem::path isoPath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_accessor_iso.h5";
+  const std::filesystem::path nesPath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_accessor_nes.h5";
+
+  CreateWeakLibEmAbTestFile(emabPath);
+  CreateWeakLibIsoTestFile(isoPath);
+  CreateWeakLibNESTestFile(nesPath);
+
+  WeakLibOpacityTable table;
+  const auto status =
+      LoadWeakLibOpacityTableFull(table, emabPath.string(), isoPath.string(), nesPath.string());
+  REQUIRE(status == Hdf5LoadStatus::Success);
+
+  CHECK(table.emAb.TryOpacityData(-1) == nullptr);
+  CHECK(table.emAb.TryOpacityData(table.emAb.nOpacities) == nullptr);
+  CHECK(table.emAb.TryOpacityData(0) != nullptr);
+
+  CHECK(table.scatIso.TryKernelData(-1) == nullptr);
+  CHECK(table.scatIso.TryKernelData(table.scatIso.nOpacities) == nullptr);
+  CHECK(table.scatIso.TryKernelData(0) != nullptr);
+
+  double offset = 0.0;
+  CHECK_FALSE(table.scatIso.TryOffsetValue(-1, 0, offset));
+  CHECK_FALSE(table.scatIso.TryOffsetValue(0, table.scatIso.nMoments, offset));
+  CHECK(table.scatIso.TryOffsetValue(0, 0, offset));
+
+  CHECK_FALSE(table.scatNES.TryOffsetValue(-1, 0, offset));
+  CHECK_FALSE(table.scatNES.TryOffsetValue(0, table.scatNES.nMoments, offset));
+  CHECK(table.scatNES.TryOffsetValue(0, 0, offset));
+
+  std::filesystem::remove(emabPath);
+  std::filesystem::remove(isoPath);
+  std::filesystem::remove(nesPath);
+}
+
+TEST_CASE("Opacity loaded-state checks require consistent backing data", "[hdf5][weaklib][opacity][validation]")
+{
+  WeakLibEmAbTable emAb{};
+  emAb.nOpacities = 1;
+  emAb.dimensions = {2, 2, 2, 2};
+  emAb.layout = MakeLayout(emAb.dimensions.data(), 4);
+  CHECK_FALSE(emAb.IsLoaded());
+  emAb.opacities[0].resize(16);
+  CHECK(emAb.IsLoaded());
+
+  WeakLibScatIsoTable iso{};
+  iso.nOpacities = 1;
+  iso.nMoments = 2;
+  iso.dimensions = {2, 2, 2, 2, 2};
+  iso.layout = MakeLayout(iso.dimensions.data(), 5);
+  CHECK_FALSE(iso.IsLoaded());
+  iso.offsets.resize(2);
+  iso.kernels[0].resize(32);
+  CHECK(iso.IsLoaded());
+  iso.offsets.resize(1);
+  CHECK_FALSE(iso.IsLoaded());
+
+  WeakLibScatKernelTable nes{};
+  nes.nOpacities = 1;
+  nes.nMoments = 2;
+  nes.dimensions = {2, 2, 2, 2, 2};
+  nes.layout = MakeLayout(nes.dimensions.data(), 5);
+  CHECK_FALSE(nes.IsLoaded());
+  nes.offsets.resize(2);
+  nes.kernel.resize(32);
+  CHECK(nes.IsLoaded());
+  nes.kernel.resize(31);
+  CHECK_FALSE(nes.IsLoaded());
+}

@@ -203,6 +203,12 @@ inline WeakLibEosTableDevice MakeDeviceCopy(const WeakLibEosTable& host)
   device.layout = host.layout;
   device.indices = host.indices;
   device.offsets = host.offsets;
+  device.offsetsDevice.resize(host.offsets.size());
+  if (!host.offsets.empty()) {
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                     host.offsets.begin(), host.offsets.end(),
+                     device.offsetsDevice.begin());
+  }
 
   // Copy axes to device
   for (int dim = 0; dim < 3; ++dim) {
@@ -219,13 +225,36 @@ inline WeakLibEosTableDevice MakeDeviceCopy(const WeakLibEosTable& host)
     device.axes[dim].scale = host.axes[dim].scale;
   }
 
-  // Copy all variable data to device
-  device.variables.resize(host.nVariables);
+  // Copy all variable data into one contiguous device buffer
+  device.variableBlockSize = host.variables.empty() ? 0 : host.variables[0].size();
+  const std::size_t totalVariableSize =
+      device.variableBlockSize * static_cast<std::size_t>(host.nVariables);
+  device.variableData.resize(totalVariableSize);
+
   for (int iVar = 0; iVar < host.nVariables; ++iVar) {
-    device.variables[iVar].resize(host.variables[iVar].size());
+    const auto& hostVar = host.variables[static_cast<std::size_t>(iVar)];
+    AMREX_ASSERT(hostVar.size() == device.variableBlockSize);
+    if (!hostVar.empty()) {
+      amrex::Gpu::copy(
+          amrex::Gpu::hostToDevice,
+          hostVar.begin(), hostVar.end(),
+          device.variableData.begin()
+              + static_cast<std::ptrdiff_t>(static_cast<std::size_t>(iVar) * device.variableBlockSize));
+    }
+  }
+
+  // Build device pointer table for kernel-side indexed variable access.
+  device.variablePointers.resize(static_cast<std::size_t>(host.nVariables));
+  if (host.nVariables > 0) {
+    amrex::Vector<double*> hostPointers(static_cast<std::size_t>(host.nVariables), nullptr);
+    double* const basePtr = device.variableData.data();
+    for (int iVar = 0; iVar < host.nVariables; ++iVar) {
+      hostPointers[static_cast<std::size_t>(iVar)] =
+          basePtr + static_cast<std::size_t>(iVar) * device.variableBlockSize;
+    }
     amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                     host.variables[iVar].begin(), host.variables[iVar].end(),
-                     device.variables[iVar].begin());
+                     hostPointers.begin(), hostPointers.end(),
+                     device.variablePointers.begin());
   }
 
   // Copy Repaired mask to device

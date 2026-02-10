@@ -1,10 +1,13 @@
 #pragma once
 
 #include <AMReX_Array.H>
+#include <AMReX_BLassert.H>
 #include <AMReX_GpuContainers.H>
+#include <AMReX_GpuQualifiers.H>
 #include <AMReX_Vector.H>
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -13,6 +16,25 @@
 #include "WeakLibReader_AxisTypes.hpp"
 
 namespace WeakLibReader {
+
+namespace detail {
+
+template <std::size_t N>
+[[nodiscard]] inline std::size_t ExpectedSizeOrZero(
+    const std::array<int, N>& dims) noexcept
+{
+  std::size_t total = 1;
+  for (std::size_t i = 0; i < N; ++i) {
+    const int extent = dims[i];
+    if (extent <= 0) {
+      return 0;
+    }
+    total *= static_cast<std::size_t>(extent);
+  }
+  return total;
+}
+
+} // namespace detail
 
 enum class Hdf5LoadStatus : std::uint8_t {
   Success = 0,
@@ -47,6 +69,12 @@ struct TableDevice {
   Axis axes[5]{};
   amrex::Gpu::DeviceVector<double> values;
   std::array<amrex::Gpu::DeviceVector<double>, 5> axisStorage{};
+
+  TableDevice() = default;
+  TableDevice(TableDevice&&) = default;
+  TableDevice& operator=(TableDevice&&) = default;
+  TableDevice(const TableDevice&) = delete;
+  TableDevice& operator=(const TableDevice&) = delete;
 
   [[nodiscard]] TableView View() const noexcept
   {
@@ -139,9 +167,50 @@ struct WeakLibEosTable {
   WeakLibEosTable(const WeakLibEosTable&) = delete;
   WeakLibEosTable& operator=(const WeakLibEosTable&) = delete;
 
-  // Get data pointer for a specific variable
+  [[nodiscard]] bool HasVariable(int varIndex) const noexcept {
+    return varIndex >= 0
+        && varIndex < nVariables
+        && static_cast<std::size_t>(varIndex) < variables.size();
+  }
+
+  [[nodiscard]] const double* TryVariableData(int varIndex) const noexcept {
+    return HasVariable(varIndex) ? variables[static_cast<std::size_t>(varIndex)].data()
+                                 : nullptr;
+  }
+
+  // Get data pointer for a specific variable (asserts on invalid index)
   [[nodiscard]] const double* VariableData(int varIndex) const noexcept {
-    return variables[varIndex].data();
+    AMREX_ASSERT(HasVariable(varIndex));
+    return TryVariableData(varIndex);
+  }
+};
+
+struct WeakLibEosTableDeviceView {
+  int nVariables = 0;
+  std::array<int, 3> dimensions{{0, 0, 0}};
+  Axis axes[3]{};
+  Layout layout{};
+  const double* offsets = nullptr;
+  double* const* variablePointers = nullptr;
+  const int* repaired = nullptr;
+  std::size_t variableBlockSize = 0;
+
+  AMREX_GPU_HOST_DEVICE
+  [[nodiscard]] bool HasVariable(int varIndex) const noexcept {
+    return varIndex >= 0 && varIndex < nVariables
+        && offsets != nullptr
+        && variablePointers != nullptr;
+  }
+
+  AMREX_GPU_HOST_DEVICE
+  [[nodiscard]] const double* TryVariableData(int varIndex) const noexcept {
+    return HasVariable(varIndex) ? variablePointers[varIndex] : nullptr;
+  }
+
+  AMREX_GPU_HOST_DEVICE
+  [[nodiscard]] const double* VariableData(int varIndex) const noexcept {
+    AMREX_ASSERT(HasVariable(varIndex));
+    return TryVariableData(varIndex);
   }
 };
 
@@ -154,13 +223,52 @@ struct WeakLibEosTableDevice {
   Layout layout{};
 
   std::vector<double> offsets;
-  std::vector<amrex::Gpu::DeviceVector<double>> variables;
+  amrex::Gpu::DeviceVector<double> offsetsDevice;
+  std::size_t variableBlockSize = 0;
+  amrex::Gpu::DeviceVector<double> variableData;
+  amrex::Gpu::DeviceVector<double*> variablePointers;
   amrex::Gpu::DeviceVector<int> repaired;
   WeakLibEosIndices indices;
 
-  // Get device data pointer for a specific variable
+  WeakLibEosTableDevice() = default;
+  WeakLibEosTableDevice(WeakLibEosTableDevice&&) = default;
+  WeakLibEosTableDevice& operator=(WeakLibEosTableDevice&&) = default;
+  WeakLibEosTableDevice(const WeakLibEosTableDevice&) = delete;
+  WeakLibEosTableDevice& operator=(const WeakLibEosTableDevice&) = delete;
+
+  [[nodiscard]] bool HasVariable(int varIndex) const noexcept {
+    return varIndex >= 0 && varIndex < nVariables
+        && variableBlockSize > 0
+        && variableData.size() >= variableBlockSize * static_cast<std::size_t>(nVariables);
+  }
+
+  [[nodiscard]] const double* TryVariableData(int varIndex) const noexcept {
+    if (!HasVariable(varIndex)) {
+      return nullptr;
+    }
+    return variableData.data() + static_cast<std::size_t>(varIndex) * variableBlockSize;
+  }
+
+  // Get device data pointer for a specific variable (asserts on invalid index)
   [[nodiscard]] const double* VariableData(int varIndex) const noexcept {
-    return variables[varIndex].data();
+    AMREX_ASSERT(HasVariable(varIndex));
+    return TryVariableData(varIndex);
+  }
+
+  [[nodiscard]] WeakLibEosTableDeviceView View() const noexcept
+  {
+    WeakLibEosTableDeviceView view{};
+    view.nVariables = nVariables;
+    view.dimensions = dimensions;
+    for (int dim = 0; dim < 3; ++dim) {
+      view.axes[dim] = axes[dim];
+    }
+    view.layout = layout;
+    view.offsets = offsetsDevice.data();
+    view.variablePointers = variablePointers.data();
+    view.repaired = repaired.data();
+    view.variableBlockSize = variableBlockSize;
+    return view;
   }
 };
 
@@ -182,6 +290,8 @@ struct WeakLibOpacityGrid {
   double maxValue = 0.0;
 
   [[nodiscard]] Axis MakeAxis() const noexcept {
+    AMREX_ASSERT(nPoints >= 0);
+    AMREX_ASSERT(static_cast<std::size_t>(nPoints) <= values.size());
     return Axis{values.data(), nPoints, scale};
   }
 };
@@ -192,6 +302,8 @@ struct WeakLibOpacityGridDevice {
   amrex::Gpu::DeviceVector<double> values;
 
   [[nodiscard]] Axis MakeAxis() const noexcept {
+    AMREX_ASSERT(nPoints >= 0);
+    AMREX_ASSERT(static_cast<std::size_t>(nPoints) <= values.size());
     return Axis{values.data(), nPoints, scale};
   }
 };
@@ -221,7 +333,19 @@ struct WeakLibECTable {
   // Rate: 3D [nRho, nT, nYe]
   amrex::Gpu::PinnedVector<double> rate;
 
-  [[nodiscard]] bool IsPresent() const noexcept { return nE > 0; }
+  [[nodiscard]] bool IsPresent() const noexcept {
+    if (nE <= 0 || nRho <= 0 || nT <= 0 || nYe <= 0) {
+      return false;
+    }
+    const std::array<int, 4> specDims{{nRho, nT, nYe, nE}};
+    const std::array<int, 3> rateDims{{nRho, nT, nYe}};
+    return energyValues.size() == static_cast<std::size_t>(nE)
+        && rhoValues.size() == static_cast<std::size_t>(nRho)
+        && tempValues.size() == static_cast<std::size_t>(nT)
+        && yeValues.size() == static_cast<std::size_t>(nYe)
+        && spectrum.size() == detail::ExpectedSizeOrZero(specDims)
+        && rate.size() == detail::ExpectedSizeOrZero(rateDims);
+  }
 };
 
 struct WeakLibECTableDevice {
@@ -245,7 +369,19 @@ struct WeakLibECTableDevice {
   amrex::Gpu::DeviceVector<double> spectrum;
   amrex::Gpu::DeviceVector<double> rate;
 
-  [[nodiscard]] bool IsPresent() const noexcept { return nE > 0; }
+  [[nodiscard]] bool IsPresent() const noexcept {
+    if (nE <= 0 || nRho <= 0 || nT <= 0 || nYe <= 0) {
+      return false;
+    }
+    const std::array<int, 4> specDims{{nRho, nT, nYe, nE}};
+    const std::array<int, 3> rateDims{{nRho, nT, nYe}};
+    return energyValues.size() == static_cast<std::size_t>(nE)
+        && rhoValues.size() == static_cast<std::size_t>(nRho)
+        && tempValues.size() == static_cast<std::size_t>(nT)
+        && yeValues.size() == static_cast<std::size_t>(nYe)
+        && spectrum.size() == detail::ExpectedSizeOrZero(specDims)
+        && rate.size() == detail::ExpectedSizeOrZero(rateDims);
+  }
 };
 
 // EmAb physics parameters (new format only, -1 for legacy)
@@ -286,9 +422,37 @@ struct WeakLibEmAbTable {
   WeakLibEmAbTable(const WeakLibEmAbTable&) = delete;
   WeakLibEmAbTable& operator=(const WeakLibEmAbTable&) = delete;
 
-  [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
+  [[nodiscard]] bool IsLoaded() const noexcept {
+    if (nOpacities <= 0 || nOpacities > kNumSpecies || layout.nd != 4) {
+      return false;
+    }
+    const std::size_t expected = detail::ExpectedSizeOrZero(dimensions);
+    if (expected == 0) {
+      return false;
+    }
+    for (int species = 0; species < nOpacities; ++species) {
+      if (opacities[species].size() != expected) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  [[nodiscard]] bool HasSpecies(int species) const noexcept {
+    return species >= 0
+        && species < nOpacities
+        && species < kNumSpecies
+        && opacities[static_cast<std::size_t>(species)].data() != nullptr;
+  }
+
+  [[nodiscard]] const double* TryOpacityData(int species) const noexcept {
+    return HasSpecies(species) ? opacities[static_cast<std::size_t>(species)].data()
+                               : nullptr;
+  }
+
   [[nodiscard]] const double* OpacityData(int species) const noexcept {
-    return opacities[species].data();
+    AMREX_ASSERT(HasSpecies(species));
+    return TryOpacityData(species);
   }
 };
 
@@ -303,9 +467,37 @@ struct WeakLibEmAbTableDevice {
   WeakLibECTableDevice ecTable;
   Layout layout{};
 
-  [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
+  [[nodiscard]] bool IsLoaded() const noexcept {
+    if (nOpacities <= 0 || nOpacities > kNumSpecies || layout.nd != 4) {
+      return false;
+    }
+    const std::size_t expected = detail::ExpectedSizeOrZero(dimensions);
+    if (expected == 0) {
+      return false;
+    }
+    for (int species = 0; species < nOpacities; ++species) {
+      if (opacities[species].size() != expected) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  [[nodiscard]] bool HasSpecies(int species) const noexcept {
+    return species >= 0
+        && species < nOpacities
+        && species < kNumSpecies
+        && opacities[static_cast<std::size_t>(species)].data() != nullptr;
+  }
+
+  [[nodiscard]] const double* TryOpacityData(int species) const noexcept {
+    return HasSpecies(species) ? opacities[static_cast<std::size_t>(species)].data()
+                               : nullptr;
+  }
+
   [[nodiscard]] const double* OpacityData(int species) const noexcept {
-    return opacities[species].data();
+    AMREX_ASSERT(HasSpecies(species));
+    return TryOpacityData(species);
   }
 };
 
@@ -339,13 +531,72 @@ struct WeakLibScatIsoTable {
   WeakLibScatIsoTable(const WeakLibScatIsoTable&) = delete;
   WeakLibScatIsoTable& operator=(const WeakLibScatIsoTable&) = delete;
 
-  [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
-  [[nodiscard]] const double* KernelData(int species) const noexcept {
-    return kernels[species].data();
+  [[nodiscard]] bool IsLoaded() const noexcept {
+    if (nOpacities <= 0 || nOpacities > kNumSpecies || nMoments <= 0 || layout.nd != 5) {
+      return false;
+    }
+    const std::size_t expectedOffsets =
+        static_cast<std::size_t>(nOpacities) * static_cast<std::size_t>(nMoments);
+    if (offsets.size() != expectedOffsets) {
+      return false;
+    }
+    if (dimensions[1] != nMoments) {
+      return false;
+    }
+    const std::size_t expectedKernel = detail::ExpectedSizeOrZero(dimensions);
+    if (expectedKernel == 0) {
+      return false;
+    }
+    for (int species = 0; species < nOpacities; ++species) {
+      if (kernels[species].size() != expectedKernel) {
+        return false;
+      }
+    }
+    return true;
   }
+
+  [[nodiscard]] bool HasSpecies(int species) const noexcept {
+    return species >= 0
+        && species < nOpacities
+        && species < kNumSpecies
+        && kernels[static_cast<std::size_t>(species)].data() != nullptr;
+  }
+
+  [[nodiscard]] bool HasMoment(int moment) const noexcept {
+    return moment >= 0 && moment < nMoments;
+  }
+
+  [[nodiscard]] const double* TryKernelData(int species) const noexcept {
+    return HasSpecies(species) ? kernels[static_cast<std::size_t>(species)].data()
+                               : nullptr;
+  }
+
+  [[nodiscard]] const double* KernelData(int species) const noexcept {
+    AMREX_ASSERT(HasSpecies(species));
+    return TryKernelData(species);
+  }
+
+  [[nodiscard]] bool TryOffsetValue(int species, int moment, double& value) const noexcept {
+    if (!HasSpecies(species) || !HasMoment(moment)) {
+      value = 0.0;
+      return false;
+    }
+    const std::size_t idx =
+        static_cast<std::size_t>(species)
+        + static_cast<std::size_t>(moment) * static_cast<std::size_t>(nOpacities);
+    if (idx >= offsets.size()) {
+      value = 0.0;
+      return false;
+    }
+    value = offsets[idx];
+    return true;
+  }
+
   [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
-    return offsets[static_cast<std::size_t>(species)
-                   + static_cast<std::size_t>(moment) * nOpacities];
+    double value = 0.0;
+    const bool ok = TryOffsetValue(species, moment, value);
+    AMREX_ASSERT(ok);
+    return value;
   }
 };
 
@@ -365,13 +616,72 @@ struct WeakLibScatIsoTableDevice {
 
   Layout layout{};
 
-  [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
-  [[nodiscard]] const double* KernelData(int species) const noexcept {
-    return kernels[species].data();
+  [[nodiscard]] bool IsLoaded() const noexcept {
+    if (nOpacities <= 0 || nOpacities > kNumSpecies || nMoments <= 0 || layout.nd != 5) {
+      return false;
+    }
+    const std::size_t expectedOffsets =
+        static_cast<std::size_t>(nOpacities) * static_cast<std::size_t>(nMoments);
+    if (offsets.size() != expectedOffsets) {
+      return false;
+    }
+    if (dimensions[1] != nMoments) {
+      return false;
+    }
+    const std::size_t expectedKernel = detail::ExpectedSizeOrZero(dimensions);
+    if (expectedKernel == 0) {
+      return false;
+    }
+    for (int species = 0; species < nOpacities; ++species) {
+      if (kernels[species].size() != expectedKernel) {
+        return false;
+      }
+    }
+    return true;
   }
+
+  [[nodiscard]] bool HasSpecies(int species) const noexcept {
+    return species >= 0
+        && species < nOpacities
+        && species < kNumSpecies
+        && kernels[static_cast<std::size_t>(species)].data() != nullptr;
+  }
+
+  [[nodiscard]] bool HasMoment(int moment) const noexcept {
+    return moment >= 0 && moment < nMoments;
+  }
+
+  [[nodiscard]] const double* TryKernelData(int species) const noexcept {
+    return HasSpecies(species) ? kernels[static_cast<std::size_t>(species)].data()
+                               : nullptr;
+  }
+
+  [[nodiscard]] const double* KernelData(int species) const noexcept {
+    AMREX_ASSERT(HasSpecies(species));
+    return TryKernelData(species);
+  }
+
+  [[nodiscard]] bool TryOffsetValue(int species, int moment, double& value) const noexcept {
+    if (!HasSpecies(species) || !HasMoment(moment)) {
+      value = 0.0;
+      return false;
+    }
+    const std::size_t idx =
+        static_cast<std::size_t>(species)
+        + static_cast<std::size_t>(moment) * static_cast<std::size_t>(nOpacities);
+    if (idx >= offsets.size()) {
+      value = 0.0;
+      return false;
+    }
+    value = offsets[idx];
+    return true;
+  }
+
   [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
-    return offsets[static_cast<std::size_t>(species)
-                   + static_cast<std::size_t>(moment) * nOpacities];
+    double value = 0.0;
+    const bool ok = TryOffsetValue(species, moment, value);
+    AMREX_ASSERT(ok);
+    return value;
   }
 };
 
@@ -400,11 +710,49 @@ struct WeakLibScatKernelTable {
   WeakLibScatKernelTable(const WeakLibScatKernelTable&) = delete;
   WeakLibScatKernelTable& operator=(const WeakLibScatKernelTable&) = delete;
 
-  [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
+  [[nodiscard]] bool IsLoaded() const noexcept {
+    if (nOpacities <= 0 || nMoments <= 0 || layout.nd != 5) {
+      return false;
+    }
+    const std::size_t expectedOffsets =
+        static_cast<std::size_t>(nOpacities) * static_cast<std::size_t>(nMoments);
+    if (offsets.size() != expectedOffsets) {
+      return false;
+    }
+    if (dimensions[2] != nMoments) {
+      return false;
+    }
+    const std::size_t expectedKernel = detail::ExpectedSizeOrZero(dimensions);
+    return expectedKernel > 0 && kernel.size() == expectedKernel;
+  }
+
   [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
+  [[nodiscard]] bool HasSpecies(int species) const noexcept {
+    return species >= 0 && species < nOpacities;
+  }
+  [[nodiscard]] bool HasMoment(int moment) const noexcept {
+    return moment >= 0 && moment < nMoments;
+  }
+  [[nodiscard]] bool TryOffsetValue(int species, int moment, double& value) const noexcept {
+    if (!HasSpecies(species) || !HasMoment(moment)) {
+      value = 0.0;
+      return false;
+    }
+    const std::size_t idx =
+        static_cast<std::size_t>(species)
+        + static_cast<std::size_t>(moment) * static_cast<std::size_t>(nOpacities);
+    if (idx >= offsets.size()) {
+      value = 0.0;
+      return false;
+    }
+    value = offsets[idx];
+    return true;
+  }
   [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
-    return offsets[static_cast<std::size_t>(species)
-                   + static_cast<std::size_t>(moment) * nOpacities];
+    double value = 0.0;
+    const bool ok = TryOffsetValue(species, moment, value);
+    AMREX_ASSERT(ok);
+    return value;
   }
 };
 
@@ -417,11 +765,49 @@ struct WeakLibScatKernelTableDevice {
   int NPS = -1;
   Layout layout{};
 
-  [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
+  [[nodiscard]] bool IsLoaded() const noexcept {
+    if (nOpacities <= 0 || nMoments <= 0 || layout.nd != 5) {
+      return false;
+    }
+    const std::size_t expectedOffsets =
+        static_cast<std::size_t>(nOpacities) * static_cast<std::size_t>(nMoments);
+    if (offsets.size() != expectedOffsets) {
+      return false;
+    }
+    if (dimensions[2] != nMoments) {
+      return false;
+    }
+    const std::size_t expectedKernel = detail::ExpectedSizeOrZero(dimensions);
+    return expectedKernel > 0 && kernel.size() == expectedKernel;
+  }
+
   [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
+  [[nodiscard]] bool HasSpecies(int species) const noexcept {
+    return species >= 0 && species < nOpacities;
+  }
+  [[nodiscard]] bool HasMoment(int moment) const noexcept {
+    return moment >= 0 && moment < nMoments;
+  }
+  [[nodiscard]] bool TryOffsetValue(int species, int moment, double& value) const noexcept {
+    if (!HasSpecies(species) || !HasMoment(moment)) {
+      value = 0.0;
+      return false;
+    }
+    const std::size_t idx =
+        static_cast<std::size_t>(species)
+        + static_cast<std::size_t>(moment) * static_cast<std::size_t>(nOpacities);
+    if (idx >= offsets.size()) {
+      value = 0.0;
+      return false;
+    }
+    value = offsets[idx];
+    return true;
+  }
   [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
-    return offsets[static_cast<std::size_t>(species)
-                   + static_cast<std::size_t>(moment) * nOpacities];
+    double value = 0.0;
+    const bool ok = TryOffsetValue(species, moment, value);
+    AMREX_ASSERT(ok);
+    return value;
   }
 };
 
@@ -440,6 +826,12 @@ struct WeakLibOpacityThermoState {
   Axis axes[3]{};
   std::array<std::string, 3> names;
   std::array<std::string, 3> units;
+
+  WeakLibOpacityThermoState() = default;
+  WeakLibOpacityThermoState(WeakLibOpacityThermoState&&) = default;
+  WeakLibOpacityThermoState& operator=(WeakLibOpacityThermoState&&) = default;
+  WeakLibOpacityThermoState(const WeakLibOpacityThermoState&) = delete;
+  WeakLibOpacityThermoState& operator=(const WeakLibOpacityThermoState&) = delete;
 };
 
 struct WeakLibOpacityThermoStateDevice {
@@ -447,6 +839,12 @@ struct WeakLibOpacityThermoStateDevice {
   std::array<AxisScale, 3> scales{{AxisScale::Log10, AxisScale::Log10, AxisScale::Linear}};
   std::array<amrex::Gpu::DeviceVector<double>, 3> axisStorage;
   Axis axes[3]{};
+
+  WeakLibOpacityThermoStateDevice() = default;
+  WeakLibOpacityThermoStateDevice(WeakLibOpacityThermoStateDevice&&) = default;
+  WeakLibOpacityThermoStateDevice& operator=(WeakLibOpacityThermoStateDevice&&) = default;
+  WeakLibOpacityThermoStateDevice(const WeakLibOpacityThermoStateDevice&) = delete;
+  WeakLibOpacityThermoStateDevice& operator=(const WeakLibOpacityThermoStateDevice&) = delete;
 };
 
 // Unified opacity table containing all types

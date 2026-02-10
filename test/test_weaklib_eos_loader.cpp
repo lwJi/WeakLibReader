@@ -499,6 +499,39 @@ TEST_CASE("MakeDeviceCopy works for WeakLibEosTable", "[hdf5][weaklib][gpu]")
   CHECK(deviceTable.nVariables == hostTable.nVariables);
   CHECK(deviceTable.dimensions == hostTable.dimensions);
   CHECK(deviceTable.indices.iPressure == hostTable.indices.iPressure);
+  CHECK(deviceTable.variableBlockSize ==
+        hostTable.variables[0].size());
+  CHECK(deviceTable.offsetsDevice.size() ==
+        hostTable.offsets.size());
+
+  std::filesystem::remove(eosPath);
+}
+
+TEST_CASE("WeakLibEos accessors reject invalid variable indices", "[hdf5][weaklib][accessors]")
+{
+  EnsureAmrexInitialized();
+
+  const std::filesystem::path eosPath =
+      std::filesystem::temp_directory_path() / "weaklibreader_eos_accessor_indices.h5";
+  CreateWeakLibEosTestFileFull(eosPath);
+
+  WeakLibEosTable hostTable;
+  REQUIRE(LoadWeakLibEosTableFull(eosPath.string(), hostTable) == Hdf5LoadStatus::Success);
+  auto deviceTable = MakeDeviceCopy(hostTable);
+
+  REQUIRE(hostTable.nVariables == 3);
+  CHECK(hostTable.TryVariableData(-1) == nullptr);
+  CHECK(hostTable.TryVariableData(hostTable.nVariables) == nullptr);
+  CHECK(hostTable.TryVariableData(0) != nullptr);
+
+  CHECK(deviceTable.TryVariableData(-1) == nullptr);
+  CHECK(deviceTable.TryVariableData(deviceTable.nVariables) == nullptr);
+  CHECK(deviceTable.TryVariableData(0) != nullptr);
+
+  const auto view = deviceTable.View();
+  CHECK(view.TryVariableData(-1) == nullptr);
+  CHECK(view.TryVariableData(view.nVariables) == nullptr);
+  CHECK(view.TryVariableData(0) != nullptr);
 
   std::filesystem::remove(eosPath);
 }
