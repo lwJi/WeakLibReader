@@ -1,5 +1,7 @@
 #pragma once
 
+#include "hdf5/WeakLibReader_Hdf5Types.hpp"
+
 namespace WeakLibReader {
 namespace detail {
 

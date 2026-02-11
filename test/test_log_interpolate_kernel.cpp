@@ -1,10 +1,10 @@
 #define SIMPLE_CATCH_NO_MAIN
 #include <catch2/catch_test_macros.hpp>
 
-#include "WeakLibReader_InterpLogTable.hpp"
-#include "WeakLibReader_InterpBasis.hpp"
-#include "WeakLibReader_Layout.hpp"
-#include "WeakLibReader_Math.hpp"
+#include "interp/WeakLibReader_InterpLogTable.hpp"
+#include "base/WeakLibReader_InterpBasis.hpp"
+#include "base/WeakLibReader_Layout.hpp"
+#include "base/WeakLibReader_Math.hpp"
 
 #include <array>
 #include <cmath>

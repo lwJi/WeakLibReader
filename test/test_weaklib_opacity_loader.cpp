@@ -1,8 +1,8 @@
 #define SIMPLE_CATCH_NO_MAIN
 #include <catch2/catch_test_macros.hpp>
 
-#include "WeakLibReader_Hdf5Loader.hpp"
-#include "WeakLibReader_Hdf5Types.hpp"
+#include "hdf5/WeakLibReader_Hdf5Loader.hpp"
+#include "hdf5/WeakLibReader_Hdf5Types.hpp"
 
 #include <AMReX.H>
 #include <AMReX_GpuContainers.H>

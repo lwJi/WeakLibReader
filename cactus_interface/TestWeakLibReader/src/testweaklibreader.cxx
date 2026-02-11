@@ -6,8 +6,8 @@
 #include <cmath>
 #include <vector>
 
-#include <WeakLibReader_Hdf5Loader.hpp>
-#include <WeakLibReader_LogInterpolate.hpp>
+#include <hdf5/WeakLibReader_Hdf5Loader.hpp>
+#include <interp/WeakLibReader_LogInterpolate.hpp>
 
 namespace TestWeakLibReader {
 

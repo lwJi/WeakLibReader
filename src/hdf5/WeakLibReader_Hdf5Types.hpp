@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
-#include "WeakLibReader_Layout.hpp"
-#include "WeakLibReader_AxisTypes.hpp"
+#include "base/WeakLibReader_Layout.hpp"
+#include "base/WeakLibReader_AxisTypes.hpp"
 
 namespace WeakLibReader {
 

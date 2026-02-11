@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "WeakLibReader_IndexDelta.hpp"
+#include "base/WeakLibReader_IndexDelta.hpp"
 
 namespace WeakLibReader {
 
