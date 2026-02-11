@@ -1,5 +1,10 @@
 #pragma once
 
+#include "hdf5/WeakLibReader_Hdf5Types.hpp"
+#include "hdf5/WeakLibReader_Hdf5LoaderDetail.hpp"
+#include "hdf5/WeakLibReader_Hdf5LoaderTable.hpp"
+#include "hdf5/WeakLibReader_Hdf5LoaderEos.hpp"
+
 namespace WeakLibReader {
 inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
                                             Hdf5Table& output,

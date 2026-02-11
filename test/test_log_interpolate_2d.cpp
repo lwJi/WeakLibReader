@@ -1,9 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include "WeakLibReader_LogInterpolate.hpp"
-#include "WeakLibReader_InterpLogTable.hpp"
-#include "WeakLibReader_Layout.hpp"
-#include "WeakLibReader_AxisTypes.hpp"
+#include "interp/WeakLibReader_LogInterpolate.hpp"
+#include "interp/WeakLibReader_InterpLogTable.hpp"
+#include "base/WeakLibReader_Layout.hpp"
+#include "base/WeakLibReader_AxisTypes.hpp"
 
 #include <array>
 #include <cmath>
