@@ -18,3 +18,4 @@
 #include "detail/WeakLibReader_Hdf5LoaderOpacityMain.hpp"
 #include "detail/WeakLibReader_Hdf5LoaderOpacityDevice.hpp"
 #include "detail/WeakLibReader_Hdf5LoaderParallel.hpp"
+#include "detail/WeakLibReader_Hdf5LoaderOpacityParallel.hpp"

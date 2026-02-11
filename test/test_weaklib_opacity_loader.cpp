@@ -444,6 +444,23 @@ void CreateWeakLibBremTestFile(const std::filesystem::path& filePath)
   H5Fclose(file);
 }
 
+/// RAII helper that temporarily silences HDF5 automatic error printing.
+struct ScopedHdf5ErrorSilencer {
+  H5E_auto2_t oldFunc = nullptr;
+  void* oldClientData = nullptr;
+
+  ScopedHdf5ErrorSilencer()
+  {
+    H5Eget_auto2(H5E_DEFAULT, &oldFunc, &oldClientData);
+    H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
+  }
+
+  ~ScopedHdf5ErrorSilencer()
+  {
+    H5Eset_auto2(H5E_DEFAULT, oldFunc, oldClientData);
+  }
+};
+
 } // namespace
 
 TEST_CASE("LoadWeakLibEmAbTable loads legacy EmAb opacity table", "[weaklib][opacity][emab]")
@@ -714,6 +731,7 @@ TEST_CASE("LoadWeakLibOpacityTableFull loads multiple types", "[hdf5][weaklib][o
 TEST_CASE("LoadWeakLibOpacityTableFull returns error for missing files", "[hdf5][weaklib][opacity]")
 {
   EnsureAmrexInitialized();
+  ScopedHdf5ErrorSilencer silencer{};
 
   WeakLibOpacityTable table;
   auto status = LoadWeakLibOpacityTableFull(table, "nonexistent.h5");
@@ -724,6 +742,7 @@ TEST_CASE("LoadWeakLibOpacityTableFull returns error for missing files", "[hdf5]
 TEST_CASE("LoadWeakLibOpacityTableFull returns error for no files", "[hdf5][weaklib][opacity]")
 {
   EnsureAmrexInitialized();
+  ScopedHdf5ErrorSilencer silencer{};
 
   WeakLibOpacityTable table;
   auto status = LoadWeakLibOpacityTableFull(table);
@@ -750,4 +769,122 @@ TEST_CASE("MakeDeviceCopy creates device copy of opacity table", "[hdf5][weaklib
   CHECK(deviceTable.emAb.nOpacities == hostTable.emAb.nOpacities);
   CHECK(deviceTable.emAb.dimensions == hostTable.emAb.dimensions);
   CHECK(deviceTable.energyGrid.nPoints == hostTable.energyGrid.nPoints);
+}
+
+TEST_CASE("LoadWeakLibOpacityTableFullParallel loads EmAb and Iso",
+          "[weaklib][opacity][parallel]")
+{
+  EnsureAmrexInitialized();
+
+  const auto emabPath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_emab_parallel.h5";
+  const auto isoPath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_iso_parallel.h5";
+  CreateWeakLibEmAbTestFile(emabPath);
+  CreateWeakLibIsoTestFile(isoPath);
+
+  // Load via parallel
+  WeakLibOpacityTable parTable;
+  auto parStatus = LoadWeakLibOpacityTableFullParallel(
+      parTable, emabPath.string(), isoPath.string());
+
+  // Load via serial for comparison
+  WeakLibOpacityTable seqTable;
+  auto seqStatus = LoadWeakLibOpacityTableFull(
+      seqTable, emabPath.string(), isoPath.string());
+
+  std::filesystem::remove(emabPath);
+  std::filesystem::remove(isoPath);
+
+  REQUIRE(parStatus == Hdf5LoadStatus::Success);
+  REQUIRE(seqStatus == Hdf5LoadStatus::Success);
+
+  // Verify sub-table presence
+  CHECK(parTable.HasEmAb() == seqTable.HasEmAb());
+  CHECK(parTable.HasScatIso() == seqTable.HasScatIso());
+  CHECK_FALSE(parTable.HasScatNES());
+  CHECK_FALSE(parTable.HasScatPair());
+  CHECK_FALSE(parTable.HasScatBrem());
+
+  // Verify energyGrid
+  CHECK(parTable.energyGrid.nPoints == seqTable.energyGrid.nPoints);
+  CHECK(parTable.energyGrid.scale == seqTable.energyGrid.scale);
+  CHECK(parTable.energyGrid.name == seqTable.energyGrid.name);
+  CHECK(parTable.energyGrid.unit == seqTable.energyGrid.unit);
+  for (int i = 0; i < parTable.energyGrid.nPoints; ++i) {
+    CHECK(parTable.energyGrid.values[i] == seqTable.energyGrid.values[i]);
+  }
+
+  // Verify thermoState
+  CHECK(parTable.thermoState.dimensions == seqTable.thermoState.dimensions);
+  CHECK(parTable.thermoState.scales == seqTable.thermoState.scales);
+  CHECK(parTable.thermoState.names == seqTable.thermoState.names);
+  CHECK(parTable.thermoState.units == seqTable.thermoState.units);
+  for (int i = 0; i < 3; ++i) {
+    REQUIRE(parTable.thermoState.axisStorage[i].size() ==
+            seqTable.thermoState.axisStorage[i].size());
+    for (std::size_t j = 0; j < parTable.thermoState.axisStorage[i].size(); ++j) {
+      CHECK(parTable.thermoState.axisStorage[i][j] ==
+            seqTable.thermoState.axisStorage[i][j]);
+    }
+  }
+
+  // Verify EmAb
+  CHECK(parTable.emAb.nOpacities == seqTable.emAb.nOpacities);
+  CHECK(parTable.emAb.dimensions == seqTable.emAb.dimensions);
+  CHECK(parTable.emAb.offsets == seqTable.emAb.offsets);
+  CHECK(parTable.emAb.names == seqTable.emAb.names);
+  CHECK(parTable.emAb.units == seqTable.emAb.units);
+  const auto emabSize = static_cast<std::size_t>(seqTable.emAb.dimensions[0]) *
+                         seqTable.emAb.dimensions[1] *
+                         seqTable.emAb.dimensions[2] *
+                         seqTable.emAb.dimensions[3];
+  for (int s = 0; s < seqTable.emAb.nOpacities; ++s) {
+    REQUIRE(parTable.emAb.opacities[s].size() == emabSize);
+    for (std::size_t i = 0; i < emabSize; ++i) {
+      CHECK(parTable.emAb.opacities[s][i] == seqTable.emAb.opacities[s][i]);
+    }
+  }
+
+  // Verify ScatIso
+  CHECK(parTable.scatIso.nOpacities == seqTable.scatIso.nOpacities);
+  CHECK(parTable.scatIso.nMoments == seqTable.scatIso.nMoments);
+  CHECK(parTable.scatIso.dimensions == seqTable.scatIso.dimensions);
+  CHECK(parTable.scatIso.weak_magnetism_corrections ==
+        seqTable.scatIso.weak_magnetism_corrections);
+  CHECK(parTable.scatIso.ion_ion_corrections ==
+        seqTable.scatIso.ion_ion_corrections);
+  CHECK(parTable.scatIso.many_body_corrections ==
+        seqTable.scatIso.many_body_corrections);
+  CHECK(parTable.scatIso.ga_strange == seqTable.scatIso.ga_strange);
+  const auto isoOffsetSize = static_cast<std::size_t>(
+      seqTable.scatIso.nOpacities) * seqTable.scatIso.nMoments;
+  REQUIRE(parTable.scatIso.offsets.size() == isoOffsetSize);
+  for (std::size_t i = 0; i < isoOffsetSize; ++i) {
+    CHECK(parTable.scatIso.offsets[i] == seqTable.scatIso.offsets[i]);
+  }
+  const auto isoDataSize = static_cast<std::size_t>(seqTable.scatIso.dimensions[0]) *
+                             seqTable.scatIso.dimensions[1] *
+                             seqTable.scatIso.dimensions[2] *
+                             seqTable.scatIso.dimensions[3] *
+                             seqTable.scatIso.dimensions[4];
+  for (int s = 0; s < seqTable.scatIso.nOpacities; ++s) {
+    REQUIRE(parTable.scatIso.kernels[s].size() == isoDataSize);
+    for (std::size_t i = 0; i < isoDataSize; ++i) {
+      CHECK(parTable.scatIso.kernels[s][i] == seqTable.scatIso.kernels[s][i]);
+    }
+  }
+  CHECK(parTable.scatIso.names == seqTable.scatIso.names);
+  CHECK(parTable.scatIso.units == seqTable.scatIso.units);
+}
+
+TEST_CASE("LoadWeakLibOpacityTableFullParallel fails for nonexistent file",
+          "[weaklib][opacity][parallel]")
+{
+  EnsureAmrexInitialized();
+  ScopedHdf5ErrorSilencer silencer{};
+
+  WeakLibOpacityTable table;
+  auto status = LoadWeakLibOpacityTableFullParallel(table, "nonexistent.h5");
+  CHECK(status == Hdf5LoadStatus::FileOpenFailed);
 }
