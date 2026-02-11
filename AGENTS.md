@@ -15,12 +15,15 @@ Translate WeakLib's EOS & opacity **interpolators** from Fortran into **GPU-frie
 ## Project Structure
 
 ```
-src/              # Public API headers + detail/ subdirectory for internals
-test/             # Catch2 regression tests (EOS, opacity, interpolation, HDF5)
-ref/weaklib/      # Fortran reference implementation (consult before new interp logic)
-cactus_interface/ # Cactus thorns: WeakLibReader (library) + TestWeakLibReader (example)
-scripts/          # build.sh, test.sh, check.sh
-agent_docs/       # Detailed reference docs (HDF5 formats, opacity tables, Cactus patterns)
+src/
+  base/             # Core types: Axis, Layout, IndexDelta, InterpBasis, Math
+  interp/           # Interpolation: LogInterpolate*, InterpLogTable* (2D–5D)
+  hdf5/             # HDF5 loaders: tables, EOS, opacity, device copies, MPI broadcast
+test/               # Catch2 regression tests (EOS, opacity, interpolation, HDF5)
+ref/weaklib/        # Fortran reference (consult before new interp logic)
+cactus_interface/   # Cactus thorns: WeakLibReader (library) + TestWeakLibReader (example)
+scripts/            # build.sh, test.sh, check.sh
+agent_docs/         # Detailed subsystem docs (see below)
 ```
 
 ## Build & Test
@@ -47,11 +50,9 @@ Set `VERBOSE=1` for full test output (e.g., `VERBOSE=1 scripts/test.sh`).
 ## Do's and Don'ts
 
 **Do**
-- Read existing files before proposing changes
 - Add tests for new features; verify against `ref/weaklib/` for interpolation changes
 - Preserve numerical behavior at boundaries and mixed Linear/Log10 axes
 - Use `Layout::Offset` for bounds-safe data access
-- Ensure HDF5 loader retains axis storage backing `Axis` pointers
 
 **Don't**
 - Add I/O formats beyond HDF5
