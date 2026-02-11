@@ -98,7 +98,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
   CCTK_INFO("Loading opacity tables");
 
   WeakLibReader::WeakLibOpacityTable opacity_table;
-  const auto status = WeakLibReader::LoadWeakLibOpacityTableFull(
+  const auto status = WeakLibReader::LoadWeakLibOpacityTableFullParallel(
       opacity_table, emabFile, isoFile, nesFile, pairFile, bremFile);
 
   if (status != WeakLibReader::Hdf5LoadStatus::Success) {
