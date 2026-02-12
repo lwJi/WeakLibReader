@@ -23,7 +23,7 @@ test/               # Catch2 regression tests (EOS, opacity, interpolation, HDF5
 ref/weaklib/        # Fortran reference (consult before new interp logic)
 cactus_interface/   # Cactus thorns: WeakLibReader (library) + TestWeakLibReader (example)
 scripts/            # build.sh, test.sh, check.sh
-agent_docs/         # Detailed subsystem docs (see below)
+specs/              # Detailed subsystem docs (see below)
 ```
 
 ## Build & Test
@@ -66,7 +66,7 @@ Located in `ref/weaklib/`. Key modules: `wlInterpolationModule.F90`, `wlInterpol
 
 ## Agent Docs
 
-Detailed reference material in `agent_docs/` — consult when working on specific subsystems:
+Detailed reference material in `specs/` — consult when working on specific subsystems:
 
 - **`hdf5_formats.md`** — HDF5 table schemas (simple, EOS, opacity) and loader function reference
 - **`opacity_tables.md`** — Opacity table types, dimensions, interpolation API, device patterns
