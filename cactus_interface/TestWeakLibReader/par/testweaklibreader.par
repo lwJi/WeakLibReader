@@ -1,0 +1,62 @@
+ActiveThorns = "
+  CarpetX
+  IOUtil
+  WeakLibReader
+  TestWeakLibReader
+"
+
+Cactus::presync_mode = "mixed-error"
+Cactus::cctk_itlast = 4
+
+CarpetX::poison_undefined_values = yes
+
+CarpetX::max_num_levels = 1
+CarpetX::regrid_error_threshold = 4.
+
+CarpetX::xmin = 0.0
+CarpetX::ymin = 0.0
+CarpetX::zmin = 0.0
+CarpetX::xmax = 1.0
+CarpetX::ymax = 1.0
+CarpetX::zmax = 1.0
+
+CarpetX::ncells_x = 16
+CarpetX::ncells_y = 16
+CarpetX::ncells_z = 16
+
+CarpetX::max_grid_size_x = 10000000
+CarpetX::max_grid_size_y = 10000000
+CarpetX::max_grid_size_z = 10000000
+
+CarpetX::max_tile_size_x = 10000000
+CarpetX::max_tile_size_y = 10000000
+CarpetX::max_tile_size_z = 10000000
+
+CarpetX::periodic = "yes"
+CarpetX::periodic_x = yes
+CarpetX::periodic_y = yes
+CarpetX::periodic_z = yes
+
+CarpetX::ghost_size = 1
+CarpetX::dtfac = 0.4
+
+WeakLibReader::eos_table_file =    "/path-to-weaklib-tables/SFHo/LowRes/wl-EOS-SFHo-15-25-50.h5"
+WeakLibReader::opacity_emab_file = "/path-to-weaklib-tables/SFHo/LowRes/wl-Op-SFHo-15-25-50-E40-B85-AbEm.h5"
+WeakLibReader::opacity_iso_file =  "/path-to-weaklib-tables/SFHo/LowRes/wl-Op-SFHo-15-25-50-E40-B85-Iso.h5"
+WeakLibReader::opacity_nes_file =  "/path-to-weaklib-tables/SFHo/LowRes/wl-Op-SFHo-15-25-50-E40-B85-NES.h5"
+WeakLibReader::opacity_pair_file = "/path-to-weaklib-tables/SFHo/LowRes/wl-Op-SFHo-15-25-50-E40-B85-Pair.h5"
+WeakLibReader::opacity_brem_file = "/path-to-weaklib-tables/SFHo/LowRes/wl-Op-SFHo-15-25-50-E40-HR98-Brem.h5"
+
+IO::out_dir = $parfile
+IO::out_every = 1
+IO::parfile_write = no
+
+#IO::out_xline_y = 0.5
+#IO::out_xline_z = 0.5
+
+CarpetX::verbose = no
+CarpetX::out_performance = no
+CarpetX::out_metadata = no
+CarpetX::out_tsv_vars = "
+  TestWeakLibReader::energy
+"
