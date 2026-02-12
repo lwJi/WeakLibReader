@@ -14,6 +14,20 @@ namespace TestWeakLibReader {
 WeakLibReader::WeakLibEosTableDevice eos_table_device;
 WeakLibReader::EosInversionBounds eos_inversion_bounds;
 
+// Map a coordinate t in [0,1) to the physical range of the given axis.
+// For Log10 axes the mapping is uniform in log-space.
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+double RescaleToAxis(double t, const WeakLibReader::Axis& axis) noexcept
+{
+  const double lo = axis.grid[0];
+  const double hi = axis.grid[axis.n - 1];
+  if (axis.scale == WeakLibReader::AxisScale::Log10) {
+    return lo * WeakLibReader::math::Pow10(
+        WeakLibReader::math::Log10(hi / lo) * t);
+  }
+  return lo + (hi - lo) * t;
+}
+
 extern "C" void TestWeakLibReader_LoadTable(CCTK_ARGUMENTS) {
   DECLARE_CCTK_PARAMETERS;
 
@@ -68,8 +82,11 @@ extern "C" void TestWeakLibReader_Init(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+      const double rho = RescaleToAxis(p.x, axes[0]);
+      const double T   = RescaleToAxis(p.y, axes[1]);
+      const double Ye  = RescaleToAxis(p.z, axes[2]);
       energy(p.I) = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
-          p.x, p.y, p.z,
+          rho, T, Ye,
           axes,
           pressureData, pressureOffset);
       });
@@ -109,10 +126,10 @@ extern "C" void TestWeakLibReader_ComputeEosDerived(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      // (p.x, p.y, p.z) = (rho, T, Ye) in raw units
-      const double rho = p.x;
-      const double T   = p.y;
-      const double Ye  = p.z;
+      // Rescale [0,1) grid coordinates to physical axis ranges
+      const double rho = RescaleToAxis(p.x, axes[0]);
+      const double T   = RescaleToAxis(p.y, axes[1]);
+      const double Ye  = RescaleToAxis(p.z, axes[2]);
 
       // Interpolate mu_e from EOS
       const double muE = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
@@ -158,9 +175,9 @@ extern "C" void TestWeakLibReader_InvertEos(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double rho = p.x;
-      const double T   = p.y;  // known temperature
-      const double Ye  = p.z;
+      const double rho = RescaleToAxis(p.x, axes[0]);
+      const double T   = RescaleToAxis(p.y, axes[1]);
+      const double Ye  = RescaleToAxis(p.z, axes[2]);
 
       // Forward interpolate energy
       const double E = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
