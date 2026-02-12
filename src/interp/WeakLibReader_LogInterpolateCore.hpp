@@ -13,7 +13,7 @@ namespace detail {
 
 /// GPU-optimized log-interpolation using compile-time dimension dispatch
 /// @tparam ND Number of dimensions (1-5), known at compile time
-/// @param data Raw data array in row-major order (log10-stored values)
+/// @param data Raw data array in column-major order (log10-stored values)
 /// @param layout Layout describing array dimensions and strides
 /// @param axes Array of Axis descriptors (length ND)
 /// @param coords Query coordinates (length ND)
@@ -84,7 +84,7 @@ void ComputeAxisScale(const Axis& axis, int idx, double coord,
 
 /// GPU-optimized log-interpolation with derivatives using compile-time dimension dispatch
 /// @tparam ND Number of dimensions (2-4), known at compile time
-/// @param data Raw data array in row-major order (log10-stored values)
+/// @param data Raw data array in column-major order (log10-stored values)
 /// @param layout Layout describing array dimensions and strides
 /// @param axes Array of Axis descriptors (length ND)
 /// @param coords Query coordinates (length ND)

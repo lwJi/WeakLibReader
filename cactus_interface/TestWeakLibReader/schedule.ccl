@@ -47,7 +47,7 @@ SCHEDULE TestWeakLibReader_InitIso AT INITIAL AFTER TestWeakLibReader_LoadOpacit
   SYNC: opacity_iso
 } "Test Iso 4D interpolation"
 
-SCHEDULE TestWeakLibReader_ComputeEosDerived AT INITIAL AFTER TestWeakLibReader_LoadOpacityTable
+SCHEDULE TestWeakLibReader_ComputeEosDerived AT INITIAL AFTER TestWeakLibReader_LoadTable AFTER TestWeakLibReader_LoadOpacityTable
 {
   LANG: C
   WRITES: eos_log_eta(interior) eos_dxp(interior) eos_dxn(interior) eos_dxpn(interior)
