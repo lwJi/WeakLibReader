@@ -430,16 +430,9 @@ inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char* groupName,
     }
   }
 
-  // Validate monotonicity
-  for (int i = 1; i < grid.nPoints; ++i) {
-    if (grid.values[i] <= grid.values[i - 1]) {
-      return Hdf5LoadStatus::AxisNotMonotone;
-    }
-  }
-
-  // Validate Log10 positivity
-  if (grid.scale == AxisScale::Log10 && grid.values[0] <= 0.0) {
-    return Hdf5LoadStatus::AxisInvalidScale;
+  // Validate axis (monotonicity, min size, Log10 positivity)
+  if (!ValidateAxis(grid.values, grid.scale)) {
+    return Hdf5LoadStatus::AxisNotMonotone;
   }
 
   grid.minValue = grid.values[0];
@@ -547,8 +540,8 @@ inline Hdf5LoadStatus LoadWeakLibAxis(hid_t thermoGroup,
                                       const char* datasetName,
                                       int expectedExtent,
                                       AxisScale scale,
-                                      int axisIndex,
-                                      Hdf5Table& table)
+                                      amrex::Vector<double>& storage,
+                                      Axis& outAxis)
 {
   ScopedHandle dataset(H5Dopen(thermoGroup, datasetName, H5P_DEFAULT), H5Dclose);
   if (!dataset.Valid()) {
@@ -574,7 +567,6 @@ inline Hdf5LoadStatus LoadWeakLibAxis(hid_t thermoGroup,
     return Hdf5LoadStatus::AxisExtentMismatch;
   }
 
-  amrex::Vector<double>& storage = table.axisStorage[axisIndex];
   storage.resize(static_cast<std::size_t>(length));
   if (H5Dread(dataset.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
               storage.data()) < 0) {
@@ -585,11 +577,9 @@ inline Hdf5LoadStatus LoadWeakLibAxis(hid_t thermoGroup,
     return Hdf5LoadStatus::AxisNotMonotone;
   }
 
-  Axis axis{};
-  axis.grid = storage.data();
-  axis.n = static_cast<int>(storage.size());
-  axis.scale = scale;
-  table.axes[axisIndex] = axis;
+  outAxis.grid = storage.data();
+  outAxis.n = static_cast<int>(storage.size());
+  outAxis.scale = scale;
 
   return Hdf5LoadStatus::Success;
 }
