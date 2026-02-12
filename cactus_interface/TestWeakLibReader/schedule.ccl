@@ -5,6 +5,7 @@ STORAGE: opacity_emab
 STORAGE: opacity_iso
 STORAGE: eos_log_eta eos_dxp eos_dxn eos_dxpn
 STORAGE: opacity_nes opacity_pair opacity_brem
+STORAGE: eos_inv_temp eos_inv_error
 
 SCHEDULE TestWeakLibReader_LoadTable AT INITIAL
 {
@@ -18,6 +19,13 @@ SCHEDULE TestWeakLibReader_Init AT INITIAL AFTER TestWeakLibReader_LoadTable
   WRITES: energy(interior)
   SYNC: energy
 } "Initialize grid function"
+
+SCHEDULE TestWeakLibReader_InvertEos AT INITIAL AFTER TestWeakLibReader_Init
+{
+  LANG: C
+  WRITES: eos_inv_temp(interior) eos_inv_error(interior)
+  SYNC: eos_inv_temp eos_inv_error
+} "Test EOS inversion: recover T from (rho, E, Ye)"
 
 SCHEDULE TestWeakLibReader_LoadOpacityTable AT INITIAL AFTER TestWeakLibReader_LoadTable
 {
