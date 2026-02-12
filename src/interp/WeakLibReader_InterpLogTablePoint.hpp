@@ -162,7 +162,7 @@ double LinearInterp5DPoint(int i0, int i1, int i2, int i3, int i4,
 /// @param indices Cell indices for each dimension (output from IndexAndDelta*)
 /// @param fractions Interpolation fractions [0,1] for each dimension
 /// @param offset Offset to subtract after converting from log space
-/// @param data Raw data array in row-major order
+/// @param data Raw data array in column-major order
 /// @param layout Layout describing array dimensions and strides
 /// @return Interpolated value: 10^(interp_log_value) - offset
 template<int ND>
