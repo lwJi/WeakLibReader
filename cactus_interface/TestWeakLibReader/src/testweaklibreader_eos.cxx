@@ -11,6 +11,13 @@
 
 namespace TestWeakLibReader {
 
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+double RescaleUnitCoordinateToAxis(double u, const WeakLibReader::Axis& axis) noexcept {
+  const double lower = axis.grid[0];
+  const double upper = axis.grid[axis.n - 1];
+  return lower + u * (upper - lower);
+}
+
 WeakLibReader::WeakLibEosTableDevice eos_table_device;
 WeakLibReader::EosInversionBounds eos_inversion_bounds;
 
@@ -68,8 +75,11 @@ extern "C" void TestWeakLibReader_Init(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+      const double rho = RescaleUnitCoordinateToAxis(p.x, axes[0]);
+      const double T = RescaleUnitCoordinateToAxis(p.y, axes[1]);
+      const double Ye = RescaleUnitCoordinateToAxis(p.z, axes[2]);
       energy(p.I) = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
-          p.x, p.y, p.z,
+          rho, T, Ye,
           axes,
           pressureData, pressureOffset);
       });
@@ -109,10 +119,9 @@ extern "C" void TestWeakLibReader_ComputeEosDerived(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      // (p.x, p.y, p.z) = (rho, T, Ye) in raw units
-      const double rho = p.x;
-      const double T   = p.y;
-      const double Ye  = p.z;
+      const double rho = RescaleUnitCoordinateToAxis(p.x, axes[0]);
+      const double T = RescaleUnitCoordinateToAxis(p.y, axes[1]);
+      const double Ye = RescaleUnitCoordinateToAxis(p.z, axes[2]);
 
       // Interpolate mu_e from EOS
       const double muE = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
@@ -158,9 +167,9 @@ extern "C" void TestWeakLibReader_InvertEos(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double rho = p.x;
-      const double T   = p.y;  // known temperature
-      const double Ye  = p.z;
+      const double rho = RescaleUnitCoordinateToAxis(p.x, axes[0]);
+      const double T = RescaleUnitCoordinateToAxis(p.y, axes[1]);
+      const double Ye = RescaleUnitCoordinateToAxis(p.z, axes[2]);
 
       // Forward interpolate energy
       const double E = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(

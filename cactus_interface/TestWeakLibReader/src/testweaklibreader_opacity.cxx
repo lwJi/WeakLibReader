@@ -10,6 +10,13 @@
 
 namespace TestWeakLibReader {
 
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+double RescaleUnitCoordinateToAxis(double u, const WeakLibReader::Axis& axis) noexcept {
+  const double lower = axis.grid[0];
+  const double upper = axis.grid[axis.n - 1];
+  return lower + u * (upper - lower);
+}
+
 WeakLibReader::WeakLibOpacityTableDevice opacity_table_device;
 
 // Fixed energy value at midpoint of energy grid (set during load)
@@ -218,8 +225,11 @@ extern "C" void TestWeakLibReader_InitEmAb(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+      const double rho = RescaleUnitCoordinateToAxis(p.x, axes[1]);
+      const double T = RescaleUnitCoordinateToAxis(p.y, axes[2]);
+      const double Ye = RescaleUnitCoordinateToAxis(p.z, axes[3]);
       opacity_emab(p.I) = WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
-          fixedE, p.x, p.y, p.z,
+          fixedE, rho, T, Ye,
           axes,
           opacityData, offset);
       });
@@ -253,8 +263,11 @@ extern "C" void TestWeakLibReader_InitIso(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+      const double rho = RescaleUnitCoordinateToAxis(p.x, axes[1]);
+      const double T = RescaleUnitCoordinateToAxis(p.y, axes[2]);
+      const double Ye = RescaleUnitCoordinateToAxis(p.z, axes[3]);
       opacity_iso(p.I) = WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
-          fixedE, p.x, p.y, p.z,
+          fixedE, rho, T, Ye,
           axes,
           sliceData, offset);
       });
@@ -287,7 +300,7 @@ extern "C" void TestWeakLibReader_InitNES(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double T   = p.y;
+      const double T = RescaleUnitCoordinateToAxis(p.y, axes[0]);
       const double eta = eos_log_eta(p.I);
 
       int idxT = 0, idxEta = 0;
@@ -330,7 +343,7 @@ extern "C" void TestWeakLibReader_InitPair(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double T   = p.y;
+      const double T = RescaleUnitCoordinateToAxis(p.y, axes[0]);
       const double eta = eos_log_eta(p.I);
 
       int idxT = 0, idxEta = 0;
@@ -376,7 +389,7 @@ extern "C" void TestWeakLibReader_InitBrem(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double T = p.y;
+      const double T = RescaleUnitCoordinateToAxis(p.y, axes[1]);
 
       // Density-weighted terms from EOS-derived GFs
       const double dxVals[3] = {
