@@ -170,15 +170,11 @@ inline Hdf5LoadStatus LoadWeakLibEmAbTable(hid_t file,
     emAb.units[i] = unitVec[i];
   }
 
-  // Read Offsets
+  // Read Offsets (1D: [nOpacities])
   {
-    detail::ScopedHandle ds(H5Dopen(group.Get(), "Offsets", H5P_DEFAULT), H5Dclose);
-    if (!ds.Valid()) {
-      return Hdf5LoadStatus::DatasetOpenFailed;
-    }
-    std::vector<double> offsetVec(emAb.nOpacities);
-    if (H5Dread(ds.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                offsetVec.data()) < 0) {
+    amrex::Gpu::PinnedVector<double> offsetVec;
+    std::array<int, 1> offsetDims{{emAb.nOpacities}};
+    if (!detail::ReadWeakLibArrayNd<double, 1>(group.Get(), "Offsets", offsetVec, offsetDims)) {
       return Hdf5LoadStatus::DatasetReadFailed;
     }
     for (int i = 0; i < WeakLibEmAbTable::kNumSpecies && i < emAb.nOpacities; ++i) {

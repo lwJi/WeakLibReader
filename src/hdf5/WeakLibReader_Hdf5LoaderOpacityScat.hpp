@@ -33,10 +33,12 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
 
   // Read Units
   std::vector<std::string> unitVec;
-  if (detail::ReadStringArray(group.Get(), "Units", unitVec)) {
-    for (int i = 0; i < WeakLibScatIsoTable::kNumSpecies && i < static_cast<int>(unitVec.size()); ++i) {
-      scatIso.units[i] = unitVec[i];
-    }
+  if (!detail::ReadStringArray(group.Get(), "Units", unitVec) ||
+      unitVec.size() < static_cast<size_t>(scatIso.nOpacities)) {
+    return Hdf5LoadStatus::DatasetReadFailed;
+  }
+  for (int i = 0; i < WeakLibScatIsoTable::kNumSpecies && i < scatIso.nOpacities; ++i) {
+    scatIso.units[i] = unitVec[i];
   }
 
   // Read Offsets (2D: [nOpacities, nMoments])
@@ -151,9 +153,10 @@ inline Hdf5LoadStatus LoadScatKernelTable(
 
   // Read Units
   std::vector<std::string> unitVec;
-  if (ReadStringArray(group.Get(), "Units", unitVec) && !unitVec.empty()) {
-    table.unit = unitVec[0];
+  if (!ReadStringArray(group.Get(), "Units", unitVec) || unitVec.empty()) {
+    return Hdf5LoadStatus::DatasetReadFailed;
   }
+  table.unit = unitVec[0];
 
   // Read Offsets (2D: [nOpacities, nMoments] in C order)
   std::array<int, 2> offsetDims{{table.nOpacities, table.nMoments}};

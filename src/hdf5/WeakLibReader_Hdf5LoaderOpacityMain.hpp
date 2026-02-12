@@ -47,26 +47,22 @@ inline Hdf5LoadStatus LoadWeakLibOpacityThermoState(hid_t file,
     ts.units[i] = unitsVec[i];
   }
 
-  // Load axis data
-  Hdf5Table tempTable;
-  tempTable.extents = {ts.dimensions[0], ts.dimensions[1], ts.dimensions[2], 1, 1};
-
+  // Load axis data directly into thermoState storage
   Hdf5LoadStatus status;
-  status = LoadWeakLibAxis(group.Get(), "Density", ts.dimensions[0], ts.scales[0], 0, tempTable);
+  status = LoadWeakLibAxis(group.Get(), "Density",
+                           ts.dimensions[0], ts.scales[0],
+                           ts.axisStorage[0], ts.axes[0]);
   if (status != Hdf5LoadStatus::Success) return status;
 
-  status = LoadWeakLibAxis(group.Get(), "Temperature", ts.dimensions[1], ts.scales[1], 1, tempTable);
+  status = LoadWeakLibAxis(group.Get(), "Temperature",
+                           ts.dimensions[1], ts.scales[1],
+                           ts.axisStorage[1], ts.axes[1]);
   if (status != Hdf5LoadStatus::Success) return status;
 
-  status = LoadWeakLibAxis(group.Get(), "Electron Fraction", ts.dimensions[2], ts.scales[2], 2, tempTable);
+  status = LoadWeakLibAxis(group.Get(), "Electron Fraction",
+                           ts.dimensions[2], ts.scales[2],
+                           ts.axisStorage[2], ts.axes[2]);
   if (status != Hdf5LoadStatus::Success) return status;
-
-  // Transfer to thermoState
-  for (int i = 0; i < 3; ++i) {
-    ts.axisStorage[i] = std::move(tempTable.axisStorage[i]);
-    ts.axes[i] = tempTable.axes[i];
-    ts.axes[i].grid = ts.axisStorage[i].data();
-  }
 
   return Hdf5LoadStatus::Success;
 }

@@ -54,30 +54,22 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
     result.axisUnits[i] = axisUnitsVec[i];
   }
 
-  // Load axes using existing helper
-  // Axis 0 = Density, Axis 1 = Temperature, Axis 2 = Electron Fraction
-  Hdf5Table tempTable;
-  tempTable.extents = {result.dimensions[0], result.dimensions[1], result.dimensions[2], 1, 1};
-
+  // Load axes directly into result storage
   Hdf5LoadStatus axisStatus;
   axisStatus = detail::LoadWeakLibAxis(thermoGroup.Get(), "Density",
-                                       result.dimensions[0], scales[0], 0, tempTable);
+                                       result.dimensions[0], scales[0],
+                                       result.axisStorage[0], result.axes[0]);
   if (axisStatus != Hdf5LoadStatus::Success) return axisStatus;
 
   axisStatus = detail::LoadWeakLibAxis(thermoGroup.Get(), "Temperature",
-                                       result.dimensions[1], scales[1], 1, tempTable);
+                                       result.dimensions[1], scales[1],
+                                       result.axisStorage[1], result.axes[1]);
   if (axisStatus != Hdf5LoadStatus::Success) return axisStatus;
 
   axisStatus = detail::LoadWeakLibAxis(thermoGroup.Get(), "Electron Fraction",
-                                       result.dimensions[2], scales[2], 2, tempTable);
+                                       result.dimensions[2], scales[2],
+                                       result.axisStorage[2], result.axes[2]);
   if (axisStatus != Hdf5LoadStatus::Success) return axisStatus;
-
-  // Transfer axis data from temp table
-  for (int i = 0; i < 3; ++i) {
-    result.axisStorage[i] = std::move(tempTable.axisStorage[i]);
-    result.axes[i] = tempTable.axes[i];
-    result.axes[i].grid = result.axisStorage[i].data();
-  }
 
   // ========== Read DependentVariables ==========
   detail::ScopedHandle dvGroup(H5Gopen(file.Get(), "DependentVariables", H5P_DEFAULT), H5Gclose);
