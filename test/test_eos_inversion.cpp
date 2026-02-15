@@ -31,7 +31,7 @@ const double gridD[nD] = {1e6, 1e7, 1e8, 1e9, 1e10};
 const double gridT[nT] = {1e9, 3e9, 1e10, 3e10, 1e11};
 const double gridY[nY] = {0.1, 0.2, 0.3, 0.4, 0.5};
 
-constexpr double kOffset = 1.0;
+constexpr double Offset = 1.0;
 
 // Build the synthetic table and axes. Returns the data vector and populates
 // axes and layout.
@@ -54,14 +54,14 @@ std::vector<double> BuildSyntheticTable(
       for (int iYe = 0; iYe < nY; ++iYe) {
         const double E = EnergyFunc(gridD[iRho], gridT[iTemp], gridY[iYe]);
         data[layout.Offset(iRho, iTemp, iYe)] =
-            std::log10(E + kOffset);
+            std::log10(E + Offset);
       }
     }
   }
   return data;
 }
 
-constexpr double kTol = 1.0e-10;
+constexpr double Tol = 1.0e-10;
 
 } // namespace
 
@@ -182,11 +182,11 @@ TEST_CASE("EvalAtFixedTIndex matches full 3D interp at grid T", "[eosinversion]"
 
         // EvalAtFixedTIndex
         const double valFixed = detail::EvalAtFixedTIndex(
-            iD, iY, dD, dY, iTemp, kOffset, data.data(), layout);
+            iD, iY, dD, dY, iTemp, Offset, data.data(), layout);
 
         // Full 3D interpolation at the same point
         const double valFull = LogInterpolateSingleVariable3DCustomPoint(
-            D, T, Y, axes, data.data(), kOffset);
+            D, T, Y, axes, data.data(), Offset);
 
         CHECK(std::abs(valFixed - valFull)
               / (std::abs(valFull) + 1e-30) < 1e-12);
@@ -205,7 +205,7 @@ TEST_CASE("Round-trip inversion recovers T without guess", "[eosinversion]")
 
   const auto bounds = InitializeEosInversionBounds(
       axes, totalSize,
-      data.data(), kOffset,
+      data.data(), Offset,
       nullptr, 0.0,
       nullptr, 0.0);
 
@@ -219,17 +219,17 @@ TEST_CASE("Round-trip inversion recovers T without guess", "[eosinversion]")
       for (double Y : testY) {
         // Forward interpolate
         const double E = LogInterpolateSingleVariable3DCustomPoint(
-            D, T_known, Y, axes, data.data(), kOffset);
+            D, T_known, Y, axes, data.data(), Offset);
 
         // Invert
         double T_recovered = 0.0;
         const int error = ComputeTemperatureFromEnergy(
-            D, E, Y, axes, data.data(), layout, kOffset, bounds,
+            D, E, Y, axes, data.data(), layout, Offset, bounds,
             T_recovered);
 
         CHECK(error == 0);
         const double relErr = std::abs(T_recovered - T_known) / T_known;
-        CHECK(relErr < kTol);
+        CHECK(relErr < Tol);
       }
     }
   }
@@ -245,7 +245,7 @@ TEST_CASE("Round-trip inversion recovers T with good guess", "[eosinversion]")
 
   const auto bounds = InitializeEosInversionBounds(
       axes, totalSize,
-      data.data(), kOffset,
+      data.data(), Offset,
       nullptr, 0.0,
       nullptr, 0.0);
 
@@ -254,17 +254,17 @@ TEST_CASE("Round-trip inversion recovers T with good guess", "[eosinversion]")
   const double Y = 0.3;
 
   const double E = LogInterpolateSingleVariable3DCustomPoint(
-      D, T_known, Y, axes, data.data(), kOffset);
+      D, T_known, Y, axes, data.data(), Offset);
 
   const double tGuess = 1.2e10; // close to T_known
   double T_recovered = 0.0;
   const int error = ComputeTemperatureFromEnergy(
-      D, E, Y, axes, data.data(), layout, kOffset, bounds,
+      D, E, Y, axes, data.data(), layout, Offset, bounds,
       tGuess, T_recovered);
 
   CHECK(error == 0);
   const double relErr = std::abs(T_recovered - T_known) / T_known;
-  CHECK(relErr < kTol);
+  CHECK(relErr < Tol);
 }
 
 TEST_CASE("Round-trip inversion recovers T with bad guess", "[eosinversion]")
@@ -277,7 +277,7 @@ TEST_CASE("Round-trip inversion recovers T with bad guess", "[eosinversion]")
 
   const auto bounds = InitializeEosInversionBounds(
       axes, totalSize,
-      data.data(), kOffset,
+      data.data(), Offset,
       nullptr, 0.0,
       nullptr, 0.0);
 
@@ -286,17 +286,17 @@ TEST_CASE("Round-trip inversion recovers T with bad guess", "[eosinversion]")
   const double Y = 0.3;
 
   const double E = LogInterpolateSingleVariable3DCustomPoint(
-      D, T_known, Y, axes, data.data(), kOffset);
+      D, T_known, Y, axes, data.data(), Offset);
 
   const double tGuess = 1e9; // far from T_known=1.5e10
   double T_recovered = 0.0;
   const int error = ComputeTemperatureFromEnergy(
-      D, E, Y, axes, data.data(), layout, kOffset, bounds,
+      D, E, Y, axes, data.data(), layout, Offset, bounds,
       tGuess, T_recovered);
 
   CHECK(error == 0);
   const double relErr = std::abs(T_recovered - T_known) / T_known;
-  CHECK(relErr < kTol);
+  CHECK(relErr < Tol);
 }
 
 TEST_CASE("Round-trip inversion recovers T with upper boundary guess", "[eosinversion]")
@@ -309,7 +309,7 @@ TEST_CASE("Round-trip inversion recovers T with upper boundary guess", "[eosinve
 
   const auto bounds = InitializeEosInversionBounds(
       axes, totalSize,
-      data.data(), kOffset,
+      data.data(), Offset,
       nullptr, 0.0,
       nullptr, 0.0);
 
@@ -318,17 +318,17 @@ TEST_CASE("Round-trip inversion recovers T with upper boundary guess", "[eosinve
   const double Y = 0.3;
 
   const double E = LogInterpolateSingleVariable3DCustomPoint(
-      D, T_known, Y, axes, data.data(), kOffset);
+      D, T_known, Y, axes, data.data(), Offset);
 
   const double tGuess = 9e10; // near upper T boundary
   double T_recovered = 0.0;
   const int error = ComputeTemperatureFromEnergy(
-      D, E, Y, axes, data.data(), layout, kOffset, bounds,
+      D, E, Y, axes, data.data(), layout, Offset, bounds,
       tGuess, T_recovered);
 
   CHECK(error == 0);
   const double relErr = std::abs(T_recovered - T_known) / T_known;
-  CHECK(relErr < kTol);
+  CHECK(relErr < Tol);
 }
 
 TEST_CASE("Inversion at grid boundary points", "[eosinversion]")
@@ -341,7 +341,7 @@ TEST_CASE("Inversion at grid boundary points", "[eosinversion]")
 
   const auto bounds = InitializeEosInversionBounds(
       axes, totalSize,
-      data.data(), kOffset,
+      data.data(), Offset,
       nullptr, 0.0,
       nullptr, 0.0);
 
@@ -365,17 +365,17 @@ TEST_CASE("Inversion at grid boundary points", "[eosinversion]")
   for (const auto& pt : points) {
     // Forward interpolate
     const double E = LogInterpolateSingleVariable3DCustomPoint(
-        pt.D, pt.T, pt.Y, axes, data.data(), kOffset);
+        pt.D, pt.T, pt.Y, axes, data.data(), Offset);
 
     // Invert (no guess)
     double T_recovered = 0.0;
     const int error = ComputeTemperatureFromEnergy(
-        pt.D, E, pt.Y, axes, data.data(), layout, kOffset, bounds,
+        pt.D, E, pt.Y, axes, data.data(), layout, Offset, bounds,
         T_recovered);
 
     CHECK(error == 0);
     const double relErr = std::abs(T_recovered - pt.T) / pt.T;
-    CHECK(relErr < kTol);
+    CHECK(relErr < Tol);
   }
 }
 
@@ -389,7 +389,7 @@ TEST_CASE("InitializeEosInversionBounds computes correct bounds", "[eosinversion
 
   const auto bounds = InitializeEosInversionBounds(
       axes, totalSize,
-      data.data(), kOffset,
+      data.data(), Offset,
       nullptr, 0.0,
       nullptr, 0.0);
 

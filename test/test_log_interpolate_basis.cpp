@@ -7,7 +7,7 @@
 
 namespace {
 
-constexpr double kTol = 1.0e-12;
+constexpr double Tol = 1.0e-12;
 
 } // namespace
 
@@ -27,7 +27,7 @@ TEST_CASE("BiLinearDerivativeX1 matches analytical formula", "[basis][deriv][2d]
     const double result = BiLinearDerivativeX1(p00, p10, p01, p11, dX2);
     // Analytical: d/dX1[BiLinear] = Linear(p10, p11, dX2) - Linear(p00, p01, dX2)
     const double expected = Linear(p10, p11, dX2) - Linear(p00, p01, dX2);
-    CHECK(result == Catch::Approx(expected).margin(kTol));
+    CHECK(result == Catch::Approx(expected).margin(Tol));
   }
 }
 
@@ -59,7 +59,7 @@ TEST_CASE("BiLinearDerivativeX2 matches analytical formula", "[basis][deriv][2d]
     const double result = BiLinearDerivativeX2(p00, p10, p01, p11, dX1);
     // Analytical: d/dX2[BiLinear] = Linear(p01, p11, dX1) - Linear(p00, p10, dX1)
     const double expected = Linear(p01, p11, dX1) - Linear(p00, p10, dX1);
-    CHECK(result == Catch::Approx(expected).margin(kTol));
+    CHECK(result == Catch::Approx(expected).margin(Tol));
   }
 }
 
@@ -95,7 +95,7 @@ TEST_CASE("TriLinearDerivativeX1 matches analytical formula", "[basis][deriv][3d
       // Analytical: BiLinear(p100,p110,p101,p111) - BiLinear(p000,p010,p001,p011)
       const double expected = BiLinear(p100, p110, p101, p111, dX2, dX3) -
                               BiLinear(p000, p010, p001, p011, dX2, dX3);
-      CHECK(result == Catch::Approx(expected).margin(kTol));
+      CHECK(result == Catch::Approx(expected).margin(Tol));
     }
   }
 }
@@ -136,7 +136,7 @@ TEST_CASE("TriLinearDerivativeX2 matches analytical formula", "[basis][deriv][3d
                                                    dX1, dX3);
       const double expected = BiLinear(p010, p110, p011, p111, dX1, dX3) -
                               BiLinear(p000, p100, p001, p101, dX1, dX3);
-      CHECK(result == Catch::Approx(expected).margin(kTol));
+      CHECK(result == Catch::Approx(expected).margin(Tol));
     }
   }
 }
@@ -177,7 +177,7 @@ TEST_CASE("TriLinearDerivativeX3 matches analytical formula", "[basis][deriv][3d
                                                    dX1, dX2);
       const double expected = BiLinear(p001, p101, p011, p111, dX1, dX2) -
                               BiLinear(p000, p100, p010, p110, dX1, dX2);
-      CHECK(result == Catch::Approx(expected).margin(kTol));
+      CHECK(result == Catch::Approx(expected).margin(Tol));
     }
   }
 }

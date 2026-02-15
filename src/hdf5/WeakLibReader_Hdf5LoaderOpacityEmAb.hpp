@@ -166,7 +166,7 @@ inline Hdf5LoadStatus LoadWeakLibEmAbTable(hid_t file,
       unitVec.size() < static_cast<size_t>(emAb.nOpacities)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
-  for (int i = 0; i < WeakLibEmAbTable::kNumSpecies && i < emAb.nOpacities; ++i) {
+  for (int i = 0; i < WeakLibEmAbTable::NumSpecies && i < emAb.nOpacities; ++i) {
     emAb.units[i] = unitVec[i];
   }
 
@@ -177,7 +177,7 @@ inline Hdf5LoadStatus LoadWeakLibEmAbTable(hid_t file,
     if (!detail::ReadWeakLibArrayNd<double, 1>(group.Get(), "Offsets", offsetVec, offsetDims)) {
       return Hdf5LoadStatus::DatasetReadFailed;
     }
-    for (int i = 0; i < WeakLibEmAbTable::kNumSpecies && i < emAb.nOpacities; ++i) {
+    for (int i = 0; i < WeakLibEmAbTable::NumSpecies && i < emAb.nOpacities; ++i) {
       emAb.offsets[i] = offsetVec[i];
     }
   }
@@ -187,7 +187,7 @@ inline Hdf5LoadStatus LoadWeakLibEmAbTable(hid_t file,
   emAb.names[1] = "Electron Antineutrino";
 
   // Read opacity data for each species
-  for (int iSpecies = 0; iSpecies < WeakLibEmAbTable::kNumSpecies && iSpecies < emAb.nOpacities; ++iSpecies) {
+  for (int iSpecies = 0; iSpecies < WeakLibEmAbTable::NumSpecies && iSpecies < emAb.nOpacities; ++iSpecies) {
     if (!detail::ReadWeakLibArrayNd<double, 4>(group.Get(), emAb.names[iSpecies].c_str(),
                                    emAb.opacities[iSpecies], emAb.dimensions)) {
       return Hdf5LoadStatus::DatasetReadFailed;

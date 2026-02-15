@@ -13,7 +13,7 @@
 
 namespace {
 
-constexpr double kTol = 1.0e-12;
+constexpr double Tol = 1.0e-12;
 
 } // namespace
 
@@ -61,7 +61,7 @@ TEST_CASE("4D log interpolation matches quadrilinear expectation", "[loginterp][
   const double expected = detail::LogInterpolatedValueDirect<4>(
       table.data(), layout, axes, coords, 0.0);
 
-  CHECK(result == Catch::Approx(expected).margin(kTol));
+  CHECK(result == Catch::Approx(expected).margin(Tol));
 }
 
 TEST_CASE("Batch 4D log interpolation matches point wrapper", "[loginterp][4d][batch]")
@@ -111,7 +111,7 @@ TEST_CASE("Batch 4D log interpolation matches point wrapper", "[loginterp][4d][b
   for (std::size_t i = 0; i < x0.size(); ++i) {
     const double point = LogInterpolateSingleVariable4DCustomPoint(
         x0[i], x1[i], x2[i], x3[i], axes, table.data(), 0.0);
-    CHECK(out[i] == Catch::Approx(point).margin(kTol));
+    CHECK(out[i] == Catch::Approx(point).margin(Tol));
   }
 }
 
@@ -163,7 +163,7 @@ TEST_CASE("4D mixed axes log interpolation respects offset", "[loginterp][4d][of
   const double result = detail::LogInterpolatedValueDirect<4>(
       table.data(), layout, axes, coords, offset);
 
-  CHECK(result == Catch::Approx(expected).margin(kTol));
+  CHECK(result == Catch::Approx(expected).margin(Tol));
 }
 
 TEST_CASE("4D mixed axes derivative matches kernel", "[loginterp][4d][derivative]")
@@ -228,11 +228,11 @@ TEST_CASE("4D mixed axes derivative matches kernel", "[loginterp][4d][derivative
   detail::LogInterpolatedDerivativeDirect<4>(
       table.data(), layout, axes, coords, offset, interpolant, deriv);
 
-  CHECK(interpolant == Catch::Approx(expectedInterp).margin(kTol));
-  CHECK(deriv[0] == Catch::Approx(expectedDA).margin(kTol));
-  CHECK(deriv[1] == Catch::Approx(expectedDB).margin(kTol));
-  CHECK(deriv[2] == Catch::Approx(expectedDC).margin(kTol));
-  CHECK(deriv[3] == Catch::Approx(expectedDD).margin(kTol));
+  CHECK(interpolant == Catch::Approx(expectedInterp).margin(Tol));
+  CHECK(deriv[0] == Catch::Approx(expectedDA).margin(Tol));
+  CHECK(deriv[1] == Catch::Approx(expectedDB).margin(Tol));
+  CHECK(deriv[2] == Catch::Approx(expectedDC).margin(Tol));
+  CHECK(deriv[3] == Catch::Approx(expectedDD).margin(Tol));
 }
 
 TEST_CASE("5D log interpolation via LinearInterp5DPoint", "[loginterp][5d]")
@@ -332,7 +332,7 @@ TEST_CASE("5D log interpolation via LinearInterp5DPoint", "[loginterp][5d]")
       d0, d1, d2, d3, d4);
   const double expected = std::pow(10.0, logExpected);
 
-  CHECK(result == Catch::Approx(expected).margin(kTol));
+  CHECK(result == Catch::Approx(expected).margin(Tol));
 }
 
 TEST_CASE("PentaLinear reduces to TetraLinear at boundaries", "[loginterp][5d][pentalinear]")
@@ -370,7 +370,7 @@ TEST_CASE("PentaLinear reduces to TetraLinear at boundaries", "[loginterp][5d][p
       p00110, p10110, p01110, p11110,
       dX1, dX2, dX3, dX4);
 
-  CHECK(penta0 == Catch::Approx(tetraLo).margin(kTol));
+  CHECK(penta0 == Catch::Approx(tetraLo).margin(Tol));
 
   // dX5 = 1 should give the "hi" tetralinear result
   const double penta1 = PentaLinear(
@@ -391,7 +391,7 @@ TEST_CASE("PentaLinear reduces to TetraLinear at boundaries", "[loginterp][5d][p
       p00111, p10111, p01111, p11111,
       dX1, dX2, dX3, dX4);
 
-  CHECK(penta1 == Catch::Approx(tetraHi).margin(kTol));
+  CHECK(penta1 == Catch::Approx(tetraHi).margin(Tol));
 }
 
 TEST_CASE("1D3D sweep batch matches direct interpolation", "[loginterp][4d][batch]")
@@ -452,7 +452,7 @@ TEST_CASE("1D3D sweep batch matches direct interpolation", "[loginterp][4d][batc
       const double expected = detail::LogInterpolatedValueDirect<4>(
           table.data(), layout, axes, coords, 0.0);
       const std::size_t idx = j * sizeE + i;
-      CHECK(out[idx] == Catch::Approx(expected).margin(kTol));
+      CHECK(out[idx] == Catch::Approx(expected).margin(Tol));
     }
   }
 }
@@ -524,6 +524,6 @@ TEST_CASE("1D3D single point matches batch with count=1", "[loginterp][4d][1d3d]
   REQUIRE(rcBatch == 0);
 
   for (std::size_t i = 0; i < sizeE; ++i) {
-    CHECK(outPoint[i] == Catch::Approx(outBatch[i]).margin(kTol));
+    CHECK(outPoint[i] == Catch::Approx(outBatch[i]).margin(Tol));
   }
 }

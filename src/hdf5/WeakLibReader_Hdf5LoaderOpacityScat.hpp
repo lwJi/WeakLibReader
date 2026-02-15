@@ -37,7 +37,7 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
       unitVec.size() < static_cast<size_t>(scatIso.nOpacities)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
-  for (int i = 0; i < WeakLibScatIsoTable::kNumSpecies && i < scatIso.nOpacities; ++i) {
+  for (int i = 0; i < WeakLibScatIsoTable::NumSpecies && i < scatIso.nOpacities; ++i) {
     scatIso.units[i] = unitVec[i];
   }
 
@@ -66,7 +66,7 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
   scatIso.names[1] = "Electron Antineutrino";
 
   // Read kernel data for each species
-  for (int iSpecies = 0; iSpecies < WeakLibScatIsoTable::kNumSpecies && iSpecies < scatIso.nOpacities; ++iSpecies) {
+  for (int iSpecies = 0; iSpecies < WeakLibScatIsoTable::NumSpecies && iSpecies < scatIso.nOpacities; ++iSpecies) {
     if (!detail::ReadWeakLibArrayNd<double, 5>(group.Get(), scatIso.names[iSpecies].c_str(),
                                                scatIso.kernels[iSpecies], scatIso.dimensions)) {
       return Hdf5LoadStatus::DatasetReadFailed;
