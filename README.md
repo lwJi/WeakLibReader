@@ -12,6 +12,8 @@ GPU-friendly C++ reimplementation of WeakLib's equation-of-state and opacity int
 - Derivative computation for 2D-4D interpolation
 - HDF5 table loading with MPI broadcast support
 - Native WeakLib EOS table loading (full and single-variable)
+- Native WeakLib opacity table loading (EmAb, Iso, NES, Pair, Brem)
+- EOS temperature inversion (root-finding from energy/pressure/entropy)
 - Cactus framework integration (thorns provided)
 - Numerical parity with Fortran reference (≤1e-12 relative error)
 
@@ -26,7 +28,7 @@ GPU-friendly C++ reimplementation of WeakLib's equation-of-state and opacity int
 ## Build
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAMREX_ROOT=/path/to/amrex
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAMREX_ROOT=/path/to/amrex -DHDF5_ROOT=/path/to/hdf5
 cmake --build build -j
 ```
 
@@ -43,7 +45,7 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-The suite exercises 2D-5D interpolation, derivatives, symmetric plane helpers, and HDF5 round-trips.
+The suite exercises 2D-5D interpolation, derivatives, symmetric plane helpers, HDF5 round-trips, opacity table loading, EOS inversion, and error handling.
 
 ## Usage Example
 
@@ -65,9 +67,7 @@ TableView view = table.View();
 double d = 1.0e10, t = 0.5, y = 300.0;
 double result = LogInterpolateSingleVariable3DCustomPoint(
     d, t, y,
-    view.axes[0].grid, view.axes[0].n,
-    view.axes[1].grid, view.axes[1].n,
-    view.axes[2].grid, view.axes[2].n,
+    view.axes,
     view.data, 0.0);
 ```
 
@@ -85,6 +85,9 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 | `WeakLibEosTable` | Full EOS table storage with all variables and metadata |
 | `WeakLibEosTableDevice` | Device copy of full EOS table |
 | `WeakLibEosIndices` | Index mappings for EOS dependent variables |
+| `WeakLibOpacityTable` | Full opacity table storage (EmAb, Iso, NES, Pair, Brem) |
+| `WeakLibOpacityTableDevice` | Device copy of full opacity table |
+| `EosInversionBounds` | Min/max bounds for EOS inversion input validation |
 
 ### Key Functions
 
@@ -97,6 +100,12 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 | `LogInterpolateSingleVariable*DCustomPoint()` | Single-point N-D interpolation |
 | `LogInterpolateSingleVariable*DCustom()` | Batch N-D interpolation |
 | `LogInterpolateDifferentiateSingleVariable*()` | Interpolation with derivatives |
+| `LogInterpolateSingleVariable1D3DCustomPoint()` | 1D energy sweep over 3D table |
+| `LoadWeakLibOpacityTableFull()` | Load opacity tables from up to 5 HDF5 files |
+| `LoadWeakLibOpacityTableFullParallel()` | MPI-aware opacity loader (rank 0 reads, broadcasts) |
+| `LoadWeakLibEosTableFullParallel()` | MPI-aware EOS loader (rank 0 reads, broadcasts) |
+| `ExtractIsoMomentSlice4D()` | Extract 4D moment slice from 5D Iso kernel |
+| `InitializeEosInversionBounds()` | Compute EOS inversion bounds from table data |
 
 ### HDF5 File Format
 
@@ -123,6 +132,22 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
   {variable_name}[nYe,nT,nRho]      # Variable data arrays
 ```
 
+#### Native WeakLib Opacity Format
+
+Each opacity type is stored in its own HDF5 file. All files share the same grid layout:
+
+```
+/EnergyGrid/
+  Values[nE]                        # Energy grid points
+/EtaGrid/
+  Values[nEta]                      # Eta grid (NES/Pair only)
+/ThermoState/
+  Dimensions[3], Density[], Temperature[], Electron Fraction[]
+/OpacityType/                       # e.g. EmAb, Iso, NES, Pair, Brem
+  Opacity[nYe,nT,nRho,nE,...]      # Opacity data (4D or 5D)
+  Units, Offsets
+```
+
 ## Project Structure
 
 ```
@@ -130,6 +155,8 @@ src/                 # Header-only library
 ref/weaklib/         # Fortran reference implementation (incl. wlIOModuleHDF.F90)
 test/                # Regression tests
 cactus_interface/    # Cactus thorn integration (WeakLibReader, TestWeakLibReader)
+scripts/             # Build, test, and check convenience scripts
+specs/               # Detailed subsystem documentation (HDF5 formats, opacity, Cactus)
 ```
 
 ## Fortran Parity
