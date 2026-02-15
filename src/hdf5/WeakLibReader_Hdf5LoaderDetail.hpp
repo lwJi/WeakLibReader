@@ -471,6 +471,46 @@ inline std::size_t ComputeTotalSize(int nd, const std::array<int, 5>& extents)
   return size;
 }
 
+inline Hdf5LoadStatus ReadAxisDataset1D(hid_t datasetId,
+                                        int expectedExtent,
+                                        AxisScale scale,
+                                        amrex::Vector<double>& storage,
+                                        Axis& outAxis)
+{
+  ScopedHandle space(H5Dget_space(datasetId), H5Sclose);
+  if (!space.Valid()) {
+    return Hdf5LoadStatus::AxisReadFailed;
+  }
+
+  const int rank = H5Sget_simple_extent_ndims(space.Get());
+  if (rank != 1) {
+    return Hdf5LoadStatus::AxisReadFailed;
+  }
+
+  hsize_t length = 0;
+  if (H5Sget_simple_extent_dims(space.Get(), &length, nullptr) < 0) {
+    return Hdf5LoadStatus::AxisReadFailed;
+  }
+  if (length != static_cast<hsize_t>(expectedExtent)) {
+    return Hdf5LoadStatus::AxisExtentMismatch;
+  }
+
+  storage.resize(static_cast<std::size_t>(length));
+  if (H5Dread(datasetId, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+              storage.data()) < 0) {
+    return Hdf5LoadStatus::AxisReadFailed;
+  }
+
+  if (!ValidateAxis(storage, scale)) {
+    return Hdf5LoadStatus::AxisNotMonotone;
+  }
+
+  outAxis.grid = storage.data();
+  outAxis.n = static_cast<int>(storage.size());
+  outAxis.scale = scale;
+  return Hdf5LoadStatus::Success;
+}
+
 inline Hdf5LoadStatus LoadAxes(hid_t file,
                                int nd,
                                const Hdf5LoadConfig& cfg,
@@ -483,32 +523,6 @@ inline Hdf5LoadStatus LoadAxes(hid_t file,
       return Hdf5LoadStatus::AxisDatasetOpenFailed;
     }
 
-    ScopedHandle axisSpace(H5Dget_space(axisDataset.Get()), H5Sclose);
-    if (!axisSpace.Valid()) {
-      return Hdf5LoadStatus::AxisReadFailed;
-    }
-
-    const int rank = H5Sget_simple_extent_ndims(axisSpace.Get());
-    if (rank != 1) {
-      return Hdf5LoadStatus::AxisReadFailed;
-    }
-
-    hsize_t length = 0;
-    if (H5Sget_simple_extent_dims(axisSpace.Get(), &length, nullptr) < 0) {
-      return Hdf5LoadStatus::AxisReadFailed;
-    }
-
-    if (length != static_cast<hsize_t>(table.extents[dim])) {
-      return Hdf5LoadStatus::AxisExtentMismatch;
-    }
-
-    amrex::Vector<double>& storage = table.axisStorage[dim];
-    storage.resize(static_cast<std::size_t>(length));
-    if (H5Dread(axisDataset.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                storage.data()) < 0) {
-      return Hdf5LoadStatus::AxisReadFailed;
-    }
-
     std::string scaleAttr;
     AxisScale scale = AxisScale::Linear;
     if (ReadStringAttribute(axisDataset.Get(), cfg.axisScaleAttribute, scaleAttr)) {
@@ -517,15 +531,12 @@ inline Hdf5LoadStatus LoadAxes(hid_t file,
       }
     }
 
-    if (!ValidateAxis(storage, scale)) {
-      return Hdf5LoadStatus::AxisNotMonotone;
+    const Hdf5LoadStatus axisStatus = ReadAxisDataset1D(
+        axisDataset.Get(), table.extents[dim], scale,
+        table.axisStorage[dim], table.axes[dim]);
+    if (axisStatus != Hdf5LoadStatus::Success) {
+      return axisStatus;
     }
-
-    Axis axis{};
-    axis.grid = storage.data();
-    axis.n = static_cast<int>(storage.size());
-    axis.scale = scale;
-    table.axes[dim] = axis;
   }
 
   for (int dim = nd; dim < 5; ++dim) {
@@ -548,40 +559,7 @@ inline Hdf5LoadStatus LoadWeakLibAxis(hid_t thermoGroup,
     return Hdf5LoadStatus::AxisDatasetOpenFailed;
   }
 
-  ScopedHandle space(H5Dget_space(dataset.Get()), H5Sclose);
-  if (!space.Valid()) {
-    return Hdf5LoadStatus::AxisReadFailed;
-  }
-
-  const int rank = H5Sget_simple_extent_ndims(space.Get());
-  if (rank != 1) {
-    return Hdf5LoadStatus::AxisReadFailed;
-  }
-
-  hsize_t length = 0;
-  if (H5Sget_simple_extent_dims(space.Get(), &length, nullptr) < 0) {
-    return Hdf5LoadStatus::AxisReadFailed;
-  }
-
-  if (static_cast<int>(length) != expectedExtent) {
-    return Hdf5LoadStatus::AxisExtentMismatch;
-  }
-
-  storage.resize(static_cast<std::size_t>(length));
-  if (H5Dread(dataset.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-              storage.data()) < 0) {
-    return Hdf5LoadStatus::AxisReadFailed;
-  }
-
-  if (!ValidateAxis(storage, scale)) {
-    return Hdf5LoadStatus::AxisNotMonotone;
-  }
-
-  outAxis.grid = storage.data();
-  outAxis.n = static_cast<int>(storage.size());
-  outAxis.scale = scale;
-
-  return Hdf5LoadStatus::Success;
+  return ReadAxisDataset1D(dataset.Get(), expectedExtent, scale, storage, outAxis);
 }
 
 /// Broadcast a vector of strings from root to all ranks.
