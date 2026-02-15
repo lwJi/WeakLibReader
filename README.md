@@ -78,7 +78,7 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 | Type | Description |
 |------|-------------|
 | `Axis` | Grid metadata: pointer, size, scale (Linear/Log10) |
-| `Layout` | Row-major strides for N-D data |
+| `Layout` | Column-major strides for N-D data |
 | `Hdf5Table` | Host-side table storage (owns data + axes) |
 | `TableView` | Read-only view into loaded table |
 | `TableDevice` | Device-side table copy |
@@ -156,7 +156,7 @@ ref/weaklib/         # Fortran reference implementation (incl. wlIOModuleHDF.F90
 test/                # Regression tests
 cactus_interface/    # Cactus thorn integration (WeakLibReader, TestWeakLibReader)
 scripts/             # Build, test, and check convenience scripts
-specs/               # Detailed subsystem documentation (HDF5 formats, opacity, Cactus)
+specs/               # Detailed subsystem documentation (HDF5 formats, opacity, Cactus, refactor opportunities)
 ```
 
 ## Fortran Parity
