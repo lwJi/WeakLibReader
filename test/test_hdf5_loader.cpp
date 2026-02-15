@@ -3,49 +3,22 @@
 
 #include "hdf5/WeakLibReader_Hdf5Loader.hpp"
 #include "test_amrex_guard.hpp"
+#include "test_hdf5_helpers.hpp"
 
 #include <AMReX_GpuContainers.H>
 #include <AMReX_GpuDevice.H>
 
 #include <hdf5.h>
 
-#include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>
 
 namespace {
 
+using namespace TestHelpers;
+
 constexpr double Tol = 1.0e-12;
-
-void WriteStringAttribute(hid_t parent, const std::string& name, const char* value)
-{
-  hid_t type = H5Tcopy(H5T_C_S1);
-  H5Tset_size(type, std::strlen(value));
-  H5Tset_strpad(type, H5T_STR_NULLTERM);
-
-  hid_t space = H5Screate(H5S_SCALAR);
-  hid_t attr = H5Acreate(parent, name.c_str(), type, space, H5P_DEFAULT, H5P_DEFAULT);
-  H5Awrite(attr, type, value);
-  H5Aclose(attr);
-  H5Sclose(space);
-  H5Tclose(type);
-}
-
-void CreateAxisDataset(hid_t file,
-                       const std::string& name,
-                       const std::vector<double>& values,
-                       const char* scale)
-{
-  const hsize_t dims = static_cast<hsize_t>(values.size());
-  hid_t space = H5Screate_simple(1, &dims, nullptr);
-  hid_t dataset = H5Dcreate(file, name.c_str(), H5T_IEEE_F64LE, space,
-                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
-  WriteStringAttribute(dataset, "scale", scale);
-  H5Dclose(dataset);
-  H5Sclose(space);
-}
 
 } // namespace
 

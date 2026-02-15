@@ -1,6 +1,7 @@
 #pragma once
 
 #include <AMReX_GpuQualifiers.H>
+
 #include <cmath>
 
 namespace WeakLibReader {

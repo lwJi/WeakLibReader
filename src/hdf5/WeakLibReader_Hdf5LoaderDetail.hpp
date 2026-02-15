@@ -288,10 +288,10 @@ inline bool ReadStringArray(hid_t parent, const char* name, std::vector<std::str
   return true;
 }
 
-template <int Rank>
+template <int ND>
 inline bool OpenWeakLibDataset(hid_t parent, const char* name,
                                ScopedHandle& dataset,
-                               std::array<hsize_t, Rank>& fileDims)
+                               std::array<hsize_t, ND>& fileDims)
 {
   if (parent < 0) {
     return false;
@@ -308,53 +308,53 @@ inline bool OpenWeakLibDataset(hid_t parent, const char* name,
   }
 
   const int rank = H5Sget_simple_extent_ndims(dataspace.Get());
-  if (rank != Rank) {
+  if (rank != ND) {
     return false;
   }
 
-  hsize_t dims[Rank] = {};
+  hsize_t dims[ND] = {};
   if (H5Sget_simple_extent_dims(dataspace.Get(), dims, nullptr) < 0) {
     return false;
   }
 
-  for (int i = 0; i < Rank; ++i) {
+  for (int i = 0; i < ND; ++i) {
     fileDims[i] = dims[i];
   }
   return true;
 }
 
-template <int Rank>
-inline bool ValidateFortranDims(const std::array<hsize_t, Rank>& fileDims,
-                                const std::array<int, Rank>& expectedDims)
+template <int ND>
+inline bool ValidateFortranDims(const std::array<hsize_t, ND>& fileDims,
+                                const std::array<int, ND>& expectedDims)
 {
-  for (int i = 0; i < Rank; ++i) {
+  for (int i = 0; i < ND; ++i) {
     if (expectedDims[i] <= 0) {
       return false;
     }
-    if (static_cast<int>(fileDims[i]) != expectedDims[Rank - 1 - i]) {
+    if (static_cast<int>(fileDims[i]) != expectedDims[ND - 1 - i]) {
       return false;
     }
   }
   return true;
 }
 
-template <typename Container, typename T, int Rank>
+template <typename Container, typename T, int ND>
 bool ReadWeakLibArrayNdImpl(hid_t parent, const char* name,
                              Container& output,
-                             const std::array<int, Rank>& expectedDims)
+                             const std::array<int, ND>& expectedDims)
 {
   ScopedHandle dataset;
-  std::array<hsize_t, Rank> fileDims{};
-  if (!OpenWeakLibDataset<Rank>(parent, name, dataset, fileDims)) {
+  std::array<hsize_t, ND> fileDims{};
+  if (!OpenWeakLibDataset<ND>(parent, name, dataset, fileDims)) {
     return false;
   }
 
-  if (!ValidateFortranDims<Rank>(fileDims, expectedDims)) {
+  if (!ValidateFortranDims<ND>(fileDims, expectedDims)) {
     return false;
   }
 
   std::size_t totalSize = 1;
-  for (int i = 0; i < Rank; ++i) {
+  for (int i = 0; i < ND; ++i) {
     totalSize *= static_cast<std::size_t>(expectedDims[i]);
   }
   output.resize(totalSize);
@@ -368,12 +368,12 @@ bool ReadWeakLibArrayNdImpl(hid_t parent, const char* name,
   return true;
 }
 
-template <typename T, int Rank>
+template <typename T, int ND>
 bool ReadWeakLibArrayNd(hid_t parent, const char* name,
                         amrex::Gpu::PinnedVector<T>& output,
-                        const std::array<int, Rank>& expectedDims)
+                        const std::array<int, ND>& expectedDims)
 {
-  return ReadWeakLibArrayNdImpl<amrex::Gpu::PinnedVector<T>, T, Rank>(
+  return ReadWeakLibArrayNdImpl<amrex::Gpu::PinnedVector<T>, T, ND>(
       parent, name, output, expectedDims);
 }
 

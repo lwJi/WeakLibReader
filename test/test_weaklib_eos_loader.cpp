@@ -3,6 +3,7 @@
 
 #include "hdf5/WeakLibReader_Hdf5Loader.hpp"
 #include "test_amrex_guard.hpp"
+#include "test_hdf5_helpers.hpp"
 
 #include <AMReX_GpuContainers.H>
 #include <hdf5.h>
@@ -16,6 +17,8 @@
 
 namespace {
 
+using namespace TestHelpers;
+
 constexpr std::size_t RhoCount = 3;
 constexpr std::size_t TempCount = 2;
 constexpr std::size_t YeCount = 2;
@@ -23,138 +26,6 @@ constexpr std::size_t YeCount = 2;
 const double DensityAxis[RhoCount] = {1.0e3, 1.0e6, 1.0e9};
 const double TemperatureAxis[TempCount] = {0.1, 1.0};
 const double YeAxis[YeCount] = {0.1, 0.3};
-
-void CreateAxisDataset(hid_t parent, const char* name, const double* values, std::size_t count)
-{
-  const hsize_t dims = static_cast<hsize_t>(count);
-  hid_t space = H5Screate_simple(1, &dims, nullptr);
-  REQUIRE(space >= 0);
-
-  hid_t dataset = H5Dcreate(parent, name, H5T_IEEE_F64LE, space,
-                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(dataset >= 0);
-  REQUIRE(H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, values) >= 0);
-
-  H5Dclose(dataset);
-  H5Sclose(space);
-}
-
-void CreateIntDataset(hid_t parent, const char* name, const int* values, std::size_t count)
-{
-  const hsize_t dims = static_cast<hsize_t>(count);
-  hid_t space = H5Screate_simple(1, &dims, nullptr);
-  REQUIRE(space >= 0);
-
-  hid_t dataset = H5Dcreate(parent, name, H5T_STD_I32LE, space,
-                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(dataset >= 0);
-  REQUIRE(H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, values) >= 0);
-
-  H5Dclose(dataset);
-  H5Sclose(space);
-}
-
-void WriteStringAttribute(hid_t parent, const std::string& name, const char* value)
-{
-  hid_t type = H5Tcopy(H5T_C_S1);
-  H5Tset_size(type, std::strlen(value));
-  H5Tset_strpad(type, H5T_STR_NULLTERM);
-
-  hid_t space = H5Screate(H5S_SCALAR);
-  hid_t attr = H5Acreate(parent, name.c_str(), type, space, H5P_DEFAULT, H5P_DEFAULT);
-  H5Awrite(attr, type, value);
-  H5Aclose(attr);
-  H5Sclose(space);
-  H5Tclose(type);
-}
-
-void WriteIntArrayDataset(hid_t parent,
-                          const std::string& name,
-                          const std::vector<int>& values)
-{
-  const hsize_t dims = static_cast<hsize_t>(values.size());
-  hid_t space = H5Screate_simple(1, &dims, nullptr);
-  hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_NATIVE_INT, space,
-                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(dataset >= 0);
-  H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
-  H5Dclose(dataset);
-  H5Sclose(space);
-}
-
-void WriteDoubleArrayDataset(hid_t parent,
-                             const std::string& name,
-                             const std::vector<double>& values)
-{
-  const hsize_t dims = static_cast<hsize_t>(values.size());
-  hid_t space = H5Screate_simple(1, &dims, nullptr);
-  hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_IEEE_F64LE, space,
-                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(dataset >= 0);
-  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
-  H5Dclose(dataset);
-  H5Sclose(space);
-}
-
-void WriteStringArrayDataset(hid_t parent,
-                             const std::string& name,
-                             const std::vector<std::string>& values)
-{
-  const hsize_t dims = static_cast<hsize_t>(values.size());
-  hid_t space = H5Screate_simple(1, &dims, nullptr);
-
-  std::size_t maxLen = 1;
-  for (const auto& value : values) {
-    maxLen = std::max(maxLen, value.size());
-  }
-  const std::size_t stride = maxLen + 1;
-
-  hid_t type = H5Tcopy(H5T_C_S1);
-  H5Tset_size(type, stride);
-  H5Tset_strpad(type, H5T_STR_NULLTERM);
-
-  hid_t dataset = H5Dcreate(parent, name.c_str(), type, space,
-                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(dataset >= 0);
-
-  std::vector<char> buffer(values.size() * stride, '\0');
-  for (std::size_t i = 0; i < values.size(); ++i) {
-    std::memcpy(buffer.data() + i * stride, values[i].c_str(), values[i].size());
-  }
-
-  H5Dwrite(dataset, type, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data());
-  H5Dclose(dataset);
-  H5Sclose(space);
-  H5Tclose(type);
-}
-
-void WriteDoubleArray3dDataset(hid_t parent,
-                               const std::string& name,
-                               const std::array<hsize_t, 3>& dims,
-                               const std::vector<double>& values)
-{
-  hid_t space = H5Screate_simple(3, dims.data(), nullptr);
-  hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_IEEE_F64LE, space,
-                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(dataset >= 0);
-  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
-  H5Dclose(dataset);
-  H5Sclose(space);
-}
-
-void WriteIntArray3dDataset(hid_t parent,
-                            const std::string& name,
-                            const std::array<hsize_t, 3>& dims,
-                            const std::vector<int>& values)
-{
-  hid_t space = H5Screate_simple(3, dims.data(), nullptr);
-  hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_NATIVE_INT, space,
-                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(dataset >= 0);
-  H5Dwrite(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
-  H5Dclose(dataset);
-  H5Sclose(space);
-}
 
 void CreateWeakLibEosTestFileFull(const std::filesystem::path& filePath)
 {

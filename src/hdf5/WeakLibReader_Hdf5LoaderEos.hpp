@@ -138,49 +138,49 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
   }
 
   // Read index mappings
-  auto readIndex = [&](const char* name, int& idx) -> bool {
+  auto ReadIndex = [&](const char* name, int& idx) -> bool {
     return detail::ReadScalarInt(dvGroup.Get(), name, idx);
   };
 
-  if (!readIndex("iPressure", result.indices.iPressure) ||
-      !readIndex("iEntropyPerBaryon", result.indices.iEntropyPerBaryon) ||
-      !readIndex("iInternalEnergyDensity", result.indices.iInternalEnergyDensity) ||
-      !readIndex("iElectronChemicalPotential", result.indices.iElectronChemicalPotential) ||
-      !readIndex("iProtonChemicalPotential", result.indices.iProtonChemicalPotential) ||
-      !readIndex("iNeutronChemicalPotential", result.indices.iNeutronChemicalPotential) ||
-      !readIndex("iProtonMassFraction", result.indices.iProtonMassFraction) ||
-      !readIndex("iNeutronMassFraction", result.indices.iNeutronMassFraction) ||
-      !readIndex("iAlphaMassFraction", result.indices.iAlphaMassFraction) ||
-      !readIndex("iHeavyMassFraction", result.indices.iHeavyMassFraction) ||
-      !readIndex("iHeavyChargeNumber", result.indices.iHeavyChargeNumber) ||
-      !readIndex("iHeavyMassNumber", result.indices.iHeavyMassNumber) ||
-      !readIndex("iHeavyBindingEnergy", result.indices.iHeavyBindingEnergy) ||
-      !readIndex("iThermalEnergy", result.indices.iThermalEnergy) ||
-      !readIndex("iGamma1", result.indices.iGamma1)) {
+  if (!ReadIndex("iPressure", result.indices.iPressure) ||
+      !ReadIndex("iEntropyPerBaryon", result.indices.iEntropyPerBaryon) ||
+      !ReadIndex("iInternalEnergyDensity", result.indices.iInternalEnergyDensity) ||
+      !ReadIndex("iElectronChemicalPotential", result.indices.iElectronChemicalPotential) ||
+      !ReadIndex("iProtonChemicalPotential", result.indices.iProtonChemicalPotential) ||
+      !ReadIndex("iNeutronChemicalPotential", result.indices.iNeutronChemicalPotential) ||
+      !ReadIndex("iProtonMassFraction", result.indices.iProtonMassFraction) ||
+      !ReadIndex("iNeutronMassFraction", result.indices.iNeutronMassFraction) ||
+      !ReadIndex("iAlphaMassFraction", result.indices.iAlphaMassFraction) ||
+      !ReadIndex("iHeavyMassFraction", result.indices.iHeavyMassFraction) ||
+      !ReadIndex("iHeavyChargeNumber", result.indices.iHeavyChargeNumber) ||
+      !ReadIndex("iHeavyMassNumber", result.indices.iHeavyMassNumber) ||
+      !ReadIndex("iHeavyBindingEnergy", result.indices.iHeavyBindingEnergy) ||
+      !ReadIndex("iThermalEnergy", result.indices.iThermalEnergy) ||
+      !ReadIndex("iGamma1", result.indices.iGamma1)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
   // Fortran indices are 1-based; normalize to 0-based for C++ access.
-  auto normalizeIndex = [](int& idx) {
+  auto NormalizeIndex = [](int& idx) {
     if (idx > 0) {
       --idx;
     }
   };
-  normalizeIndex(result.indices.iPressure);
-  normalizeIndex(result.indices.iEntropyPerBaryon);
-  normalizeIndex(result.indices.iInternalEnergyDensity);
-  normalizeIndex(result.indices.iElectronChemicalPotential);
-  normalizeIndex(result.indices.iProtonChemicalPotential);
-  normalizeIndex(result.indices.iNeutronChemicalPotential);
-  normalizeIndex(result.indices.iProtonMassFraction);
-  normalizeIndex(result.indices.iNeutronMassFraction);
-  normalizeIndex(result.indices.iAlphaMassFraction);
-  normalizeIndex(result.indices.iHeavyMassFraction);
-  normalizeIndex(result.indices.iHeavyChargeNumber);
-  normalizeIndex(result.indices.iHeavyMassNumber);
-  normalizeIndex(result.indices.iHeavyBindingEnergy);
-  normalizeIndex(result.indices.iThermalEnergy);
-  normalizeIndex(result.indices.iGamma1);
+  NormalizeIndex(result.indices.iPressure);
+  NormalizeIndex(result.indices.iEntropyPerBaryon);
+  NormalizeIndex(result.indices.iInternalEnergyDensity);
+  NormalizeIndex(result.indices.iElectronChemicalPotential);
+  NormalizeIndex(result.indices.iProtonChemicalPotential);
+  NormalizeIndex(result.indices.iNeutronChemicalPotential);
+  NormalizeIndex(result.indices.iProtonMassFraction);
+  NormalizeIndex(result.indices.iNeutronMassFraction);
+  NormalizeIndex(result.indices.iAlphaMassFraction);
+  NormalizeIndex(result.indices.iHeavyMassFraction);
+  NormalizeIndex(result.indices.iHeavyChargeNumber);
+  NormalizeIndex(result.indices.iHeavyMassNumber);
+  NormalizeIndex(result.indices.iHeavyBindingEnergy);
+  NormalizeIndex(result.indices.iThermalEnergy);
+  NormalizeIndex(result.indices.iGamma1);
 
   // Compute layout for interpolation
   std::array<int, 5> extents5{{result.dimensions[0], result.dimensions[1], result.dimensions[2], 1, 1}};
