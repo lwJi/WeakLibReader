@@ -2,6 +2,7 @@
 
 #include <AMReX_BLassert.H>
 #include <AMReX_GpuQualifiers.H>
+
 #include <cstddef>
 
 #include "interp/WeakLibReader_InterpLogTable.hpp"

@@ -9,24 +9,12 @@
 #include <interp/WeakLibReader_EosInversion.hpp>
 #include <interp/WeakLibReader_LogInterpolate.hpp>
 
+#include "testweaklibreader_helpers.hxx"
+
 namespace TestWeakLibReader {
 
 WeakLibReader::WeakLibEosTableDevice eos_table_device;
 WeakLibReader::EosInversionBounds eos_inversion_bounds;
-
-// Map a coordinate t in [0,1) to the physical range of the given axis.
-// For Log10 axes the mapping is uniform in log-space.
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double RescaleToAxis(double t, const WeakLibReader::Axis& axis) noexcept
-{
-  const double lo = axis.grid[0];
-  const double hi = axis.grid[axis.n - 1];
-  if (axis.scale == WeakLibReader::AxisScale::Log10) {
-    return lo * WeakLibReader::math::Pow10(
-        WeakLibReader::math::Log10(hi / lo) * t);
-  }
-  return lo + (hi - lo) * t;
-}
 
 extern "C" void TestWeakLibReader_LoadTable(CCTK_ARGUMENTS) {
   DECLARE_CCTK_PARAMETERS;

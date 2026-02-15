@@ -44,7 +44,7 @@ inline EosInversionBounds InitializeEosInversionBounds(
   bounds.maxY = axes[2].grid[axes[2].n - 1];
 
   // Scan variable data for min/max in physical space
-  auto scanMinMax = [totalSize](const double* data, double offset,
+  auto ScanMinMax = [totalSize](const double* data, double offset,
                                 double& minVal, double& maxVal) {
     if (data == nullptr) {
       minVal = 0.0;
@@ -62,9 +62,9 @@ inline EosInversionBounds InitializeEosInversionBounds(
     maxVal = hi;
   };
 
-  scanMinMax(energyData,   energyOffset,   bounds.minE, bounds.maxE);
-  scanMinMax(pressureData, pressureOffset, bounds.minP, bounds.maxP);
-  scanMinMax(entropyData,  entropyOffset,  bounds.minS, bounds.maxS);
+  ScanMinMax(energyData,   energyOffset,   bounds.minE, bounds.maxE);
+  ScanMinMax(pressureData, pressureOffset, bounds.minP, bounds.maxP);
+  ScanMinMax(entropyData,  entropyOffset,  bounds.minS, bounds.maxS);
 
   return bounds;
 }

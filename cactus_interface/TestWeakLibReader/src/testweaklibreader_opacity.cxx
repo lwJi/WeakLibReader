@@ -8,6 +8,8 @@
 #include <hdf5/WeakLibReader_Hdf5Loader.hpp>
 #include <interp/WeakLibReader_LogInterpolate.hpp>
 
+#include "testweaklibreader_helpers.hxx"
+
 namespace TestWeakLibReader {
 
 WeakLibReader::WeakLibOpacityTableDevice opacity_table_device;
@@ -30,20 +32,6 @@ struct AlignedKernel {
 std::vector<AlignedKernel> nes_aligned;
 std::vector<AlignedKernel> pair_aligned;
 std::vector<AlignedKernel> brem_aligned;
-
-// Map a coordinate t in [0,1) to the physical range of the given axis.
-// For Log10 axes the mapping is uniform in log-space.
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double RescaleToAxis(double t, const WeakLibReader::Axis& axis) noexcept
-{
-  const double lo = axis.grid[0];
-  const double hi = axis.grid[axis.n - 1];
-  if (axis.scale == WeakLibReader::AxisScale::Log10) {
-    return lo * WeakLibReader::math::Pow10(
-        WeakLibReader::math::Log10(hi / lo) * t);
-  }
-  return lo + (hi - lo) * t;
-}
 
 extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
   DECLARE_CCTK_PARAMETERS;
