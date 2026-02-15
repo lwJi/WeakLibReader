@@ -1,5 +1,6 @@
 # All test files compiled into a single executable
 set(TEST_SOURCES
+  test_main.cpp
   test_log_interpolate_2d.cpp
   test_log_interpolate_3d.cpp
   test_log_interpolate_4d5d.cpp

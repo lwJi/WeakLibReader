@@ -12,7 +12,7 @@
 
 namespace {
 
-constexpr double kTol = 1.0e-12;
+constexpr double Tol = 1.0e-12;
 
 } // namespace
 
@@ -87,10 +87,10 @@ TEST_CASE("Log derivative wrapper matches direct kernel for 3D tables", "[logint
       0.0, interpolated, deriv);
   REQUIRE(rc == 0);
 
-  CHECK(interpolated == Catch::Approx(expectedInterp).margin(kTol));
-  CHECK(deriv[0] == Catch::Approx(expectedDD).margin(kTol));
-  CHECK(deriv[1] == Catch::Approx(expectedDT).margin(kTol));
-  CHECK(deriv[2] == Catch::Approx(expectedDY).margin(kTol));
+  CHECK(interpolated == Catch::Approx(expectedInterp).margin(Tol));
+  CHECK(deriv[0] == Catch::Approx(expectedDD).margin(Tol));
+  CHECK(deriv[1] == Catch::Approx(expectedDT).margin(Tol));
+  CHECK(deriv[2] == Catch::Approx(expectedDY).margin(Tol));
 }
 
 TEST_CASE("Aligned derivative wrapper mirrors kernel output", "[loginterp][derivative][2d2d]")
@@ -172,12 +172,12 @@ TEST_CASE("Aligned derivative wrapper mirrors kernel output", "[loginterp][deriv
 
       const std::size_t lower = j * sizeE + i;
       const std::size_t upper = i * sizeE + j;
-      CHECK(planeInterp[lower] == Catch::Approx(interpExpected).margin(kTol));
-      CHECK(planeDerivT[lower] == Catch::Approx(dTExpected).margin(kTol));
-      CHECK(planeDerivX[lower] == Catch::Approx(dXExpected).margin(kTol));
-      CHECK(planeInterp[upper] == Catch::Approx(interpExpected).margin(kTol));
-      CHECK(planeDerivT[upper] == Catch::Approx(dTExpected).margin(kTol));
-      CHECK(planeDerivX[upper] == Catch::Approx(dXExpected).margin(kTol));
+      CHECK(planeInterp[lower] == Catch::Approx(interpExpected).margin(Tol));
+      CHECK(planeDerivT[lower] == Catch::Approx(dTExpected).margin(Tol));
+      CHECK(planeDerivX[lower] == Catch::Approx(dXExpected).margin(Tol));
+      CHECK(planeInterp[upper] == Catch::Approx(interpExpected).margin(Tol));
+      CHECK(planeDerivT[upper] == Catch::Approx(dTExpected).margin(Tol));
+      CHECK(planeDerivX[upper] == Catch::Approx(dXExpected).margin(Tol));
     }
   }
 }
@@ -242,10 +242,10 @@ TEST_CASE("Batch 3D derivative matches point version", "[loginterp][3d][derivati
         interpPoint, derivPoint);
     REQUIRE(rcPoint == 0);
 
-    CHECK(interpBatch[i] == Catch::Approx(interpPoint).margin(kTol));
-    CHECK(derivBatch[i * 3 + 0] == Catch::Approx(derivPoint[0]).margin(kTol));
-    CHECK(derivBatch[i * 3 + 1] == Catch::Approx(derivPoint[1]).margin(kTol));
-    CHECK(derivBatch[i * 3 + 2] == Catch::Approx(derivPoint[2]).margin(kTol));
+    CHECK(interpBatch[i] == Catch::Approx(interpPoint).margin(Tol));
+    CHECK(derivBatch[i * 3 + 0] == Catch::Approx(derivPoint[0]).margin(Tol));
+    CHECK(derivBatch[i * 3 + 1] == Catch::Approx(derivPoint[1]).margin(Tol));
+    CHECK(derivBatch[i * 3 + 2] == Catch::Approx(derivPoint[2]).margin(Tol));
   }
 }
 
@@ -319,9 +319,9 @@ TEST_CASE("Batch 2D2D derivative matches point version", "[loginterp][2d2d][deri
     REQUIRE(rcPoint == 0);
 
     for (std::size_t i = 0; i < planeSize; ++i) {
-      CHECK(interpBatch[k * planeSize + i] == Catch::Approx(interpPoint[i]).margin(kTol));
-      CHECK(derivTBatch[k * planeSize + i] == Catch::Approx(derivTPoint[i]).margin(kTol));
-      CHECK(derivXBatch[k * planeSize + i] == Catch::Approx(derivXPoint[i]).margin(kTol));
+      CHECK(interpBatch[k * planeSize + i] == Catch::Approx(interpPoint[i]).margin(Tol));
+      CHECK(derivTBatch[k * planeSize + i] == Catch::Approx(derivTPoint[i]).margin(Tol));
+      CHECK(derivXBatch[k * planeSize + i] == Catch::Approx(derivXPoint[i]).margin(Tol));
     }
   }
 }
@@ -398,9 +398,9 @@ TEST_CASE("Batch aligned 2D2D derivative matches point version", "[loginterp][2d
     REQUIRE(rcPoint == 0);
 
     for (std::size_t i = 0; i < planeSize; ++i) {
-      CHECK(interpBatch[k * planeSize + i] == Catch::Approx(interpPoint[i]).margin(kTol));
-      CHECK(derivTBatch[k * planeSize + i] == Catch::Approx(derivTPoint[i]).margin(kTol));
-      CHECK(derivXBatch[k * planeSize + i] == Catch::Approx(derivXPoint[i]).margin(kTol));
+      CHECK(interpBatch[k * planeSize + i] == Catch::Approx(interpPoint[i]).margin(Tol));
+      CHECK(derivTBatch[k * planeSize + i] == Catch::Approx(derivTPoint[i]).margin(Tol));
+      CHECK(derivXBatch[k * planeSize + i] == Catch::Approx(derivXPoint[i]).margin(Tol));
     }
   }
 }

@@ -12,7 +12,7 @@
 
 namespace {
 
-constexpr double kTol = 1.0e-12;
+constexpr double Tol = 1.0e-12;
 
 } // namespace
 
@@ -72,8 +72,8 @@ TEST_CASE("Aligned 2D plane interpolation mirrors underlying kernel", "[loginter
           table.data(), layout);
       const std::size_t lower = j * sizeE + i;
       const std::size_t upper = i * sizeE + j;
-      CHECK(plane[lower] == Catch::Approx(expected).margin(kTol));
-      CHECK(plane[upper] == Catch::Approx(expected).margin(kTol));
+      CHECK(plane[lower] == Catch::Approx(expected).margin(Tol));
+      CHECK(plane[upper] == Catch::Approx(expected).margin(Tol));
     }
   }
 }
@@ -151,8 +151,8 @@ TEST_CASE("Weighted sum aligned helper reproduces manual accumulation", "[logint
       }
       const std::size_t lower = j * sizeE + i;
       const std::size_t upper = i * sizeE + j;
-      CHECK(out[lower] == Catch::Approx(expected).margin(kTol));
-      CHECK(out[upper] == Catch::Approx(expected).margin(kTol));
+      CHECK(out[lower] == Catch::Approx(expected).margin(Tol));
+      CHECK(out[upper] == Catch::Approx(expected).margin(Tol));
     }
   }
 }
@@ -210,8 +210,8 @@ TEST_CASE("Non-aligned 2D2D single point interpolation", "[loginterp][2d2d][nona
       // Check both symmetric positions
       const std::size_t lower = j * sizeE + i;
       const std::size_t upper = i * sizeE + j;
-      CHECK(out[lower] == Catch::Approx(expected).margin(kTol));
-      CHECK(out[upper] == Catch::Approx(expected).margin(kTol));
+      CHECK(out[lower] == Catch::Approx(expected).margin(Tol));
+      CHECK(out[upper] == Catch::Approx(expected).margin(Tol));
     }
   }
 }
@@ -269,7 +269,7 @@ TEST_CASE("Non-aligned 2D2D batch interpolation", "[loginterp][2d2d][nonaligned]
     REQUIRE(rcPoint == 0);
 
     for (std::size_t k = 0; k < sizeE * sizeE; ++k) {
-      CHECK(out[l * sizeE * sizeE + k] == Catch::Approx(plane[k]).margin(kTol));
+      CHECK(out[l * sizeE * sizeE + k] == Catch::Approx(plane[k]).margin(Tol));
     }
   }
 }
@@ -329,7 +329,7 @@ TEST_CASE("Batch aligned 2D2D matches point version", "[loginterp][2d2d][aligned
     REQUIRE(rcPoint == 0);
 
     for (std::size_t i = 0; i < planeSize; ++i) {
-      CHECK(outBatch[k * planeSize + i] == Catch::Approx(outPoint[i]).margin(kTol));
+      CHECK(outBatch[k * planeSize + i] == Catch::Approx(outPoint[i]).margin(Tol));
     }
   }
 }

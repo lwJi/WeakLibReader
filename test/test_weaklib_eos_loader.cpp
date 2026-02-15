@@ -2,47 +2,27 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "hdf5/WeakLibReader_Hdf5Loader.hpp"
+#include "test_amrex_guard.hpp"
 
-#include <AMReX.H>
 #include <AMReX_GpuContainers.H>
 #include <hdf5.h>
 
 #include <algorithm>
 #include <array>
-#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>
 
-using namespace WeakLibReader;
-
 namespace {
 
-constexpr std::size_t kRhoCount = 3;
-constexpr std::size_t kTempCount = 2;
-constexpr std::size_t kYeCount = 2;
+constexpr std::size_t RhoCount = 3;
+constexpr std::size_t TempCount = 2;
+constexpr std::size_t YeCount = 2;
 
-const double kDensityAxis[kRhoCount] = {1.0e3, 1.0e6, 1.0e9};
-const double kTemperatureAxis[kTempCount] = {0.1, 1.0};
-const double kYeAxis[kYeCount] = {0.1, 0.3};
-
-/// RAII helper that temporarily silences HDF5 automatic error printing.
-struct ScopedHdf5ErrorSilencer {
-  H5E_auto2_t oldFunc = nullptr;
-  void* oldClientData = nullptr;
-
-  ScopedHdf5ErrorSilencer()
-  {
-    H5Eget_auto2(H5E_DEFAULT, &oldFunc, &oldClientData);
-    H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
-  }
-
-  ~ScopedHdf5ErrorSilencer()
-  {
-    H5Eset_auto2(H5E_DEFAULT, oldFunc, oldClientData);
-  }
-};
+const double DensityAxis[RhoCount] = {1.0e3, 1.0e6, 1.0e9};
+const double TemperatureAxis[TempCount] = {0.1, 1.0};
+const double YeAxis[YeCount] = {0.1, 0.3};
 
 void CreateAxisDataset(hid_t parent, const char* name, const double* values, std::size_t count)
 {
@@ -329,10 +309,10 @@ void CreateWeakLibEosTestFileFullCOrder(const std::filesystem::path& filePath)
 std::vector<double> MakeDependentValues(double offset)
 {
   std::vector<double> values;
-  values.reserve(kRhoCount * kTempCount * kYeCount);
-  for (std::size_t ye = 0; ye < kYeCount; ++ye) {
-    for (std::size_t temp = 0; temp < kTempCount; ++temp) {
-      for (std::size_t rho = 0; rho < kRhoCount; ++rho) {
+  values.reserve(RhoCount * TempCount * YeCount);
+  for (std::size_t ye = 0; ye < YeCount; ++ye) {
+    for (std::size_t temp = 0; temp < TempCount; ++temp) {
+      for (std::size_t rho = 0; rho < RhoCount; ++rho) {
         values.push_back(offset +
                          1.0 +
                          100.0 * static_cast<double>(ye) +
@@ -347,9 +327,9 @@ std::vector<double> MakeDependentValues(double offset)
 void CreateDependentVariable(hid_t parent, const char* name, const std::vector<double>& values)
 {
   const hsize_t dims[3] = {
-      static_cast<hsize_t>(kYeCount),
-      static_cast<hsize_t>(kTempCount),
-      static_cast<hsize_t>(kRhoCount)};
+      static_cast<hsize_t>(YeCount),
+      static_cast<hsize_t>(TempCount),
+      static_cast<hsize_t>(RhoCount)};
   hid_t space = H5Screate_simple(3, dims, nullptr);
   REQUIRE(space >= 0);
 
@@ -374,9 +354,9 @@ void CreateWeakLibEosTestFile(const std::filesystem::path& path)
   const int logInterp[3] = {1, 1, 0};
   CreateIntDataset(thermoGroup, "LogInterp", logInterp, 3);
 
-  CreateAxisDataset(thermoGroup, "Density", kDensityAxis, kRhoCount);
-  CreateAxisDataset(thermoGroup, "Temperature", kTemperatureAxis, kTempCount);
-  CreateAxisDataset(thermoGroup, "Electron Fraction", kYeAxis, kYeCount);
+  CreateAxisDataset(thermoGroup, "Density", DensityAxis, RhoCount);
+  CreateAxisDataset(thermoGroup, "Temperature", TemperatureAxis, TempCount);
+  CreateAxisDataset(thermoGroup, "Electron Fraction", YeAxis, YeCount);
 
   H5Gclose(thermoGroup);
 
@@ -403,28 +383,12 @@ struct TempWeakLibEosFile {
   ~TempWeakLibEosFile() { std::filesystem::remove(path); }
 };
 
-/// Initialize AMReX if not already initialized.
-/// This relies on AMReX's internal tracking to avoid double-initialization.
-void EnsureAmrexInitialized()
-{
-  if (!amrex::Initialized()) {
-    int argc = 0;
-    char** argv = nullptr;
-    amrex::Initialize(argc, argv);
-    // Register finalize at exit - but only if we initialized
-    std::atexit([]() {
-      if (amrex::Initialized()) {
-        amrex::Finalize();
-      }
-    });
-  }
-}
-
 } // namespace
 
 TEST_CASE("LoadWeakLibEosTableFull reads complete EOS table", "[hdf5][weaklib]")
 {
-  EnsureAmrexInitialized();
+  using namespace WeakLibReader;
+  AmrexGuard amrex{};
 
   const std::filesystem::path eosPath =
       std::filesystem::temp_directory_path() / "weaklibreader_eos_small_full.h5";
@@ -483,7 +447,8 @@ TEST_CASE("LoadWeakLibEosTableFull reads complete EOS table", "[hdf5][weaklib]")
 
 TEST_CASE("MakeDeviceCopy works for WeakLibEosTable", "[hdf5][weaklib][gpu]")
 {
-  EnsureAmrexInitialized();
+  using namespace WeakLibReader;
+  AmrexGuard amrex{};
 
   const std::filesystem::path eosPath =
       std::filesystem::temp_directory_path() / "weaklibreader_eos_small_device.h5";
@@ -505,7 +470,8 @@ TEST_CASE("MakeDeviceCopy works for WeakLibEosTable", "[hdf5][weaklib][gpu]")
 
 TEST_CASE("LoadWeakLibEosTableFullParallel loads complete table", "[weaklib][eos][parallel]")
 {
-  EnsureAmrexInitialized();
+  using namespace WeakLibReader;
+  AmrexGuard amrex{};
 
   const std::filesystem::path eosPath =
       std::filesystem::temp_directory_path() / "weaklibreader_eos_parallel_full.h5";
@@ -568,8 +534,9 @@ TEST_CASE("LoadWeakLibEosTableFullParallel loads complete table", "[weaklib][eos
 
 TEST_CASE("LoadWeakLibEosTableFullParallel fails for nonexistent file", "[weaklib][eos][parallel]")
 {
-  EnsureAmrexInitialized();
-  ScopedHdf5ErrorSilencer silencer{};
+  using namespace WeakLibReader;
+  AmrexGuard amrex{};
+  detail::ScopedH5ErrorSuppressor silencer{};
 
   WeakLibEosTable table;
   const Hdf5LoadStatus status = LoadWeakLibEosTableFullParallel("/nonexistent/path.h5", table);
@@ -579,7 +546,8 @@ TEST_CASE("LoadWeakLibEosTableFullParallel fails for nonexistent file", "[weakli
 
 TEST_CASE("LoadWeakLibEosTableFull rejects C-ordered dependent variables", "[weaklib][eos][validation]")
 {
-  EnsureAmrexInitialized();
+  using namespace WeakLibReader;
+  AmrexGuard amrex{};
 
   const std::filesystem::path eosPath =
       std::filesystem::temp_directory_path() / "weaklibreader_eos_c_order.h5";

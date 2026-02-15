@@ -12,7 +12,7 @@
 
 namespace {
 
-constexpr double kTol = 1.0e-12;
+constexpr double Tol = 1.0e-12;
 
 } // namespace
 
@@ -40,7 +40,7 @@ TEST_CASE("LinearInterp1DPoint matches linear expectation", "[interp][1d]")
   const double logExpected = Linear(table[0], table[1], d0);
   const double expected = std::pow(10.0, logExpected);
 
-  CHECK(result == Catch::Approx(expected).margin(kTol));
+  CHECK(result == Catch::Approx(expected).margin(Tol));
 }
 
 TEST_CASE("LinearInterp1DPoint with offset", "[interp][1d]")
@@ -59,7 +59,7 @@ TEST_CASE("LinearInterp1DPoint with offset", "[interp][1d]")
   const double logExpected = Linear(table[0], table[1], d0);
   const double expected = std::pow(10.0, logExpected) - os;
 
-  CHECK(result == Catch::Approx(expected).margin(kTol));
+  CHECK(result == Catch::Approx(expected).margin(Tol));
 }
 
 TEST_CASE("LinearInterp1DPoint at boundaries", "[interp][1d]")
@@ -72,11 +72,11 @@ TEST_CASE("LinearInterp1DPoint at boundaries", "[interp][1d]")
 
   // At d0=0, should return first value
   CHECK(LinearInterp1DPoint(0, 0.0, 0.0, table.data(), layout) ==
-        Catch::Approx(3.0).margin(kTol));
+        Catch::Approx(3.0).margin(Tol));
 
   // At d0=1, should return second value
   CHECK(LinearInterp1DPoint(0, 1.0, 0.0, table.data(), layout) ==
-        Catch::Approx(6.0).margin(kTol));
+        Catch::Approx(6.0).margin(Tol));
 }
 
 TEST_CASE("LinearInterpDeriv2DPoint returns correct interpolant", "[interp][deriv][2d]")
@@ -100,7 +100,7 @@ TEST_CASE("LinearInterpDeriv2DPoint returns correct interpolant", "[interp][deri
 
   // Verify interpolant matches LinearInterp2DPoint
   const double expected = LinearInterp2DPoint(i0, i1, d0, d1, os, table.data(), layout);
-  CHECK(interpolant == Catch::Approx(expected).margin(kTol));
+  CHECK(interpolant == Catch::Approx(expected).margin(Tol));
 }
 
 TEST_CASE("LinearInterpDeriv2DPoint derivatives match numerical", "[interp][deriv][2d][numerical]")
@@ -160,7 +160,7 @@ TEST_CASE("LinearInterpDeriv2DPoint with offset", "[interp][deriv][2d]")
 
   // Interpolant should match with offset
   const double expectedInterp = LinearInterp2DPoint(0, 0, d0, d1, os, table.data(), layout);
-  CHECK(interpolant == Catch::Approx(expectedInterp).margin(kTol));
+  CHECK(interpolant == Catch::Approx(expectedInterp).margin(Tol));
 
   // Compute numerical derivatives (w.r.t. fractional coordinates)
   const double h = 1.0e-7;
@@ -211,7 +211,7 @@ TEST_CASE("LinearInterp2D3DArray1DAlignedPoint matches slice extraction", "[inte
     const Layout sliceLayout = SliceLeading(layout, 1);
     const double expected = LinearInterp2DPoint(i0, i1, d0, d1, os, slice, sliceLayout);
 
-    CHECK(result == Catch::Approx(expected).margin(kTol));
+    CHECK(result == Catch::Approx(expected).margin(Tol));
   }
 
   // Test at iFixed = 1
@@ -225,7 +225,7 @@ TEST_CASE("LinearInterp2D3DArray1DAlignedPoint matches slice extraction", "[inte
     const Layout sliceLayout = SliceLeading(layout, 1);
     const double expected = LinearInterp2DPoint(i0, i1, d0, d1, os, slice, sliceLayout);
 
-    CHECK(result == Catch::Approx(expected).margin(kTol));
+    CHECK(result == Catch::Approx(expected).margin(Tol));
   }
 }
 
@@ -255,7 +255,7 @@ TEST_CASE("LinearInterp3D4DArray1DAlignedPoint matches slice extraction", "[inte
     const Layout sliceLayout = SliceLeading(layout, 1);
     const double expected = LinearInterp3DPoint(i0, i1, i2, d0, d1, d2, os, slice, sliceLayout);
 
-    CHECK(result == Catch::Approx(expected).margin(kTol));
+    CHECK(result == Catch::Approx(expected).margin(Tol));
   }
 }
 
@@ -287,7 +287,7 @@ TEST_CASE("LinearInterp3D5DArray2DAlignedPoint matches slice extraction", "[inte
       const Layout sliceLayout = SliceLeading(layout, 2);
       const double expected = LinearInterp3DPoint(i0, i1, i2, d0, d1, d2, os, slice, sliceLayout);
 
-      CHECK(result == Catch::Approx(expected).margin(kTol));
+      CHECK(result == Catch::Approx(expected).margin(Tol));
     }
   }
 }
@@ -318,6 +318,6 @@ TEST_CASE("LinearInterp4D5DArray1DAlignedPoint matches slice extraction", "[inte
     const Layout sliceLayout = SliceLeading(layout, 1);
     const double expected = LinearInterp4DPoint(i0, i1, i2, i3, d0, d1, d2, d3, os, slice, sliceLayout);
 
-    CHECK(result == Catch::Approx(expected).margin(kTol));
+    CHECK(result == Catch::Approx(expected).margin(Tol));
   }
 }

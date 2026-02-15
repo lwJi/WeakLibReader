@@ -1,3 +1,4 @@
+#define SIMPLE_CATCH_NO_MAIN
 #include <catch2/catch_test_macros.hpp>
 
 #include "interp/WeakLibReader_LogInterpolate.hpp"
@@ -11,7 +12,7 @@
 
 namespace {
 
-constexpr double kTol = 1.0e-12;
+constexpr double Tol = 1.0e-12;
 
 } // namespace
 
@@ -49,7 +50,7 @@ TEST_CASE("2D log interpolation matches bilinear expectation", "[loginterp][2d]"
                              dY * ((1.0 - dX) * p01 + dX * p11);
   const double expected = std::pow(10.0, logExpected);
 
-  CHECK(result == Catch::Approx(expected).margin(kTol));
+  CHECK(result == Catch::Approx(expected).margin(Tol));
 }
 
 TEST_CASE("Batch 2D log interpolation matches point wrapper", "[loginterp][2d][batch]")
@@ -83,7 +84,7 @@ TEST_CASE("Batch 2D log interpolation matches point wrapper", "[loginterp][2d][b
   for (std::size_t i = 0; i < x0.size(); ++i) {
     const double point = LogInterpolateSingleVariable2DCustomPoint(
         x0[i], x1[i], axes, table.data(), 0.0);
-    CHECK(out[i] == Catch::Approx(point).margin(kTol));
+    CHECK(out[i] == Catch::Approx(point).margin(Tol));
   }
 }
 
@@ -138,9 +139,9 @@ TEST_CASE("Out-of-range on mixed axes extrapolates correctly", "[loginterp][poli
   detail::LogInterpolatedDerivativeDirect<2>(
       table.data(), layout, axes, coords, offset, interpolant, deriv);
 
-  CHECK(interpolant == Catch::Approx(expectedInterp).margin(kTol));
-  CHECK(deriv[0] == Catch::Approx(expectedDLog).margin(kTol));
-  CHECK(deriv[1] == Catch::Approx(expectedDLin).margin(kTol));
+  CHECK(interpolant == Catch::Approx(expectedInterp).margin(Tol));
+  CHECK(deriv[0] == Catch::Approx(expectedDLog).margin(Tol));
+  CHECK(deriv[1] == Catch::Approx(expectedDLin).margin(Tol));
 }
 
 TEST_CASE("Template instantiation compiles for all dimensions", "[compile-time]")

@@ -37,9 +37,10 @@ double LogInterpolatedValueDirect(const double* data,
   return LinearInterpPointDirect<ND>(indices, fractions, offset, data, layout);
 }
 
-inline void StoreSymmetric(double* plane, std::size_t size,
-                           std::size_t i, std::size_t j,
-                           double value) noexcept
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+void StoreSymmetric(double* plane, std::size_t size,
+                    std::size_t i, std::size_t j,
+                    double value) noexcept
 {
   const std::size_t idxLower = j * size + i;
   plane[idxLower] = value;

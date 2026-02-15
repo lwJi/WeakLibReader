@@ -11,7 +11,7 @@
 
 namespace {
 
-constexpr double kTol = 1.0e-12;
+constexpr double Tol = 1.0e-12;
 
 } // namespace
 
@@ -76,7 +76,7 @@ TEST_CASE("3D log interpolation matches trilinear expectation", "[loginterp][3d]
   const double logExpected = (1 - dZ) * c0 + dZ * c1;
   const double expected = std::pow(10.0, logExpected);
 
-  CHECK(result == Catch::Approx(expected).margin(kTol));
+  CHECK(result == Catch::Approx(expected).margin(Tol));
 }
 
 TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][batch]")
@@ -120,7 +120,7 @@ TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][b
   for (std::size_t i = 0; i < x0.size(); ++i) {
     const double point = LogInterpolateSingleVariable3DCustomPoint(
         x0[i], x1[i], x2[i], axes, table.data(), 0.0);
-    CHECK(out[i] == Catch::Approx(point).margin(kTol));
+    CHECK(out[i] == Catch::Approx(point).margin(Tol));
   }
 }
 

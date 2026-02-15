@@ -263,17 +263,17 @@ struct WeakLibEmAbParameters {
 
 // EmAb opacity table (4D: nE x nRho x nT x nYe)
 struct WeakLibEmAbTable {
-  static constexpr int kNumSpecies = 2;  // nu_e, nu_e_bar
+  static constexpr int NumSpecies = 2;  // nu_e, nu_e_bar
 
   int nOpacities = 0;
   std::array<int, 4> dimensions{{0, 0, 0, 0}};  // [nE, nRho, nT, nYe]
 
-  std::array<std::string, kNumSpecies> names;
-  std::array<std::string, kNumSpecies> units;
-  std::array<double, kNumSpecies> offsets{{0.0, 0.0}};
+  std::array<std::string, NumSpecies> names;
+  std::array<std::string, NumSpecies> units;
+  std::array<double, NumSpecies> offsets{{0.0, 0.0}};
 
   // Opacity data: 4D [nE, nRho, nT, nYe] per species
-  std::array<amrex::Gpu::PinnedVector<double>, kNumSpecies> opacities;
+  std::array<amrex::Gpu::PinnedVector<double>, NumSpecies> opacities;
 
   WeakLibEmAbParameters parameters;
   WeakLibECTable ecTable;
@@ -293,12 +293,12 @@ struct WeakLibEmAbTable {
 };
 
 struct WeakLibEmAbTableDevice {
-  static constexpr int kNumSpecies = 2;
+  static constexpr int NumSpecies = 2;
 
   int nOpacities = 0;
   std::array<int, 4> dimensions{{0, 0, 0, 0}};
-  std::array<double, kNumSpecies> offsets{{0.0, 0.0}};
-  std::array<amrex::Gpu::DeviceVector<double>, kNumSpecies> opacities;
+  std::array<double, NumSpecies> offsets{{0.0, 0.0}};
+  std::array<amrex::Gpu::DeviceVector<double>, NumSpecies> opacities;
   WeakLibEmAbParameters parameters;
   WeakLibECTableDevice ecTable;
   Layout layout{};
@@ -311,19 +311,19 @@ struct WeakLibEmAbTableDevice {
 
 // Iso scattering table (5D: nE x nMom x nRho x nT x nYe)
 struct WeakLibScatIsoTable {
-  static constexpr int kNumSpecies = 2;
+  static constexpr int NumSpecies = 2;
 
   int nOpacities = 0;
   int nMoments = 0;
   std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};  // [nE, nMom, nRho, nT, nYe]
 
-  std::array<std::string, kNumSpecies> names;
-  std::array<std::string, kNumSpecies> units;
+  std::array<std::string, NumSpecies> names;
+  std::array<std::string, NumSpecies> units;
   // Offsets: 2D [nOpacities, nMoments] — column-major (species stride=1)
   amrex::Gpu::PinnedVector<double> offsets;
 
   // Kernel data: 5D per species (stored as flat arrays)
-  std::array<amrex::Gpu::PinnedVector<double>, kNumSpecies> kernels;
+  std::array<amrex::Gpu::PinnedVector<double>, NumSpecies> kernels;
 
   // Correction flags
   int weak_magnetism_corrections = -1;
@@ -350,13 +350,13 @@ struct WeakLibScatIsoTable {
 };
 
 struct WeakLibScatIsoTableDevice {
-  static constexpr int kNumSpecies = 2;
+  static constexpr int NumSpecies = 2;
 
   int nOpacities = 0;
   int nMoments = 0;
   std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
   amrex::Gpu::DeviceVector<double> offsets;
-  std::array<amrex::Gpu::DeviceVector<double>, kNumSpecies> kernels;
+  std::array<amrex::Gpu::DeviceVector<double>, NumSpecies> kernels;
 
   int weak_magnetism_corrections = -1;
   int ion_ion_corrections = -1;

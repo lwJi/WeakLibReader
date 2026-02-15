@@ -80,7 +80,7 @@ inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host)
     device.emAb.parameters = host.emAb.parameters;
     device.emAb.layout = host.emAb.layout;
 
-    for (int i = 0; i < WeakLibEmAbTable::kNumSpecies; ++i) {
+    for (int i = 0; i < WeakLibEmAbTable::NumSpecies; ++i) {
       if (host.emAb.opacities[i].size() > 0) {
         device.emAb.opacities[i].resize(host.emAb.opacities[i].size());
         amrex::Gpu::copy(amrex::Gpu::hostToDevice,
@@ -148,7 +148,7 @@ inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host)
                      device.scatIso.offsets.begin());
 
     // Kernels are stored as flat vectors
-    for (int i = 0; i < WeakLibScatIsoTable::kNumSpecies; ++i) {
+    for (int i = 0; i < WeakLibScatIsoTable::NumSpecies; ++i) {
       if (!host.scatIso.kernels[i].empty()) {
         device.scatIso.kernels[i].resize(host.scatIso.kernels[i].size());
         amrex::Gpu::copy(amrex::Gpu::hostToDevice,

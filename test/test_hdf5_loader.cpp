@@ -2,8 +2,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "hdf5/WeakLibReader_Hdf5Loader.hpp"
+#include "test_amrex_guard.hpp"
 
-#include <AMReX.H>
 #include <AMReX_GpuContainers.H>
 #include <AMReX_GpuDevice.H>
 
@@ -16,49 +16,7 @@
 
 namespace {
 
-constexpr double kTol = 1.0e-12;
-
-/// Global AMReX guard that initializes once and finalizes at program exit.
-/// This avoids the MPI re-initialization error that occurs when each test
-/// creates its own AmrexGuard (MPI cannot be re-initialized after finalization).
-struct GlobalAmrexGuard {
-  GlobalAmrexGuard()
-  {
-    int argc = 0;
-    char** argv = nullptr;
-    amrex::Initialize(argc, argv);
-  }
-  ~GlobalAmrexGuard() { amrex::Finalize(); }
-
-  static GlobalAmrexGuard& Instance()
-  {
-    static GlobalAmrexGuard guard;
-    return guard;
-  }
-};
-
-/// Per-test helper that ensures AMReX is initialized (via the global guard)
-struct AmrexGuard {
-  AmrexGuard() { (void)GlobalAmrexGuard::Instance(); }
-};
-
-/// RAII helper that temporarily silences HDF5 automatic error printing.
-/// Used in tests that intentionally trigger HDF5 errors.
-struct ScopedHdf5ErrorSilencer {
-  H5E_auto2_t oldFunc = nullptr;
-  void* oldClientData = nullptr;
-
-  ScopedHdf5ErrorSilencer()
-  {
-    H5Eget_auto2(H5E_DEFAULT, &oldFunc, &oldClientData);
-    H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
-  }
-
-  ~ScopedHdf5ErrorSilencer()
-  {
-    H5Eset_auto2(H5E_DEFAULT, oldFunc, oldClientData);
-  }
-};
+constexpr double Tol = 1.0e-12;
 
 void WriteStringAttribute(hid_t parent, const std::string& name, const char* value)
 {
@@ -93,6 +51,7 @@ void CreateAxisDataset(hid_t file,
 
 TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
 {
+  using namespace WeakLibReader;
   AmrexGuard amrex{};
 
   const std::filesystem::path filePath =
@@ -128,17 +87,17 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
 
   H5Fclose(file);
 
-  WeakLibReader::Hdf5Table table;
-  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+  Hdf5Table table;
+  const auto status = LoadHdf5Table(filePath.string(), table);
 
-  REQUIRE(status == WeakLibReader::Hdf5LoadStatus::Success);
+  REQUIRE(status == Hdf5LoadStatus::Success);
   REQUIRE(table.nd == 3);
 
   CHECK(table.extents[0] == 2);
   CHECK(table.extents[1] == 3);
   CHECK(table.extents[2] == 4);
 
-  const WeakLibReader::Layout& layout = table.layout;
+  const Layout& layout = table.layout;
   CHECK(layout.nd == 3);
   CHECK(layout.n[0] == 2);
   CHECK(layout.n[1] == 3);
@@ -152,16 +111,16 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
   CHECK(data[idx] == Catch::Approx(100.0 * 3.0 + 10.0 * 2.0 + 1.0));
 
   const auto& axis0 = table.axes[0];
-  CHECK(axis0.scale == WeakLibReader::AxisScale::Linear);
+  CHECK(axis0.scale == AxisScale::Linear);
   CHECK(axis0.n == 2);
   CHECK(axis0.grid[1] == Catch::Approx(1.0));
 
   const auto& axis2 = table.axes[2];
-  CHECK(axis2.scale == WeakLibReader::AxisScale::Log10);
+  CHECK(axis2.scale == AxisScale::Log10);
   CHECK(axis2.n == 4);
   CHECK(axis2.grid[3] == Catch::Approx(4.0));
 
-  const auto deviceTable = WeakLibReader::MakeDeviceCopy(table);
+  const auto deviceTable = MakeDeviceCopy(table);
 
   amrex::Gpu::PinnedVector<double> roundtrip(deviceTable.values.size());
   amrex::Gpu::copy(amrex::Gpu::deviceToHost,
@@ -175,7 +134,7 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
     total *= static_cast<std::size_t>(table.extents[dim]);
   }
   for (std::size_t i = 0; i < total; ++i) {
-    CHECK(roundtripPtr[i] == Catch::Approx(originalPtr[i]).margin(kTol));
+    CHECK(roundtripPtr[i] == Catch::Approx(originalPtr[i]).margin(Tol));
   }
 
   for (int dim = 0; dim < table.nd; ++dim) {
@@ -186,25 +145,26 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
                      hostAxis.begin());
     REQUIRE(hostAxis.size() == table.axisStorage[dim].size());
     for (std::size_t i = 0; i < hostAxis.size(); ++i) {
-      CHECK(hostAxis[i] == Catch::Approx(table.axisStorage[dim][i]).margin(kTol));
+      CHECK(hostAxis[i] == Catch::Approx(table.axisStorage[dim][i]).margin(Tol));
     }
   }
 
-  WeakLibReader::Hdf5Table parallelTable;
+  Hdf5Table parallelTable;
   const auto parallelStatus =
-      WeakLibReader::LoadHdf5TableParallel(filePath.string(), parallelTable);
-  REQUIRE(parallelStatus == WeakLibReader::Hdf5LoadStatus::Success);
+      LoadHdf5TableParallel(filePath.string(), parallelTable);
+  REQUIRE(parallelStatus == Hdf5LoadStatus::Success);
   CHECK(parallelTable.nd == table.nd);
   CHECK(parallelTable.layout.n[0] == table.layout.n[0]);
   CHECK(parallelTable.axes[2].scale == table.axes[2].scale);
   const double* parallelData = parallelTable.DataPtr();
-  CHECK(parallelData[idx] == Catch::Approx(data[idx]).margin(kTol));
+  CHECK(parallelData[idx] == Catch::Approx(data[idx]).margin(Tol));
 
   std::filesystem::remove(filePath);
 }
 
 TEST_CASE("HDF5 loader rejects single-point axes", "[hdf5][loader][validation]")
 {
+  using namespace WeakLibReader;
   AmrexGuard amrex{};
 
   const std::filesystem::path filePath =
@@ -228,29 +188,31 @@ TEST_CASE("HDF5 loader rejects single-point axes", "[hdf5][loader][validation]")
 
   H5Fclose(file);
 
-  WeakLibReader::Hdf5Table table;
-  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+  Hdf5Table table;
+  const auto status = LoadHdf5Table(filePath.string(), table);
 
-  CHECK(status == WeakLibReader::Hdf5LoadStatus::AxisNotMonotone);
+  CHECK(status == Hdf5LoadStatus::AxisNotMonotone);
 
   std::filesystem::remove(filePath);
 }
 
 TEST_CASE("HDF5 loader returns FileOpenFailed for non-existent file", "[hdf5][loader][error]")
 {
+  using namespace WeakLibReader;
   AmrexGuard amrex{};
-  ScopedHdf5ErrorSilencer silencer{};
+  detail::ScopedH5ErrorSuppressor silencer{};
 
-  WeakLibReader::Hdf5Table table;
-  const auto status = WeakLibReader::LoadHdf5Table("/nonexistent/path/to/file.h5", table);
+  Hdf5Table table;
+  const auto status = LoadHdf5Table("/nonexistent/path/to/file.h5", table);
 
-  CHECK(status == WeakLibReader::Hdf5LoadStatus::FileOpenFailed);
+  CHECK(status == Hdf5LoadStatus::FileOpenFailed);
 }
 
 TEST_CASE("HDF5 loader returns DatasetOpenFailed for missing values dataset", "[hdf5][loader][error]")
 {
+  using namespace WeakLibReader;
   AmrexGuard amrex{};
-  ScopedHdf5ErrorSilencer silencer{};
+  detail::ScopedH5ErrorSuppressor silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_no_values.h5";
@@ -264,18 +226,19 @@ TEST_CASE("HDF5 loader returns DatasetOpenFailed for missing values dataset", "[
 
   H5Fclose(file);
 
-  WeakLibReader::Hdf5Table table;
-  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+  Hdf5Table table;
+  const auto status = LoadHdf5Table(filePath.string(), table);
 
-  CHECK(status == WeakLibReader::Hdf5LoadStatus::DatasetOpenFailed);
+  CHECK(status == Hdf5LoadStatus::DatasetOpenFailed);
 
   std::filesystem::remove(filePath);
 }
 
 TEST_CASE("HDF5 loader returns AxisDatasetOpenFailed for missing axis", "[hdf5][loader][error]")
 {
+  using namespace WeakLibReader;
   AmrexGuard amrex{};
-  ScopedHdf5ErrorSilencer silencer{};
+  detail::ScopedH5ErrorSuppressor silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_missing_axis.h5";
@@ -299,18 +262,19 @@ TEST_CASE("HDF5 loader returns AxisDatasetOpenFailed for missing axis", "[hdf5][
 
   H5Fclose(file);
 
-  WeakLibReader::Hdf5Table table;
-  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+  Hdf5Table table;
+  const auto status = LoadHdf5Table(filePath.string(), table);
 
-  CHECK(status == WeakLibReader::Hdf5LoadStatus::AxisDatasetOpenFailed);
+  CHECK(status == Hdf5LoadStatus::AxisDatasetOpenFailed);
 
   std::filesystem::remove(filePath);
 }
 
 TEST_CASE("HDF5 loader returns AxisExtentMismatch when axis size differs from values", "[hdf5][loader][error]")
 {
+  using namespace WeakLibReader;
   AmrexGuard amrex{};
-  ScopedHdf5ErrorSilencer silencer{};
+  detail::ScopedH5ErrorSuppressor silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_extent_mismatch.h5";
@@ -334,18 +298,19 @@ TEST_CASE("HDF5 loader returns AxisExtentMismatch when axis size differs from va
 
   H5Fclose(file);
 
-  WeakLibReader::Hdf5Table table;
-  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+  Hdf5Table table;
+  const auto status = LoadHdf5Table(filePath.string(), table);
 
-  CHECK(status == WeakLibReader::Hdf5LoadStatus::AxisExtentMismatch);
+  CHECK(status == Hdf5LoadStatus::AxisExtentMismatch);
 
   std::filesystem::remove(filePath);
 }
 
 TEST_CASE("HDF5 loader returns AxisInvalidScale for unknown scale attribute", "[hdf5][loader][error]")
 {
+  using namespace WeakLibReader;
   AmrexGuard amrex{};
-  ScopedHdf5ErrorSilencer silencer{};
+  detail::ScopedH5ErrorSuppressor silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_invalid_scale.h5";
@@ -368,18 +333,19 @@ TEST_CASE("HDF5 loader returns AxisInvalidScale for unknown scale attribute", "[
 
   H5Fclose(file);
 
-  WeakLibReader::Hdf5Table table;
-  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+  Hdf5Table table;
+  const auto status = LoadHdf5Table(filePath.string(), table);
 
-  CHECK(status == WeakLibReader::Hdf5LoadStatus::AxisInvalidScale);
+  CHECK(status == Hdf5LoadStatus::AxisInvalidScale);
 
   std::filesystem::remove(filePath);
 }
 
 TEST_CASE("HDF5 loader returns AxisNotMonotone for non-monotonic axis", "[hdf5][loader][error]")
 {
+  using namespace WeakLibReader;
   AmrexGuard amrex{};
-  ScopedHdf5ErrorSilencer silencer{};
+  detail::ScopedH5ErrorSuppressor silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_nonmonotonic.h5";
@@ -402,18 +368,19 @@ TEST_CASE("HDF5 loader returns AxisNotMonotone for non-monotonic axis", "[hdf5][
 
   H5Fclose(file);
 
-  WeakLibReader::Hdf5Table table;
-  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+  Hdf5Table table;
+  const auto status = LoadHdf5Table(filePath.string(), table);
 
-  CHECK(status == WeakLibReader::Hdf5LoadStatus::AxisNotMonotone);
+  CHECK(status == Hdf5LoadStatus::AxisNotMonotone);
 
   std::filesystem::remove(filePath);
 }
 
 TEST_CASE("HDF5 loader returns AxisNotMonotone for descending axis", "[hdf5][loader][error]")
 {
+  using namespace WeakLibReader;
   AmrexGuard amrex{};
-  ScopedHdf5ErrorSilencer silencer{};
+  detail::ScopedH5ErrorSuppressor silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_descending.h5";
@@ -436,18 +403,19 @@ TEST_CASE("HDF5 loader returns AxisNotMonotone for descending axis", "[hdf5][loa
 
   H5Fclose(file);
 
-  WeakLibReader::Hdf5Table table;
-  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+  Hdf5Table table;
+  const auto status = LoadHdf5Table(filePath.string(), table);
 
-  CHECK(status == WeakLibReader::Hdf5LoadStatus::AxisNotMonotone);
+  CHECK(status == Hdf5LoadStatus::AxisNotMonotone);
 
   std::filesystem::remove(filePath);
 }
 
 TEST_CASE("HDF5 loader returns AxisNotMonotone for Log10 axis with non-positive values", "[hdf5][loader][error]")
 {
+  using namespace WeakLibReader;
   AmrexGuard amrex{};
-  ScopedHdf5ErrorSilencer silencer{};
+  detail::ScopedH5ErrorSuppressor silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_log_nonpositive.h5";
@@ -470,18 +438,19 @@ TEST_CASE("HDF5 loader returns AxisNotMonotone for Log10 axis with non-positive 
 
   H5Fclose(file);
 
-  WeakLibReader::Hdf5Table table;
-  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+  Hdf5Table table;
+  const auto status = LoadHdf5Table(filePath.string(), table);
 
-  CHECK(status == WeakLibReader::Hdf5LoadStatus::AxisNotMonotone);
+  CHECK(status == Hdf5LoadStatus::AxisNotMonotone);
 
   std::filesystem::remove(filePath);
 }
 
 TEST_CASE("HDF5 loader returns DatasetRankInvalid for 0D dataset", "[hdf5][loader][error]")
 {
+  using namespace WeakLibReader;
   AmrexGuard amrex{};
-  ScopedHdf5ErrorSilencer silencer{};
+  detail::ScopedH5ErrorSuppressor silencer{};
 
   const std::filesystem::path filePath =
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_0d.h5";
@@ -500,16 +469,17 @@ TEST_CASE("HDF5 loader returns DatasetRankInvalid for 0D dataset", "[hdf5][loade
 
   H5Fclose(file);
 
-  WeakLibReader::Hdf5Table table;
-  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+  Hdf5Table table;
+  const auto status = LoadHdf5Table(filePath.string(), table);
 
-  CHECK(status == WeakLibReader::Hdf5LoadStatus::DatasetRankInvalid);
+  CHECK(status == Hdf5LoadStatus::DatasetRankInvalid);
 
   std::filesystem::remove(filePath);
 }
 
 TEST_CASE("HDF5 loader handles 5D tables correctly", "[hdf5][loader][5d]")
 {
+  using namespace WeakLibReader;
   AmrexGuard amrex{};
 
   const std::filesystem::path filePath =
@@ -561,10 +531,10 @@ TEST_CASE("HDF5 loader handles 5D tables correctly", "[hdf5][loader][5d]")
   H5Fclose(file);
 
   // Load the table
-  WeakLibReader::Hdf5Table table;
-  const auto status = WeakLibReader::LoadHdf5Table(filePath.string(), table);
+  Hdf5Table table;
+  const auto status = LoadHdf5Table(filePath.string(), table);
 
-  REQUIRE(status == WeakLibReader::Hdf5LoadStatus::Success);
+  REQUIRE(status == Hdf5LoadStatus::Success);
   REQUIRE(table.nd == 5);
 
   // Verify extents (C-order)
@@ -583,11 +553,11 @@ TEST_CASE("HDF5 loader handles 5D tables correctly", "[hdf5][loader][5d]")
   CHECK(table.layout.n[4] == 6);
 
   // Verify axes
-  CHECK(table.axes[0].scale == WeakLibReader::AxisScale::Linear);
+  CHECK(table.axes[0].scale == AxisScale::Linear);
   CHECK(table.axes[0].n == 2);
-  CHECK(table.axes[2].scale == WeakLibReader::AxisScale::Log10);
+  CHECK(table.axes[2].scale == AxisScale::Log10);
   CHECK(table.axes[2].n == 4);
-  CHECK(table.axes[4].scale == WeakLibReader::AxisScale::Log10);
+  CHECK(table.axes[4].scale == AxisScale::Log10);
   CHECK(table.axes[4].n == 6);
 
   // Verify a specific data point using Layout::Offset
@@ -597,7 +567,7 @@ TEST_CASE("HDF5 loader handles 5D tables correctly", "[hdf5][loader][5d]")
   CHECK(data[offset] == Catch::Approx(54321.0));
 
   // Test MakeDeviceCopy for 5D table
-  const auto deviceTable = WeakLibReader::MakeDeviceCopy(table);
+  const auto deviceTable = MakeDeviceCopy(table);
   CHECK(deviceTable.nd == 5);
   CHECK(deviceTable.layout.nd == 5);
 
@@ -611,7 +581,7 @@ TEST_CASE("HDF5 loader handles 5D tables correctly", "[hdf5][loader][5d]")
   const double* originalPtr = table.DataPtr();
   const double* roundtripPtr = roundtrip.data();
   for (std::size_t i = 0; i < totalSize; ++i) {
-    CHECK(roundtripPtr[i] == Catch::Approx(originalPtr[i]).margin(kTol));
+    CHECK(roundtripPtr[i] == Catch::Approx(originalPtr[i]).margin(Tol));
   }
 
   // Verify device axis data
@@ -623,7 +593,7 @@ TEST_CASE("HDF5 loader handles 5D tables correctly", "[hdf5][loader][5d]")
                      hostAxis.begin());
     REQUIRE(hostAxis.size() == table.axisStorage[dim].size());
     for (std::size_t i = 0; i < hostAxis.size(); ++i) {
-      CHECK(hostAxis[i] == Catch::Approx(table.axisStorage[dim][i]).margin(kTol));
+      CHECK(hostAxis[i] == Catch::Approx(table.axisStorage[dim][i]).margin(Tol));
     }
   }
 
