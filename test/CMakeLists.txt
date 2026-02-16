@@ -11,7 +11,9 @@ set(TEST_SOURCES
   test_hdf5_loader.cpp
   test_weaklib_eos_loader.cpp
   test_weaklib_opacity_loader.cpp
-  test_eos_inversion.cpp)
+  test_eos_inversion.cpp
+  test_extract_iso_slice.cpp
+  test_index_delta.cpp)
 
 add_executable(WeakLibReaderTests ${TEST_SOURCES})
 

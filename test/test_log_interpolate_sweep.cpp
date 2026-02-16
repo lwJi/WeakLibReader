@@ -5,6 +5,7 @@
 #include "interp/WeakLibReader_InterpLogTable.hpp"
 #include "base/WeakLibReader_Layout.hpp"
 #include "base/WeakLibReader_AxisTypes.hpp"
+#include "base/WeakLibReader_Math.hpp"
 
 #include <array>
 #include <cmath>
@@ -330,6 +331,93 @@ TEST_CASE("Batch aligned 2D2D matches point version", "[loginterp][2d2d][aligned
 
     for (std::size_t i = 0; i < planeSize; ++i) {
       CHECK(outBatch[k * planeSize + i] == Catch::Approx(outPoint[i]).margin(Tol));
+    }
+  }
+}
+
+TEST_CASE("PreAlignScatteringKernelMoment interpolates correctly", "[loginterp][prealign]")
+{
+  using namespace WeakLibReader;
+
+  // --- Setup: small 5D kernel [nE, nE, nMom, nDim3, nDim4] ---
+  constexpr int nE_raw = 3;
+  constexpr int nMom = 2;
+  constexpr int nDim3 = 2;
+  constexpr int nDim4 = 2;
+  constexpr double offset = 1.0;
+  constexpr std::size_t rawTotal = nE_raw * nE_raw * nMom * nDim3 * nDim4; // 72
+
+  // Raw energy grid (Log10 scale)
+  const std::array<double, nE_raw> gridE{1.0, 10.0, 100.0};
+
+  // 5D kernel layout
+  const int rawExtents[5] = {nE_raw, nE_raw, nMom, nDim3, nDim4};
+  const Layout rawLayout = MakeLayout(rawExtents, 5);
+
+  // Fill with known analytic function:
+  //   value(E_in, E_out, iMom, iD3, iD4) =
+  //       1.0 + 0.1*E_in + 0.2*E_out + 0.5*(iMom+1) + 0.3*(iD3+1) + 0.4*(iD4+1)
+  // Store as log10(value + offset)
+  std::array<double, rawTotal> rawKernel{};
+  for (int iD4 = 0; iD4 < nDim4; ++iD4) {
+    for (int iD3 = 0; iD3 < nDim3; ++iD3) {
+      for (int iMom = 0; iMom < nMom; ++iMom) {
+        for (int iE2 = 0; iE2 < nE_raw; ++iE2) {
+          for (int iE1 = 0; iE1 < nE_raw; ++iE1) {
+            const double value = 1.0 + 0.1 * gridE[iE1] + 0.2 * gridE[iE2] +
+                                 0.5 * static_cast<double>(iMom + 1) +
+                                 0.3 * static_cast<double>(iD3 + 1) +
+                                 0.4 * static_cast<double>(iD4 + 1);
+            rawKernel[rawLayout.Offset(iE1, iE2, iMom, iD3, iD4)] =
+                std::log10(value + offset);
+          }
+        }
+      }
+    }
+  }
+
+  // Aligned energy grid (within raw range [1, 100])
+  constexpr int nAligned = 4;
+  const std::array<double, nAligned> alignedE{2.0, 5.0, 20.0, 50.0};
+
+  // Energy axis
+  const Axis energyAxis = MakeAxis(gridE.data(), nE_raw, AxisScale::Log10);
+  const Axis energyAxes[2] = {energyAxis, energyAxis};
+
+  // Output layout: [nAligned, nAligned, nDim3, nDim4]
+  const int outExtents[4] = {nAligned, nAligned, nDim3, nDim4};
+  const Layout outLayout = MakeLayout(outExtents, 4);
+  constexpr std::size_t outSize = nAligned * nAligned * nDim3 * nDim4; // 64
+
+  // --- Test each moment ---
+  for (int iMom = 0; iMom < nMom; ++iMom) {
+    std::array<double, outSize> output{};
+
+    PreAlignScatteringKernelMoment(
+        rawKernel.data(), rawLayout, energyAxis,
+        iMom, nDim3, nDim4,
+        alignedE.data(), nAligned,
+        offset, output.data());
+
+    // Verify against manual 2D interpolation calls
+    for (int iD4 = 0; iD4 < nDim4; ++iD4) {
+      for (int iD3 = 0; iD3 < nDim3; ++iD3) {
+        // Get pointer to contiguous 2D energy slice [nE, nE] at (iMom, iD3, iD4)
+        const int sliceIdx[5] = {0, 0, iMom, iD3, iD4};
+        const double* slice2d = rawKernel.data() + rawLayout.Offset(sliceIdx);
+
+        for (int iA2 = 0; iA2 < nAligned; ++iA2) {
+          for (int iA1 = 0; iA1 < nAligned; ++iA1) {
+            const double manual = LogInterpolateSingleVariable2DCustomPoint(
+                alignedE[iA1], alignedE[iA2],
+                energyAxes, slice2d, offset);
+            const double expected = math::Log10(manual + offset);
+
+            CHECK(output[outLayout.Offset(iA1, iA2, iD3, iD4)] ==
+                  Catch::Approx(expected).margin(Tol));
+          }
+        }
+      }
     }
   }
 }
