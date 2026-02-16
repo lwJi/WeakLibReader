@@ -97,15 +97,22 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 | `LoadHdf5TableParallel()` | MPI-aware loader (rank 0 reads, broadcasts) |
 | `LoadWeakLibEosTableFull()` | Load complete EOS table with all metadata |
 | `MakeDeviceCopy()` | Copy host table to GPU device |
-| `LogInterpolateSingleVariable*DCustomPoint()` | Single-point N-D interpolation |
-| `LogInterpolateSingleVariable*DCustom()` | Batch N-D interpolation |
-| `LogInterpolateDifferentiateSingleVariable*()` | Interpolation with derivatives |
+| `LogInterpolateSingleVariable{2,3,4}DCustomPoint()` | Single-point N-D interpolation (GPU) |
+| `LogInterpolateSingleVariable{2,3,4}DCustom()` | Batch N-D interpolation |
 | `LogInterpolateSingleVariable1D3DCustomPoint()` | 1D energy sweep over 3D table |
+| `LogInterpolateSingleVariable2D2DCustomPoint()` | 2D energy sweep over 2D table (NES/Pair) |
+| `SumLogInterpolateSingleVariable2D2DCustomAligned()` | Density-weighted sum interpolation (Brem) |
+| `PreAlignScatteringKernelMoment()` | Pre-align scattering kernel to energy grid |
+| `LogInterpolateDifferentiateSingleVariable3DCustomPoint()` | 3D interpolation with derivatives |
+| `LogInterpolateDifferentiateSingleVariable2D2DCustom*()` | 2D×2D interpolation with derivatives (NES/Pair) |
 | `LoadWeakLibOpacityTableFull()` | Load opacity tables from up to 5 HDF5 files |
 | `LoadWeakLibOpacityTableFullParallel()` | MPI-aware opacity loader (rank 0 reads, broadcasts) |
 | `LoadWeakLibEosTableFullParallel()` | MPI-aware EOS loader (rank 0 reads, broadcasts) |
 | `ExtractIsoMomentSlice4D()` | Extract 4D moment slice from 5D Iso kernel |
 | `InitializeEosInversionBounds()` | Compute EOS inversion bounds from table data |
+| `ComputeTemperatureFromEnergy()` | Temperature root-finding from internal energy |
+| `ComputeTemperatureFromPressure()` | Temperature root-finding from pressure |
+| `ComputeTemperatureFromEntropy()` | Temperature root-finding from entropy |
 
 ### HDF5 File Format
 
@@ -156,7 +163,7 @@ ref/weaklib/         # Fortran reference implementation (incl. wlIOModuleHDF.F90
 test/                # Regression tests
 cactus_interface/    # Cactus thorn integration (WeakLibReader, TestWeakLibReader)
 scripts/             # Build, test, and check convenience scripts
-specs/               # Detailed subsystem documentation (HDF5 formats, opacity, Cactus, refactor opportunities)
+specs/               # Detailed subsystem documentation (HDF5 formats, opacity, Cactus)
 ```
 
 ## Fortran Parity
