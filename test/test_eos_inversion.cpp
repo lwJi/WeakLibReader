@@ -21,6 +21,18 @@ double EnergyFunc(double rho, double T, double Ye)
   return std::pow(rho, 0.3) * std::pow(T, 1.5) * (1.0 + 0.2 * Ye);
 }
 
+// Synthetic pressure: monotonically increasing in T
+double PressureFunc(double rho, double T, double Ye)
+{
+  return std::pow(rho, 0.4) * std::pow(T, 1.8) * (1.0 + 0.15 * Ye);
+}
+
+// Synthetic entropy: monotonically increasing in T
+double EntropyFunc(double rho, double T, double Ye)
+{
+  return std::pow(rho, -0.1) * std::pow(T, 1.2) * (1.0 + 0.3 * Ye);
+}
+
 // Grid definitions
 constexpr int nD = 5;
 constexpr int nT = 5;
@@ -59,6 +71,52 @@ std::vector<double> BuildSyntheticTable(
     }
   }
   return data;
+}
+
+// Extended synthetic data for pressure/entropy inversion tests.
+struct SyntheticEosData {
+  std::vector<double> energy;
+  std::vector<double> pressure;
+  std::vector<double> entropy;
+  WeakLibReader::Axis axes[3];
+  WeakLibReader::Layout layout;
+  WeakLibReader::EosInversionBounds bounds;
+};
+
+SyntheticEosData BuildFullSyntheticEos()
+{
+  using namespace WeakLibReader;
+
+  SyntheticEosData d;
+  d.axes[0] = MakeAxis(gridD, nD, AxisScale::Log10);
+  d.axes[1] = MakeAxis(gridT, nT, AxisScale::Log10);
+  d.axes[2] = MakeAxis(gridY, nY, AxisScale::Linear);
+
+  const int extents[3] = {nD, nT, nY};
+  d.layout = MakeLayout(extents, 3);
+
+  d.energy.resize(totalSize);
+  d.pressure.resize(totalSize);
+  d.entropy.resize(totalSize);
+
+  for (int iRho = 0; iRho < nD; ++iRho) {
+    for (int iTemp = 0; iTemp < nT; ++iTemp) {
+      for (int iYe = 0; iYe < nY; ++iYe) {
+        const auto off = d.layout.Offset(iRho, iTemp, iYe);
+        d.energy[off]   = std::log10(EnergyFunc(gridD[iRho], gridT[iTemp], gridY[iYe]) + Offset);
+        d.pressure[off] = std::log10(PressureFunc(gridD[iRho], gridT[iTemp], gridY[iYe]) + Offset);
+        d.entropy[off]  = std::log10(EntropyFunc(gridD[iRho], gridT[iTemp], gridY[iYe]) + Offset);
+      }
+    }
+  }
+
+  d.bounds = InitializeEosInversionBounds(
+      d.axes, totalSize,
+      d.energy.data(), Offset,
+      d.pressure.data(), Offset,
+      d.entropy.data(), Offset);
+
+  return d;
 }
 
 constexpr double Tol = 1.0e-10;
@@ -424,4 +482,208 @@ TEST_CASE("InitializeEosInversionBounds computes correct bounds", "[eosinversion
   CHECK(bounds.maxP == 0.0);
   CHECK(bounds.minS == 0.0);
   CHECK(bounds.maxS == 0.0);
+}
+
+TEST_CASE("InitializeEosInversionBounds populates pressure and entropy bounds",
+          "[eosinversion]")
+{
+  using namespace WeakLibReader;
+
+  const auto d = BuildFullSyntheticEos();
+
+  // Pressure bounds: compute expected min/max from the synthetic function
+  double expectedMinP = std::numeric_limits<double>::max();
+  double expectedMaxP = std::numeric_limits<double>::lowest();
+  for (int iRho = 0; iRho < nD; ++iRho) {
+    for (int iTemp = 0; iTemp < nT; ++iTemp) {
+      for (int iYe = 0; iYe < nY; ++iYe) {
+        const double P = PressureFunc(gridD[iRho], gridT[iTemp], gridY[iYe]);
+        if (P < expectedMinP) expectedMinP = P;
+        if (P > expectedMaxP) expectedMaxP = P;
+      }
+    }
+  }
+
+  CHECK(std::abs(d.bounds.minP - expectedMinP)
+        / (std::abs(expectedMinP) + 1e-30) < 1e-12);
+  CHECK(std::abs(d.bounds.maxP - expectedMaxP)
+        / (std::abs(expectedMaxP) + 1e-30) < 1e-12);
+
+  // Entropy bounds: compute expected min/max from the synthetic function
+  double expectedMinS = std::numeric_limits<double>::max();
+  double expectedMaxS = std::numeric_limits<double>::lowest();
+  for (int iRho = 0; iRho < nD; ++iRho) {
+    for (int iTemp = 0; iTemp < nT; ++iTemp) {
+      for (int iYe = 0; iYe < nY; ++iYe) {
+        const double S = EntropyFunc(gridD[iRho], gridT[iTemp], gridY[iYe]);
+        if (S < expectedMinS) expectedMinS = S;
+        if (S > expectedMaxS) expectedMaxS = S;
+      }
+    }
+  }
+
+  CHECK(std::abs(d.bounds.minS - expectedMinS)
+        / (std::abs(expectedMinS) + 1e-30) < 1e-12);
+  CHECK(std::abs(d.bounds.maxS - expectedMaxS)
+        / (std::abs(expectedMaxS) + 1e-30) < 1e-12);
+}
+
+TEST_CASE("Round-trip pressure inversion without guess",
+          "[eosinversion][pressure]")
+{
+  using namespace WeakLibReader;
+
+  const auto d = BuildFullSyntheticEos();
+
+  const double testD[] = {3e6, 5e7, 2e8, 7e9};
+  const double testT[] = {2e9, 5e9, 2e10, 5e10};
+  const double testY[] = {0.15, 0.25, 0.35, 0.45};
+
+  for (double D : testD) {
+    for (double T_known : testT) {
+      for (double Y : testY) {
+        const double P = LogInterpolateSingleVariable3DCustomPoint(
+            D, T_known, Y, d.axes, d.pressure.data(), Offset);
+
+        double T_recovered = 0.0;
+        const int error = ComputeTemperatureFromPressure(
+            D, P, Y, d.axes, d.pressure.data(), d.layout, Offset,
+            d.bounds, T_recovered);
+
+        CHECK(error == 0);
+        const double relErr = std::abs(T_recovered - T_known) / T_known;
+        CHECK(relErr < Tol);
+      }
+    }
+  }
+}
+
+TEST_CASE("Round-trip pressure inversion with good guess",
+          "[eosinversion][pressure]")
+{
+  using namespace WeakLibReader;
+
+  const auto d = BuildFullSyntheticEos();
+
+  const double D = 5e8;
+  const double T_known = 1.5e10;
+  const double Y = 0.3;
+
+  const double P = LogInterpolateSingleVariable3DCustomPoint(
+      D, T_known, Y, d.axes, d.pressure.data(), Offset);
+
+  const double tGuess = 1.2e10; // close to T_known
+  double T_recovered = 0.0;
+  const int error = ComputeTemperatureFromPressure(
+      D, P, Y, d.axes, d.pressure.data(), d.layout, Offset,
+      d.bounds, tGuess, T_recovered);
+
+  CHECK(error == 0);
+  const double relErr = std::abs(T_recovered - T_known) / T_known;
+  CHECK(relErr < Tol);
+}
+
+TEST_CASE("Round-trip pressure inversion with bad guess",
+          "[eosinversion][pressure]")
+{
+  using namespace WeakLibReader;
+
+  const auto d = BuildFullSyntheticEos();
+
+  const double D = 5e8;
+  const double T_known = 1.5e10;
+  const double Y = 0.3;
+
+  const double P = LogInterpolateSingleVariable3DCustomPoint(
+      D, T_known, Y, d.axes, d.pressure.data(), Offset);
+
+  const double tGuess = 1e9; // far from T_known=1.5e10
+  double T_recovered = 0.0;
+  const int error = ComputeTemperatureFromPressure(
+      D, P, Y, d.axes, d.pressure.data(), d.layout, Offset,
+      d.bounds, tGuess, T_recovered);
+
+  CHECK(error == 0);
+  const double relErr = std::abs(T_recovered - T_known) / T_known;
+  CHECK(relErr < Tol);
+}
+
+TEST_CASE("Round-trip entropy inversion without guess",
+          "[eosinversion][entropy]")
+{
+  using namespace WeakLibReader;
+
+  const auto d = BuildFullSyntheticEos();
+
+  const double testD[] = {3e6, 5e7, 2e8, 7e9};
+  const double testT[] = {2e9, 5e9, 2e10, 5e10};
+  const double testY[] = {0.15, 0.25, 0.35, 0.45};
+
+  for (double D : testD) {
+    for (double T_known : testT) {
+      for (double Y : testY) {
+        const double S = LogInterpolateSingleVariable3DCustomPoint(
+            D, T_known, Y, d.axes, d.entropy.data(), Offset);
+
+        double T_recovered = 0.0;
+        const int error = ComputeTemperatureFromEntropy(
+            D, S, Y, d.axes, d.entropy.data(), d.layout, Offset,
+            d.bounds, T_recovered);
+
+        CHECK(error == 0);
+        const double relErr = std::abs(T_recovered - T_known) / T_known;
+        CHECK(relErr < Tol);
+      }
+    }
+  }
+}
+
+TEST_CASE("Round-trip entropy inversion with good guess",
+          "[eosinversion][entropy]")
+{
+  using namespace WeakLibReader;
+
+  const auto d = BuildFullSyntheticEos();
+
+  const double D = 5e8;
+  const double T_known = 1.5e10;
+  const double Y = 0.3;
+
+  const double S = LogInterpolateSingleVariable3DCustomPoint(
+      D, T_known, Y, d.axes, d.entropy.data(), Offset);
+
+  const double tGuess = 1.2e10; // close to T_known
+  double T_recovered = 0.0;
+  const int error = ComputeTemperatureFromEntropy(
+      D, S, Y, d.axes, d.entropy.data(), d.layout, Offset,
+      d.bounds, tGuess, T_recovered);
+
+  CHECK(error == 0);
+  const double relErr = std::abs(T_recovered - T_known) / T_known;
+  CHECK(relErr < Tol);
+}
+
+TEST_CASE("Round-trip entropy inversion with bad guess",
+          "[eosinversion][entropy]")
+{
+  using namespace WeakLibReader;
+
+  const auto d = BuildFullSyntheticEos();
+
+  const double D = 5e8;
+  const double T_known = 1.5e10;
+  const double Y = 0.3;
+
+  const double S = LogInterpolateSingleVariable3DCustomPoint(
+      D, T_known, Y, d.axes, d.entropy.data(), Offset);
+
+  const double tGuess = 1e9; // far from T_known=1.5e10
+  double T_recovered = 0.0;
+  const int error = ComputeTemperatureFromEntropy(
+      D, S, Y, d.axes, d.entropy.data(), d.layout, Offset,
+      d.bounds, tGuess, T_recovered);
+
+  CHECK(error == 0);
+  const double relErr = std::abs(T_recovered - T_known) / T_known;
+  CHECK(relErr < Tol);
 }
