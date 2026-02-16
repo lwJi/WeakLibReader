@@ -17,16 +17,12 @@ double LogInterpolateSingleVariable2DCustomPoint(
     const double* data,
     double offset) noexcept
 {
-  if (data == nullptr || axes[0].grid == nullptr || axes[1].grid == nullptr) {
+  constexpr int ND = 2;
+  if (!detail::AxesAndDataValid<ND>(axes, data)) {
     return std::numeric_limits<double>::quiet_NaN();
   }
-  // Compile-time known dimensionality (eliminates runtime branching!)
-  constexpr int ND = 2;
-  int extents[ND] = {axes[0].n, axes[1].n};
-  const Layout layout = MakeLayout(extents, ND);
-  double coords[ND] = {x0, x1};
-  // Template parameter known at compile time - zero branching!
-  return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+  const double coords[ND] = {x0, x1};
+  return detail::LogInterpolatedValueFromAxes<ND>(data, axes, coords, offset);
 }
 
 /// GPU-optimized 2D log-interpolation (batch)
@@ -38,13 +34,12 @@ inline int LogInterpolateSingleVariable2DCustom(
     double offset,
     double* out) noexcept
 {
+  constexpr int ND = 2;
   if (x0 == nullptr || x1 == nullptr || out == nullptr ||
-      data == nullptr || axes[0].grid == nullptr || axes[1].grid == nullptr) {
+      !detail::AxesAndDataValid<ND>(axes, data)) {
     return 1;
   }
-  constexpr int ND = 2;
-  int extents[ND] = {axes[0].n, axes[1].n};
-  const Layout layout = MakeLayout(extents, ND);
+  const Layout layout = detail::MakeAxisLayout<ND>(axes);
   for (std::size_t i = 0; i < count; ++i) {
     double coords[ND] = {x0[i], x1[i]};
     out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
@@ -61,15 +56,12 @@ double LogInterpolateSingleVariable3DCustomPoint(
     const double* data,
     double offset) noexcept
 {
-  if (data == nullptr || axes[0].grid == nullptr ||
-      axes[1].grid == nullptr || axes[2].grid == nullptr) {
+  constexpr int ND = 3;
+  if (!detail::AxesAndDataValid<ND>(axes, data)) {
     return std::numeric_limits<double>::quiet_NaN();
   }
-  constexpr int ND = 3;
-  int extents[ND] = {axes[0].n, axes[1].n, axes[2].n};
-  const Layout layout = MakeLayout(extents, ND);
-  double coords[ND] = {x0, x1, x2};
-  return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+  const double coords[ND] = {x0, x1, x2};
+  return detail::LogInterpolatedValueFromAxes<ND>(data, axes, coords, offset);
 }
 
 /// GPU-optimized 3D log-interpolation (batch)
@@ -81,14 +73,12 @@ inline int LogInterpolateSingleVariable3DCustom(
     double offset,
     double* out) noexcept
 {
+  constexpr int ND = 3;
   if (x0 == nullptr || x1 == nullptr || x2 == nullptr ||
-      out == nullptr || data == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr || axes[2].grid == nullptr) {
+      out == nullptr || !detail::AxesAndDataValid<ND>(axes, data)) {
     return 1;
   }
-  constexpr int ND = 3;
-  int extents[ND] = {axes[0].n, axes[1].n, axes[2].n};
-  const Layout layout = MakeLayout(extents, ND);
+  const Layout layout = detail::MakeAxisLayout<ND>(axes);
   for (std::size_t i = 0; i < count; ++i) {
     double coords[ND] = {x0[i], x1[i], x2[i]};
     out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
@@ -105,15 +95,12 @@ double LogInterpolateSingleVariable4DCustomPoint(
     const double* data,
     double offset) noexcept
 {
-  if (data == nullptr || axes[0].grid == nullptr || axes[1].grid == nullptr ||
-      axes[2].grid == nullptr || axes[3].grid == nullptr) {
+  constexpr int ND = 4;
+  if (!detail::AxesAndDataValid<ND>(axes, data)) {
     return std::numeric_limits<double>::quiet_NaN();
   }
-  constexpr int ND = 4;
-  int extents[ND] = {axes[0].n, axes[1].n, axes[2].n, axes[3].n};
-  const Layout layout = MakeLayout(extents, ND);
-  double coords[ND] = {x0, x1, x2, x3};
-  return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+  const double coords[ND] = {x0, x1, x2, x3};
+  return detail::LogInterpolatedValueFromAxes<ND>(data, axes, coords, offset);
 }
 
 /// GPU-optimized 4D log-interpolation (batch)
@@ -126,15 +113,12 @@ inline int LogInterpolateSingleVariable4DCustom(
     double offset,
     double* out) noexcept
 {
+  constexpr int ND = 4;
   if (x0 == nullptr || x1 == nullptr || x2 == nullptr || x3 == nullptr ||
-      out == nullptr || data == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr ||
-      axes[2].grid == nullptr || axes[3].grid == nullptr) {
+      out == nullptr || !detail::AxesAndDataValid<ND>(axes, data)) {
     return 1;
   }
-  constexpr int ND = 4;
-  int extents[ND] = {axes[0].n, axes[1].n, axes[2].n, axes[3].n};
-  const Layout layout = MakeLayout(extents, ND);
+  const Layout layout = detail::MakeAxisLayout<ND>(axes);
   for (std::size_t i = 0; i < count; ++i) {
     double coords[ND] = {x0[i], x1[i], x2[i], x3[i]};
     out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);

@@ -307,7 +307,7 @@ TEST_CASE("LoadWeakLibEosTableFull reads complete EOS table", "[hdf5][weaklib]")
   // Repaired mask is loaded
   CHECK(table.repaired.data() != nullptr);
 
-  // Layout is computed correctly (row-major)
+  // Layout is computed correctly (column-major)
   // stride[0] = 1, stride[1] = n[0], stride[2] = n[0]*n[1]
   CHECK(table.layout.stride[0] == 1);
   CHECK(table.layout.stride[1] == static_cast<std::size_t>(table.dimensions[0]));

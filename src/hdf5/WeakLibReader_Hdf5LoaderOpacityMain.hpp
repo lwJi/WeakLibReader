@@ -67,6 +67,18 @@ inline Hdf5LoadStatus LoadWeakLibOpacityThermoState(hid_t file,
   return Hdf5LoadStatus::Success;
 }
 
+
+template<typename Loader>
+inline Hdf5LoadStatus WithOpenedOpacityFile(const std::string& path,
+                                            Loader&& loader)
+{
+  ScopedHandle file(H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
+  if (!file.Valid()) {
+    return Hdf5LoadStatus::FileOpenFailed;
+  }
+  return loader(file.Get());
+}
+
 } // namespace detail
 
 inline Hdf5LoadStatus LoadWeakLibOpacityTableFull(
@@ -99,34 +111,24 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFull(
   else if (hasPair) firstFile = filePair;
   else firstFile = fileBrem;
 
-  // Load EnergyGrid from first file
-  {
-    detail::ScopedHandle file(H5Fopen(firstFile.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
-    if (!file.Valid()) {
-      return Hdf5LoadStatus::FileOpenFailed;
+  // Load EnergyGrid and ThermoState from first file
+  status = detail::WithOpenedOpacityFile(firstFile, [&](hid_t file) {
+    Hdf5LoadStatus rc = detail::LoadWeakLibOpacityGrid(file, "EnergyGrid", result.energyGrid);
+    if (rc != Hdf5LoadStatus::Success) {
+      return rc;
     }
-
-    status = detail::LoadWeakLibOpacityGrid(file.Get(), "EnergyGrid", result.energyGrid);
-    if (status != Hdf5LoadStatus::Success) {
-      return status;
-    }
-
-    // Load ThermoState from first file
-    status = detail::LoadWeakLibOpacityThermoState(file.Get(), result.thermoState);
-    if (status != Hdf5LoadStatus::Success) {
-      return status;
-    }
+    return detail::LoadWeakLibOpacityThermoState(file, result.thermoState);
+  });
+  if (status != Hdf5LoadStatus::Success) {
+    return status;
   }
 
   // Load EtaGrid if NES or Pair files are provided
   if (hasNES || hasPair) {
-    std::string etaFile = hasNES ? fileNES : filePair;
-    detail::ScopedHandle file(H5Fopen(etaFile.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
-    if (!file.Valid()) {
-      return Hdf5LoadStatus::FileOpenFailed;
-    }
-
-    status = detail::LoadWeakLibOpacityGrid(file.Get(), "EtaGrid", result.etaGrid);
+    const std::string etaFile = hasNES ? fileNES : filePair;
+    status = detail::WithOpenedOpacityFile(etaFile, [&](hid_t file) {
+      return detail::LoadWeakLibOpacityGrid(file, "EtaGrid", result.etaGrid);
+    });
     if (status != Hdf5LoadStatus::Success) {
       return status;
     }
@@ -134,12 +136,9 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFull(
 
   // Load EmAb
   if (hasEmAb) {
-    detail::ScopedHandle file(H5Fopen(fileEmAb.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
-    if (!file.Valid()) {
-      return Hdf5LoadStatus::FileOpenFailed;
-    }
-
-    status = LoadWeakLibEmAbTable(file.Get(), result.emAb, result.energyGrid, result.thermoState);
+    status = detail::WithOpenedOpacityFile(fileEmAb, [&](hid_t file) {
+      return LoadWeakLibEmAbTable(file, result.emAb, result.energyGrid, result.thermoState);
+    });
     if (status != Hdf5LoadStatus::Success) {
       return status;
     }
@@ -147,12 +146,9 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFull(
 
   // Load Iso
   if (hasIso) {
-    detail::ScopedHandle file(H5Fopen(fileIso.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
-    if (!file.Valid()) {
-      return Hdf5LoadStatus::FileOpenFailed;
-    }
-
-    status = LoadWeakLibScatIsoTable(file.Get(), result.scatIso, result.energyGrid, result.thermoState);
+    status = detail::WithOpenedOpacityFile(fileIso, [&](hid_t file) {
+      return LoadWeakLibScatIsoTable(file, result.scatIso, result.energyGrid, result.thermoState);
+    });
     if (status != Hdf5LoadStatus::Success) {
       return status;
     }
@@ -160,12 +156,9 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFull(
 
   // Load NES
   if (hasNES) {
-    detail::ScopedHandle file(H5Fopen(fileNES.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
-    if (!file.Valid()) {
-      return Hdf5LoadStatus::FileOpenFailed;
-    }
-
-    status = LoadWeakLibScatNESTable(file.Get(), result.scatNES, result.energyGrid, result.etaGrid, result.thermoState);
+    status = detail::WithOpenedOpacityFile(fileNES, [&](hid_t file) {
+      return LoadWeakLibScatNESTable(file, result.scatNES, result.energyGrid, result.etaGrid, result.thermoState);
+    });
     if (status != Hdf5LoadStatus::Success) {
       return status;
     }
@@ -173,12 +166,9 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFull(
 
   // Load Pair
   if (hasPair) {
-    detail::ScopedHandle file(H5Fopen(filePair.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
-    if (!file.Valid()) {
-      return Hdf5LoadStatus::FileOpenFailed;
-    }
-
-    status = LoadWeakLibScatPairTable(file.Get(), result.scatPair, result.energyGrid, result.etaGrid, result.thermoState);
+    status = detail::WithOpenedOpacityFile(filePair, [&](hid_t file) {
+      return LoadWeakLibScatPairTable(file, result.scatPair, result.energyGrid, result.etaGrid, result.thermoState);
+    });
     if (status != Hdf5LoadStatus::Success) {
       return status;
     }
@@ -186,12 +176,9 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFull(
 
   // Load Brem
   if (hasBrem) {
-    detail::ScopedHandle file(H5Fopen(fileBrem.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
-    if (!file.Valid()) {
-      return Hdf5LoadStatus::FileOpenFailed;
-    }
-
-    status = LoadWeakLibScatBremTable(file.Get(), result.scatBrem, result.energyGrid, result.thermoState);
+    status = detail::WithOpenedOpacityFile(fileBrem, [&](hid_t file) {
+      return LoadWeakLibScatBremTable(file, result.scatBrem, result.energyGrid, result.thermoState);
+    });
     if (status != Hdf5LoadStatus::Success) {
       return status;
     }

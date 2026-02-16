@@ -16,18 +16,15 @@ inline int LogInterpolateSingleVariable1D3DCustomPoint(
     double offset,
     double* out) noexcept
 {
-  if (logE == nullptr || out == nullptr || data == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr ||
-      axes[2].grid == nullptr || axes[3].grid == nullptr) {
+  constexpr int ND = 4;
+  if (logE == nullptr || out == nullptr || !detail::AxesAndDataValid<ND>(axes, data)) {
     return 1;
   }
   if (sizeE == 0) {
     return 0;
   }
 
-  constexpr int ND = 4;
-  int extents[ND] = {axes[0].n, axes[1].n, axes[2].n, axes[3].n};
-  const Layout layout = MakeLayout(extents, ND);
+  const Layout layout = detail::MakeAxisLayout<ND>(axes);
 
   for (std::size_t i = 0; i < sizeE; ++i) {
     double coords[ND] = {logE[i], logD, logT, y};
@@ -46,19 +43,16 @@ inline int LogInterpolateSingleVariable1D3DCustom(
     double offset,
     double* out) noexcept
 {
+  constexpr int ND = 4;
   if (logE == nullptr || logD == nullptr || logT == nullptr || y == nullptr ||
-      out == nullptr || data == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr ||
-      axes[2].grid == nullptr || axes[3].grid == nullptr) {
+      out == nullptr || !detail::AxesAndDataValid<ND>(axes, data)) {
     return 1;
   }
   if (sizeE == 0 || count == 0) {
     return 0;
   }
 
-  constexpr int ND = 4;
-  int extents[ND] = {axes[0].n, axes[1].n, axes[2].n, axes[3].n};
-  const Layout layout = MakeLayout(extents, ND);
+  const Layout layout = detail::MakeAxisLayout<ND>(axes);
 
   for (std::size_t j = 0; j < count; ++j) {
     double* row = out + j * sizeE;
@@ -80,26 +74,21 @@ inline int LogInterpolateSingleVariable2D2DCustomPoint(
     double offset,
     double* out) noexcept
 {
-  if (logE == nullptr || data == nullptr || out == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr ||
-      axes[2].grid == nullptr || axes[3].grid == nullptr) {
+  constexpr int ND = 4;
+  if (logE == nullptr || out == nullptr || !detail::AxesAndDataValid<ND>(axes, data)) {
     return 1;
   }
   if (sizeE == 0) {
     return 0;
   }
 
-  constexpr int ND = 4;
-  int extents[ND] = {axes[0].n, axes[1].n, axes[2].n, axes[3].n};
-  const Layout layout = MakeLayout(extents, ND);
+  const Layout layout = detail::MakeAxisLayout<ND>(axes);
 
-  for (std::size_t j = 0; j < sizeE; ++j) {
-    for (std::size_t i = 0; i <= j; ++i) {
-      double coords[ND] = {logE[i], logE[j], logT, logX};
-      const double value = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
-      detail::StoreSymmetric(out, sizeE, i, j, value);
-    }
-  }
+  detail::ForEachSymmetricUpper(sizeE, [&](std::size_t i, std::size_t j) noexcept {
+    const double coords[ND] = {logE[i], logE[j], logT, logX};
+    const double value = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+    detail::StoreSymmetric(out, sizeE, i, j, value);
+  });
 
   return 0;
 }
@@ -113,30 +102,25 @@ inline int LogInterpolateSingleVariable2D2DCustom(
     double offset,
     double* out) noexcept
 {
+  constexpr int ND = 4;
   if (logE == nullptr || logT == nullptr || logX == nullptr ||
-      out == nullptr || data == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr ||
-      axes[2].grid == nullptr || axes[3].grid == nullptr) {
+      out == nullptr || !detail::AxesAndDataValid<ND>(axes, data)) {
     return 1;
   }
   if (sizeE == 0 || count == 0) {
     return 0;
   }
 
-  constexpr int ND = 4;
-  int extents[ND] = {axes[0].n, axes[1].n, axes[2].n, axes[3].n};
-  const Layout layout = MakeLayout(extents, ND);
+  const Layout layout = detail::MakeAxisLayout<ND>(axes);
 
   const std::size_t planeSize = sizeE * sizeE;
   for (std::size_t l = 0; l < count; ++l) {
     double* plane = out + l * planeSize;
-    for (std::size_t j = 0; j < sizeE; ++j) {
-      for (std::size_t i = 0; i <= j; ++i) {
-        double coords[ND] = {logE[i], logE[j], logT[l], logX[l]};
-        const double value = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
-        detail::StoreSymmetric(plane, sizeE, i, j, value);
-      }
-    }
+    detail::ForEachSymmetricUpper(sizeE, [&](std::size_t i, std::size_t j) noexcept {
+      const double coords[ND] = {logE[i], logE[j], logT[l], logX[l]};
+      const double value = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+      detail::StoreSymmetric(plane, sizeE, i, j, value);
+    });
   }
 
   return 0;
@@ -172,15 +156,13 @@ inline int LogInterpolateSingleVariable2D2DCustomAlignedPoint(
   detail::IndexAndDelta(axes[0], logT, idxT, fracT);
   detail::IndexAndDelta(axes[1], logX, idxX, fracX);
 
-  for (std::size_t j = 0; j < sizeE; ++j) {
-    for (std::size_t i = 0; i <= j; ++i) {
-      const double value = LinearInterp2D4DArray2DAlignedPoint(
-          static_cast<int>(i), static_cast<int>(j),
-          idxT, idxX, fracT, fracX, offset,
-          data, layout);
-      detail::StoreSymmetric(out, sizeE, i, j, value);
-    }
-  }
+  detail::ForEachSymmetricUpper(sizeE, [&](std::size_t i, std::size_t j) noexcept {
+    const double value = LinearInterp2D4DArray2DAlignedPoint(
+        static_cast<int>(i), static_cast<int>(j),
+        idxT, idxX, fracT, fracX, offset,
+        data, layout);
+    detail::StoreSymmetric(out, sizeE, i, j, value);
+  });
 
   return 0;
 }

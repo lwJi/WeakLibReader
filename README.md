@@ -112,7 +112,7 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 #### Simple Format (Generic Tables)
 
 ```
-/values              # N-D array (row-major layout)
+/values              # N-D array (column-major layout; stride[0]=1)
 /axis0               # 1D array with "scale" attribute ("linear" or "log10")
 /axis1               # ...
 ```

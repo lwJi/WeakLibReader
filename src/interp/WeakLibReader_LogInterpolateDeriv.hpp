@@ -16,13 +16,12 @@ inline int LogInterpolateDifferentiateSingleVariable3DCustomPoint(
     double& interpolant,
     double derivatives[3]) noexcept
 {
-  if (data == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr || axes[2].grid == nullptr) {
+  constexpr int ND = 3;
+  if (!detail::AxesAndDataValid<ND>(axes, data)) {
     return 1;
   }
 
-  int extents[3] = {axes[0].n, axes[1].n, axes[2].n};
-  const Layout layout = MakeLayout(extents, 3);
+  const Layout layout = detail::MakeAxisLayout<ND>(axes);
 
   detail::LogInterpolateDifferentiateSingleVariable3DCustomPointImpl(
       d, t, y, data, layout, axes, offset, interpolant, derivatives);
@@ -38,14 +37,14 @@ inline int LogInterpolateDifferentiateSingleVariable3DCustom(
     double* interpolants,
     double* derivatives) noexcept
 {
+  constexpr int ND = 3;
   if (d == nullptr || t == nullptr || y == nullptr ||
-      data == nullptr || interpolants == nullptr || derivatives == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr || axes[2].grid == nullptr) {
+      interpolants == nullptr || derivatives == nullptr ||
+      !detail::AxesAndDataValid<ND>(axes, data)) {
     return 1;
   }
 
-  int extents[3] = {axes[0].n, axes[1].n, axes[2].n};
-  const Layout layout = MakeLayout(extents, 3);
+  const Layout layout = detail::MakeAxisLayout<ND>(axes);
 
   for (std::size_t i = 0; i < count; ++i) {
     double deriv[3] = {0.0, 0.0, 0.0};
@@ -72,18 +71,17 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
     double* derivativeTPlane,
     double* derivativeXPlane) noexcept
 {
-  if (logE == nullptr || data == nullptr ||
-      interpolantPlane == nullptr || derivativeTPlane == nullptr || derivativeXPlane == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr ||
-      axes[2].grid == nullptr || axes[3].grid == nullptr) {
+  constexpr int ND = 4;
+  if (logE == nullptr || interpolantPlane == nullptr ||
+      derivativeTPlane == nullptr || derivativeXPlane == nullptr ||
+      !detail::AxesAndDataValid<ND>(axes, data)) {
     return 1;
   }
   if (sizeE == 0) {
     return 0;
   }
 
-  int extents[4] = {axes[0].n, axes[1].n, axes[2].n, axes[3].n};
-  const Layout layout = MakeLayout(extents, 4);
+  const Layout layout = detail::MakeAxisLayout<ND>(axes);
 
   int idxT = 0;
   int idxX = 0;
@@ -98,34 +96,31 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
   const double aT = 1.0 / (spanT * math::Pow10(logT));
   const double aX = 1.0 / (spanX * math::Pow10(logX));
 
-  for (std::size_t j = 0; j < sizeE; ++j) {
+  detail::ForEachSymmetricUpper(sizeE, [&](std::size_t i, std::size_t j) noexcept {
+    int idxE1 = 0;
     int idxE2 = 0;
+    double fracE1 = 0.0;
     double fracE2 = 0.0;
+    detail::IndexAndDelta(axes[0], logE[i], idxE1, fracE1);
     detail::IndexAndDelta(axes[1], logE[j], idxE2, fracE2);
 
-    for (std::size_t i = 0; i <= j; ++i) {
-      int idxE1 = 0;
-      double fracE1 = 0.0;
-      detail::IndexAndDelta(axes[0], logE[i], idxE1, fracE1);
+    double interpValue = 0.0;
+    double derivE1 = 0.0;
+    double derivE2 = 0.0;
+    double derivTVal = 0.0;
+    double derivXVal = 0.0;
 
-      double interpValue = 0.0;
-      double derivE1 = 0.0;
-      double derivE2 = 0.0;
-      double derivTVal = 0.0;
-      double derivXVal = 0.0;
+    LinearInterpDeriv4DPoint(
+        idxE1, idxE2, idxT, idxX,
+        fracE1, fracE2, fracT, fracX,
+        1.0, 1.0, aT, aX,
+        offset, data, layout,
+        interpValue, derivE1, derivE2, derivTVal, derivXVal);
 
-      LinearInterpDeriv4DPoint(
-          idxE1, idxE2, idxT, idxX,
-          fracE1, fracE2, fracT, fracX,
-          1.0, 1.0, aT, aX,
-          offset, data, layout,
-          interpValue, derivE1, derivE2, derivTVal, derivXVal);
-
-      detail::StoreSymmetric(interpolantPlane, sizeE, i, j, interpValue);
-      detail::StoreSymmetric(derivativeTPlane, sizeE, i, j, derivTVal);
-      detail::StoreSymmetric(derivativeXPlane, sizeE, i, j, derivXVal);
-    }
-  }
+    detail::StoreSymmetric(interpolantPlane, sizeE, i, j, interpValue);
+    detail::StoreSymmetric(derivativeTPlane, sizeE, i, j, derivTVal);
+    detail::StoreSymmetric(derivativeXPlane, sizeE, i, j, derivXVal);
+  });
 
   return 0;
 }
@@ -140,11 +135,10 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustom(
     double* derivativeT,
     double* derivativeX) noexcept
 {
+  constexpr int ND = 4;
   if (logE == nullptr || logT == nullptr || logX == nullptr ||
-      data == nullptr || interpolant == nullptr ||
-      derivativeT == nullptr || derivativeX == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr ||
-      axes[2].grid == nullptr || axes[3].grid == nullptr) {
+      interpolant == nullptr || derivativeT == nullptr || derivativeX == nullptr ||
+      !detail::AxesAndDataValid<ND>(axes, data)) {
     return 1;
   }
   if (sizeE == 0 || count == 0) {
@@ -209,26 +203,24 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
   const double aT = 1.0 / (spanT * math::Pow10(logT));
   const double aX = 1.0 / (spanX * math::Pow10(logX));
 
-  for (std::size_t j = 0; j < sizeE; ++j) {
-    for (std::size_t i = 0; i <= j; ++i) {
-      double interpValue = 0.0;
-      double derivTVal = 0.0;
-      double derivXVal = 0.0;
+  detail::ForEachSymmetricUpper(sizeE, [&](std::size_t i, std::size_t j) noexcept {
+    double interpValue = 0.0;
+    double derivTVal = 0.0;
+    double derivXVal = 0.0;
 
-      LinearInterpDeriv2D4DArray2DAlignedPoint(
-          static_cast<int>(i), static_cast<int>(j),
-          idxT, idxX,
-          fracT, fracX,
-          aT, aX,
-          offset,
-          data, layout,
-          interpValue, derivTVal, derivXVal);
+    LinearInterpDeriv2D4DArray2DAlignedPoint(
+        static_cast<int>(i), static_cast<int>(j),
+        idxT, idxX,
+        fracT, fracX,
+        aT, aX,
+        offset,
+        data, layout,
+        interpValue, derivTVal, derivXVal);
 
-      detail::StoreSymmetric(interpolantPlane, sizeE, i, j, interpValue);
-      detail::StoreSymmetric(derivativeTPlane, sizeE, i, j, derivTVal);
-      detail::StoreSymmetric(derivativeXPlane, sizeE, i, j, derivXVal);
-    }
-  }
+    detail::StoreSymmetric(interpolantPlane, sizeE, i, j, interpValue);
+    detail::StoreSymmetric(derivativeTPlane, sizeE, i, j, derivTVal);
+    detail::StoreSymmetric(derivativeXPlane, sizeE, i, j, derivXVal);
+  });
 
   return 0;
 }

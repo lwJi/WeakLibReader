@@ -12,6 +12,32 @@
 namespace WeakLibReader {
 namespace detail {
 
+template<int ND>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+bool AxesAndDataValid(const Axis axes[ND], const double* data) noexcept
+{
+  if (data == nullptr) {
+    return false;
+  }
+  for (int d = 0; d < ND; ++d) {
+    if (axes[d].grid == nullptr) {
+      return false;
+    }
+  }
+  return true;
+}
+
+template<int ND>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Layout MakeAxisLayout(const Axis axes[ND]) noexcept
+{
+  int extents[ND];
+  for (int d = 0; d < ND; ++d) {
+    extents[d] = axes[d].n;
+  }
+  return MakeLayout(extents, ND);
+}
+
 /// GPU-optimized log-interpolation using compile-time dimension dispatch
 /// @tparam ND Number of dimensions (1-5), known at compile time
 /// @param data Raw data array in column-major order (log10-stored values)
@@ -38,6 +64,17 @@ double LogInterpolatedValueDirect(const double* data,
   return LinearInterpPointDirect<ND>(indices, fractions, offset, data, layout);
 }
 
+template<int ND>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+double LogInterpolatedValueFromAxes(const double* data,
+                                    const Axis axes[ND],
+                                    const double coords[ND],
+                                    double offset) noexcept
+{
+  const Layout layout = MakeAxisLayout<ND>(axes);
+  return LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+}
+
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void StoreSymmetric(double* plane, std::size_t size,
                     std::size_t i, std::size_t j,
@@ -47,6 +84,17 @@ void StoreSymmetric(double* plane, std::size_t size,
   plane[idxLower] = value;
   if (i != j) {
     plane[i * size + j] = value;
+  }
+}
+
+template<typename Func>
+AMREX_FORCE_INLINE
+void ForEachSymmetricUpper(std::size_t size, Func&& func) noexcept
+{
+  for (std::size_t j = 0; j < size; ++j) {
+    for (std::size_t i = 0; i <= j; ++i) {
+      func(i, j);
+    }
   }
 }
 
