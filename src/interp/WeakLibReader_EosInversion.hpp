@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include <AMReX_GpuQualifiers.H>
 #include <AMReX_Extension.H>
 
