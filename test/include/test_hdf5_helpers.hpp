@@ -86,12 +86,14 @@ inline void WriteStringArrayDataset(hid_t parent,
   H5Tclose(type);
 }
 
-inline void WriteDoubleArray2dDataset(hid_t parent,
-                                       const std::string& name,
-                                       const std::array<hsize_t, 2>& dims,
-                                       const std::vector<double>& values)
+// Write an N-dimensional double dataset. Replaces WriteDoubleArray{2,3,4,5}dDataset.
+template <std::size_t N>
+void WriteDoubleNdDataset(hid_t parent,
+                          const std::string& name,
+                          const std::array<hsize_t, N>& dims,
+                          const std::vector<double>& values)
 {
-  hid_t space = H5Screate_simple(2, dims.data(), nullptr);
+  hid_t space = H5Screate_simple(static_cast<int>(N), dims.data(), nullptr);
   hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_IEEE_F64LE, space,
                             H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(dataset >= 0);
@@ -100,26 +102,14 @@ inline void WriteDoubleArray2dDataset(hid_t parent,
   H5Sclose(space);
 }
 
-inline void WriteDoubleArray3dDataset(hid_t parent,
-                                       const std::string& name,
-                                       const std::array<hsize_t, 3>& dims,
-                                       const std::vector<double>& values)
+// Write an N-dimensional int dataset. Replaces WriteIntArray3dDataset.
+template <std::size_t N>
+void WriteIntNdDataset(hid_t parent,
+                       const std::string& name,
+                       const std::array<hsize_t, N>& dims,
+                       const std::vector<int>& values)
 {
-  hid_t space = H5Screate_simple(3, dims.data(), nullptr);
-  hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_IEEE_F64LE, space,
-                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(dataset >= 0);
-  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
-  H5Dclose(dataset);
-  H5Sclose(space);
-}
-
-inline void WriteIntArray3dDataset(hid_t parent,
-                                    const std::string& name,
-                                    const std::array<hsize_t, 3>& dims,
-                                    const std::vector<int>& values)
-{
-  hid_t space = H5Screate_simple(3, dims.data(), nullptr);
+  hid_t space = H5Screate_simple(static_cast<int>(N), dims.data(), nullptr);
   hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_NATIVE_INT, space,
                             H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(dataset >= 0);
@@ -128,34 +118,33 @@ inline void WriteIntArray3dDataset(hid_t parent,
   H5Sclose(space);
 }
 
-inline void WriteDoubleArray4dDataset(hid_t parent,
-                                       const std::string& name,
+// Backward-compatible aliases for existing callers
+inline void WriteDoubleArray2dDataset(hid_t parent, const std::string& name,
+                                       const std::array<hsize_t, 2>& dims,
+                                       const std::vector<double>& values)
+{ WriteDoubleNdDataset<2>(parent, name, dims, values); }
+
+inline void WriteDoubleArray3dDataset(hid_t parent, const std::string& name,
+                                       const std::array<hsize_t, 3>& dims,
+                                       const std::vector<double>& values)
+{ WriteDoubleNdDataset<3>(parent, name, dims, values); }
+
+inline void WriteIntArray3dDataset(hid_t parent, const std::string& name,
+                                    const std::array<hsize_t, 3>& dims,
+                                    const std::vector<int>& values)
+{ WriteIntNdDataset<3>(parent, name, dims, values); }
+
+inline void WriteDoubleArray4dDataset(hid_t parent, const std::string& name,
                                        const std::array<hsize_t, 4>& dims,
                                        const std::vector<double>& values)
-{
-  hid_t space = H5Screate_simple(4, dims.data(), nullptr);
-  hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_IEEE_F64LE, space,
-                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(dataset >= 0);
-  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
-  H5Dclose(dataset);
-  H5Sclose(space);
-}
+{ WriteDoubleNdDataset<4>(parent, name, dims, values); }
 
-inline void WriteDoubleArray5dDataset(hid_t parent,
-                                       const std::string& name,
+inline void WriteDoubleArray5dDataset(hid_t parent, const std::string& name,
                                        const std::array<hsize_t, 5>& dims,
                                        const std::vector<double>& values)
-{
-  hid_t space = H5Screate_simple(5, dims.data(), nullptr);
-  hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_IEEE_F64LE, space,
-                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(dataset >= 0);
-  H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, values.data());
-  H5Dclose(dataset);
-  H5Sclose(space);
-}
+{ WriteDoubleNdDataset<5>(parent, name, dims, values); }
 
+// Create an axis dataset with a scale attribute (used by test_hdf5_loader.cpp)
 inline void CreateAxisDataset(hid_t file,
                                const std::string& name,
                                const std::vector<double>& values,
@@ -171,6 +160,7 @@ inline void CreateAxisDataset(hid_t file,
   H5Sclose(space);
 }
 
+// Create a raw axis dataset without a scale attribute (used by test_weaklib_eos_loader.cpp)
 inline void CreateAxisDataset(hid_t parent, const char* name, const double* values, std::size_t count)
 {
   const hsize_t dims = static_cast<hsize_t>(count);

@@ -8,9 +8,7 @@
 #include <AMReX_GpuContainers.H>
 #include <hdf5.h>
 
-#include <algorithm>
 #include <array>
-#include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -19,19 +17,36 @@ namespace {
 
 using namespace TestHelpers;
 
-constexpr std::size_t RhoCount = 3;
-constexpr std::size_t TempCount = 2;
-constexpr std::size_t YeCount = 2;
-
-const double DensityAxis[RhoCount] = {1.0e3, 1.0e6, 1.0e9};
-const double TemperatureAxis[TempCount] = {0.1, 1.0};
-const double YeAxis[YeCount] = {0.1, 0.3};
-
-void CreateWeakLibEosTestFileFull(const std::filesystem::path& filePath)
+// Write the EOS variable index datasets shared by all test EOS files.
+void WriteEosVariableIndices(hid_t dvGroup)
 {
-  constexpr int nRho = 2;
-  constexpr int nT = 3;
-  constexpr int nYe = 2;
+  WriteIntArrayDataset(dvGroup, "iPressure", {1});
+  WriteIntArrayDataset(dvGroup, "iEntropyPerBaryon", {2});
+  WriteIntArrayDataset(dvGroup, "iInternalEnergyDensity", {1});
+  WriteIntArrayDataset(dvGroup, "iElectronChemicalPotential", {1});
+  WriteIntArrayDataset(dvGroup, "iProtonChemicalPotential", {1});
+  WriteIntArrayDataset(dvGroup, "iNeutronChemicalPotential", {1});
+  WriteIntArrayDataset(dvGroup, "iProtonMassFraction", {1});
+  WriteIntArrayDataset(dvGroup, "iNeutronMassFraction", {1});
+  WriteIntArrayDataset(dvGroup, "iAlphaMassFraction", {1});
+  WriteIntArrayDataset(dvGroup, "iHeavyMassFraction", {1});
+  WriteIntArrayDataset(dvGroup, "iHeavyChargeNumber", {1});
+  WriteIntArrayDataset(dvGroup, "iHeavyMassNumber", {1});
+  WriteIntArrayDataset(dvGroup, "iHeavyBindingEnergy", {1});
+  WriteIntArrayDataset(dvGroup, "iThermalEnergy", {1});
+  WriteIntArrayDataset(dvGroup, "iGamma1", {3});
+}
+
+// Write a complete EOS test file. The fileDimOrder controls whether the
+// dependent variable datasets are written in Fortran order {nYe,nT,nRho}
+// (the correct WeakLib layout) or C order {nRho,nT,nYe} (for rejection tests).
+enum class DimOrder { Fortran, COrder };
+
+void CreateWeakLibEosTestFileImpl(const std::filesystem::path& filePath,
+                                  int nRho, int nT, int nYe,
+                                  const std::vector<double>& yeValues,
+                                  DimOrder order)
+{
   constexpr int nVariables = 3;
 
   hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
@@ -49,7 +64,7 @@ void CreateWeakLibEosTestFileFull(const std::filesystem::path& filePath)
 
   WriteDoubleArrayDataset(thermoGroup, "Density", {1.0, 2.0});
   WriteDoubleArrayDataset(thermoGroup, "Temperature", {0.5, 1.0, 2.0});
-  WriteDoubleArrayDataset(thermoGroup, "Electron Fraction", {0.1, 0.2});
+  WriteDoubleArrayDataset(thermoGroup, "Electron Fraction", yeValues);
 
   H5Gclose(thermoGroup);
 
@@ -65,10 +80,16 @@ void CreateWeakLibEosTestFileFull(const std::filesystem::path& filePath)
                           {"dyn/cm^2", "kb/baryon", "dimensionless"});
   WriteDoubleArrayDataset(dvGroup, "Offsets", {0.0, 0.1, 0.2});
 
-  const std::array<hsize_t, 3> fileDims = {
-      static_cast<hsize_t>(nYe),
-      static_cast<hsize_t>(nT),
-      static_cast<hsize_t>(nRho)};
+  std::array<hsize_t, 3> fileDims{};
+  if (order == DimOrder::Fortran) {
+    fileDims = {static_cast<hsize_t>(nYe),
+                static_cast<hsize_t>(nT),
+                static_cast<hsize_t>(nRho)};
+  } else {
+    fileDims = {static_cast<hsize_t>(nRho),
+                static_cast<hsize_t>(nT),
+                static_cast<hsize_t>(nYe)};
+  }
   const std::size_t totalSize = static_cast<std::size_t>(nRho * nT * nYe);
 
   for (int iVar = 0; iVar < nVariables; ++iVar) {
@@ -82,177 +103,21 @@ void CreateWeakLibEosTestFileFull(const std::filesystem::path& filePath)
   std::vector<int> repaired(totalSize, 0);
   WriteIntArray3dDataset(dvGroup, "Repaired", fileDims, repaired);
 
-  WriteIntArrayDataset(dvGroup, "iPressure", {1});
-  WriteIntArrayDataset(dvGroup, "iEntropyPerBaryon", {2});
-  WriteIntArrayDataset(dvGroup, "iInternalEnergyDensity", {1});
-  WriteIntArrayDataset(dvGroup, "iElectronChemicalPotential", {1});
-  WriteIntArrayDataset(dvGroup, "iProtonChemicalPotential", {1});
-  WriteIntArrayDataset(dvGroup, "iNeutronChemicalPotential", {1});
-  WriteIntArrayDataset(dvGroup, "iProtonMassFraction", {1});
-  WriteIntArrayDataset(dvGroup, "iNeutronMassFraction", {1});
-  WriteIntArrayDataset(dvGroup, "iAlphaMassFraction", {1});
-  WriteIntArrayDataset(dvGroup, "iHeavyMassFraction", {1});
-  WriteIntArrayDataset(dvGroup, "iHeavyChargeNumber", {1});
-  WriteIntArrayDataset(dvGroup, "iHeavyMassNumber", {1});
-  WriteIntArrayDataset(dvGroup, "iHeavyBindingEnergy", {1});
-  WriteIntArrayDataset(dvGroup, "iThermalEnergy", {1});
-  WriteIntArrayDataset(dvGroup, "iGamma1", {3});
+  WriteEosVariableIndices(dvGroup);
 
   H5Gclose(dvGroup);
   H5Fclose(file);
+}
+
+void CreateWeakLibEosTestFileFull(const std::filesystem::path& filePath)
+{
+  CreateWeakLibEosTestFileImpl(filePath, 2, 3, 2, {0.1, 0.2}, DimOrder::Fortran);
 }
 
 void CreateWeakLibEosTestFileFullCOrder(const std::filesystem::path& filePath)
 {
-  constexpr int nRho = 2;
-  constexpr int nT = 3;
-  constexpr int nYe = 4;
-  constexpr int nVariables = 3;
-
-  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(file >= 0);
-
-  hid_t thermoGroup = H5Gcreate(file, "ThermoState", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(thermoGroup >= 0);
-
-  WriteIntArrayDataset(thermoGroup, "LogInterp", {1, 1, 0});
-  WriteIntArrayDataset(thermoGroup, "Dimensions", {nRho, nT, nYe});
-  WriteStringArrayDataset(thermoGroup, "Names",
-                          {"Density", "Temperature", "Electron Fraction"});
-  WriteStringArrayDataset(thermoGroup, "Units",
-                          {"g/cm^3", "MeV", "dimensionless"});
-
-  WriteDoubleArrayDataset(thermoGroup, "Density", {1.0, 2.0});
-  WriteDoubleArrayDataset(thermoGroup, "Temperature", {0.5, 1.0, 2.0});
-  WriteDoubleArrayDataset(thermoGroup, "Electron Fraction", {0.1, 0.2, 0.3, 0.4});
-
-  H5Gclose(thermoGroup);
-
-  hid_t dvGroup = H5Gcreate(file, "DependentVariables", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(dvGroup >= 0);
-
-  WriteIntArrayDataset(dvGroup, "nVariables", {nVariables});
-
-  const std::vector<std::string> varNames = {
-      "Pressure", "Entropy Per Baryon", "Gamma1"};
-  WriteStringArrayDataset(dvGroup, "Names", varNames);
-  WriteStringArrayDataset(dvGroup, "Units",
-                          {"dyn/cm^2", "kb/baryon", "dimensionless"});
-  WriteDoubleArrayDataset(dvGroup, "Offsets", {0.0, 0.1, 0.2});
-
-  const std::array<hsize_t, 3> fileDims = {
-      static_cast<hsize_t>(nRho),
-      static_cast<hsize_t>(nT),
-      static_cast<hsize_t>(nYe)};
-  const std::size_t totalSize = static_cast<std::size_t>(nRho * nT * nYe);
-
-  for (int iVar = 0; iVar < nVariables; ++iVar) {
-    std::vector<double> data(totalSize);
-    for (std::size_t i = 0; i < totalSize; ++i) {
-      data[i] = static_cast<double>(iVar) + 0.01 * static_cast<double>(i);
-    }
-    WriteDoubleArray3dDataset(dvGroup, varNames[iVar], fileDims, data);
-  }
-
-  std::vector<int> repaired(totalSize, 0);
-  WriteIntArray3dDataset(dvGroup, "Repaired", fileDims, repaired);
-
-  WriteIntArrayDataset(dvGroup, "iPressure", {1});
-  WriteIntArrayDataset(dvGroup, "iEntropyPerBaryon", {2});
-  WriteIntArrayDataset(dvGroup, "iInternalEnergyDensity", {1});
-  WriteIntArrayDataset(dvGroup, "iElectronChemicalPotential", {1});
-  WriteIntArrayDataset(dvGroup, "iProtonChemicalPotential", {1});
-  WriteIntArrayDataset(dvGroup, "iNeutronChemicalPotential", {1});
-  WriteIntArrayDataset(dvGroup, "iProtonMassFraction", {1});
-  WriteIntArrayDataset(dvGroup, "iNeutronMassFraction", {1});
-  WriteIntArrayDataset(dvGroup, "iAlphaMassFraction", {1});
-  WriteIntArrayDataset(dvGroup, "iHeavyMassFraction", {1});
-  WriteIntArrayDataset(dvGroup, "iHeavyChargeNumber", {1});
-  WriteIntArrayDataset(dvGroup, "iHeavyMassNumber", {1});
-  WriteIntArrayDataset(dvGroup, "iHeavyBindingEnergy", {1});
-  WriteIntArrayDataset(dvGroup, "iThermalEnergy", {1});
-  WriteIntArrayDataset(dvGroup, "iGamma1", {3});
-
-  H5Gclose(dvGroup);
-  H5Fclose(file);
+  CreateWeakLibEosTestFileImpl(filePath, 2, 3, 4, {0.1, 0.2, 0.3, 0.4}, DimOrder::COrder);
 }
-
-std::vector<double> MakeDependentValues(double offset)
-{
-  std::vector<double> values;
-  values.reserve(RhoCount * TempCount * YeCount);
-  for (std::size_t ye = 0; ye < YeCount; ++ye) {
-    for (std::size_t temp = 0; temp < TempCount; ++temp) {
-      for (std::size_t rho = 0; rho < RhoCount; ++rho) {
-        values.push_back(offset +
-                         1.0 +
-                         100.0 * static_cast<double>(ye) +
-                         10.0 * static_cast<double>(temp) +
-                         static_cast<double>(rho));
-      }
-    }
-  }
-  return values;
-}
-
-void CreateDependentVariable(hid_t parent, const char* name, const std::vector<double>& values)
-{
-  const hsize_t dims[3] = {
-      static_cast<hsize_t>(YeCount),
-      static_cast<hsize_t>(TempCount),
-      static_cast<hsize_t>(RhoCount)};
-  hid_t space = H5Screate_simple(3, dims, nullptr);
-  REQUIRE(space >= 0);
-
-  hid_t dataset = H5Dcreate(parent, name, H5T_IEEE_F64LE, space,
-                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(dataset >= 0);
-  REQUIRE(H5Dwrite(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-                   H5P_DEFAULT, values.data()) >= 0);
-
-  H5Dclose(dataset);
-  H5Sclose(space);
-}
-
-void CreateWeakLibEosTestFile(const std::filesystem::path& path)
-{
-  hid_t file = H5Fcreate(path.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(file >= 0);
-
-  hid_t thermoGroup = H5Gcreate(file, "ThermoState", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(thermoGroup >= 0);
-
-  const int logInterp[3] = {1, 1, 0};
-  CreateIntDataset(thermoGroup, "LogInterp", logInterp, 3);
-
-  CreateAxisDataset(thermoGroup, "Density", DensityAxis, RhoCount);
-  CreateAxisDataset(thermoGroup, "Temperature", TemperatureAxis, TempCount);
-  CreateAxisDataset(thermoGroup, "Electron Fraction", YeAxis, YeCount);
-
-  H5Gclose(thermoGroup);
-
-  hid_t dependentGroup =
-      H5Gcreate(file, "DependentVariables", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(dependentGroup >= 0);
-
-  const std::vector<double> pressure = MakeDependentValues(0.0);
-  const std::vector<double> entropy = MakeDependentValues(1000.0);
-  CreateDependentVariable(dependentGroup, "Pressure", pressure);
-  CreateDependentVariable(dependentGroup, "Entropy Per Baryon", entropy);
-
-  H5Gclose(dependentGroup);
-  H5Fclose(file);
-}
-
-struct TempWeakLibEosFile {
-  std::filesystem::path path;
-  TempWeakLibEosFile()
-  {
-    path = std::filesystem::temp_directory_path() / "weaklibreader_eos_test.h5";
-    CreateWeakLibEosTestFile(path);
-  }
-  ~TempWeakLibEosFile() { std::filesystem::remove(path); }
-};
 
 } // namespace
 

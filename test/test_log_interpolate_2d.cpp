@@ -8,7 +8,6 @@
 
 #include <array>
 #include <cmath>
-#include <limits>
 
 namespace {
 
@@ -27,9 +26,6 @@ TEST_CASE("2D log interpolation matches bilinear expectation", "[loginterp][2d]"
       std::log10(3.0),
       std::log10(4.0),
       std::log10(5.0)};
-
-  const int extents[2] = {2, 2};
-  const Layout layout = MakeLayout(extents, 2);
 
   Axis axes[2] = {
       MakeAxis(gridX.data(), 2, AxisScale::Linear),
