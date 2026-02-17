@@ -66,10 +66,6 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
   REQUIRE(status == Hdf5LoadStatus::Success);
   REQUIRE(table.nd == 3);
 
-  CHECK(table.extents[0] == 2);
-  CHECK(table.extents[1] == 3);
-  CHECK(table.extents[2] == 4);
-
   const Layout& layout = table.layout;
   CHECK(layout.nd == 3);
   CHECK(layout.n[0] == 2);
@@ -104,7 +100,7 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
   const double* roundtripPtr = roundtrip.data();
   std::size_t total = 1;
   for (int dim = 0; dim < table.nd; ++dim) {
-    total *= static_cast<std::size_t>(table.extents[dim]);
+    total *= static_cast<std::size_t>(table.layout.n[dim]);
   }
   for (std::size_t i = 0; i < total; ++i) {
     CHECK(roundtripPtr[i] == Catch::Approx(originalPtr[i]).margin(Tol));
@@ -509,13 +505,6 @@ TEST_CASE("HDF5 loader handles 5D tables correctly", "[hdf5][loader][5d]")
 
   REQUIRE(status == Hdf5LoadStatus::Success);
   REQUIRE(table.nd == 5);
-
-  // Verify extents (C-order)
-  CHECK(table.extents[0] == 2);
-  CHECK(table.extents[1] == 3);
-  CHECK(table.extents[2] == 4);
-  CHECK(table.extents[3] == 5);
-  CHECK(table.extents[4] == 6);
 
   // Verify layout
   CHECK(table.layout.nd == 5);

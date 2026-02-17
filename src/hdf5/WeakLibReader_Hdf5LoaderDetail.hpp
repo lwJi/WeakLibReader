@@ -532,7 +532,7 @@ inline Hdf5LoadStatus LoadAxes(hid_t file,
     }
 
     const Hdf5LoadStatus axisStatus = ReadAxisDataset1D(
-        axisDataset.Get(), table.extents[dim], scale,
+        axisDataset.Get(), table.layout.n[dim], scale,
         table.axisStorage[dim], table.axes[dim]);
     if (axisStatus != Hdf5LoadStatus::Success) {
       return axisStatus;

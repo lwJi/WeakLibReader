@@ -40,7 +40,7 @@ inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
   if (myRank == root) {
     header[0] = localTable.nd;
     for (int dim = 0; dim < 5; ++dim) {
-      header[1 + dim] = localTable.extents[dim];
+      header[1 + dim] = localTable.layout.n[dim];
     }
   }
   amrex::ParallelDescriptor::Bcast(header, 6, root);
@@ -76,12 +76,11 @@ inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
   if (myRank != root) {
     output = Hdf5Table{};
     output.nd = nd;
-    output.extents = extents;
     if (totalSize == 0) {
       return Hdf5LoadStatus::IncompatibleDatasetExtent;
     }
     output.values.resize(totalSize);
-    output.layout = MakeLayout(output.extents.data(), output.nd);
+    output.layout = MakeLayout(extents.data(), output.nd);
     for (int dim = 0; dim < 5; ++dim) {
       amrex::Vector<double>& storage = output.axisStorage[dim];
       storage.resize(static_cast<std::size_t>(axisCounts[dim]));

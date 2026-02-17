@@ -44,7 +44,7 @@ inline Hdf5LoadStatus LoadHdf5Table(const std::string& filePath,
     }
     extents[dim] = static_cast<int>(source);
   }
-  result.extents = extents;
+  result.layout = MakeLayout(extents.data(), result.nd);
 
   const std::size_t totalSize = detail::ComputeTotalSize(rank, extents);
   if (totalSize == 0) {
@@ -62,8 +62,6 @@ inline Hdf5LoadStatus LoadHdf5Table(const std::string& filePath,
   if (axisStatus != Hdf5LoadStatus::Success) {
     return axisStatus;
   }
-
-  result.layout = MakeLayout(result.extents.data(), result.nd);
   output = std::move(result);
   return Hdf5LoadStatus::Success;
 }
