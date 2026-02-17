@@ -181,7 +181,7 @@ inline int run_all()
     std::cout << "All tests passed" << std::endl;
   }
 
-  return failures == 0 ? 0 : failures;
+  return failures;
 }
 
 } // namespace simple_catch

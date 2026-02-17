@@ -9,10 +9,7 @@
 #include <AMReX_GpuContainers.H>
 #include <hdf5.h>
 
-#include <algorithm>
 #include <array>
-#include <cmath>
-#include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -210,90 +207,65 @@ void CreateWeakLibIsoTestFile(const std::filesystem::path& filePath)
   H5Fclose(file);
 }
 
-void CreateWeakLibNESTestFile(const std::filesystem::path& filePath)
+// Write scattering kernel metadata (nOpacities, nMoments, Units, Offsets) into an HDF5 group.
+void WriteScatKernelMetadata(hid_t group, int nOpacities, int nMoments,
+                             const std::vector<std::string>& units)
 {
-  constexpr int nMoments = 2;
-  constexpr int nOpacities = 1;
-  constexpr double NesBase = 300000.0;
-
-  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(file >= 0);
-
-  WriteOpacityBaseGroups(file, true);
-
-  hid_t group = H5Gcreate(file, "Scat_NES_Kernels", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(group >= 0);
   WriteIntArrayDataset(group, "nOpacities", {nOpacities});
   WriteIntArrayDataset(group, "nMoments", {nMoments});
-  WriteStringArrayDataset(group, "Units", {"1/cm"});
+  WriteStringArrayDataset(group, "Units", units);
 
   const std::array<hsize_t, 2> offsetDims = {
       static_cast<hsize_t>(nMoments),
       static_cast<hsize_t>(nOpacities)};
   std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
   WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
+}
 
-  const std::array<int, 5> kernelDimsC = {
-      TestNE, TestNE, nMoments, TestNT, TestNEta};
-  const std::array<hsize_t, 5> kernelDims = {
-      static_cast<hsize_t>(kernelDimsC[4]),
-      static_cast<hsize_t>(kernelDimsC[3]),
-      static_cast<hsize_t>(kernelDimsC[2]),
-      static_cast<hsize_t>(kernelDimsC[1]),
-      static_cast<hsize_t>(kernelDimsC[0])};
-  const std::vector<double> data =
-      BuildFortranOrdered5dData(kernelDimsC, NesBase);
-  WriteDoubleArray5dDataset(group, "Kernels", kernelDims, data);
+// Write a 5D kernel dataset from C-order dimensions (stored Fortran-reversed in HDF5).
+void WriteKernel5d(hid_t group, const char* name,
+                   const std::array<int, 5>& cDims, double base)
+{
+  const std::array<hsize_t, 5> hdfDims = {
+      static_cast<hsize_t>(cDims[4]),
+      static_cast<hsize_t>(cDims[3]),
+      static_cast<hsize_t>(cDims[2]),
+      static_cast<hsize_t>(cDims[1]),
+      static_cast<hsize_t>(cDims[0])};
+  const std::vector<double> data = BuildFortranOrdered5dData(cDims, base);
+  WriteDoubleArray5dDataset(group, name, hdfDims, data);
+}
+
+// NES and Pair share the same structure: eta grid, 2 moments, 1 opacity, dataset name "Kernels".
+void CreateWeakLibEtaScatTestFile(const std::filesystem::path& filePath,
+                                  const char* groupName, double base)
+{
+  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(file >= 0);
+
+  WriteOpacityBaseGroups(file, true);
+
+  hid_t group = H5Gcreate(file, groupName, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  REQUIRE(group >= 0);
+  WriteScatKernelMetadata(group, 1, 2, {"1/cm"});
+  WriteKernel5d(group, "Kernels", {TestNE, TestNE, 2, TestNT, TestNEta}, base);
 
   H5Gclose(group);
   H5Fclose(file);
+}
+
+void CreateWeakLibNESTestFile(const std::filesystem::path& filePath)
+{
+  CreateWeakLibEtaScatTestFile(filePath, "Scat_NES_Kernels", 300000.0);
 }
 
 void CreateWeakLibPairTestFile(const std::filesystem::path& filePath)
 {
-  constexpr int nMoments = 2;
-  constexpr int nOpacities = 1;
-  constexpr double PairBase = 400000.0;
-
-  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(file >= 0);
-
-  WriteOpacityBaseGroups(file, true);
-
-  hid_t group = H5Gcreate(file, "Scat_Pair_Kernels", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  REQUIRE(group >= 0);
-  WriteIntArrayDataset(group, "nOpacities", {nOpacities});
-  WriteIntArrayDataset(group, "nMoments", {nMoments});
-  WriteStringArrayDataset(group, "Units", {"1/cm"});
-
-  const std::array<hsize_t, 2> offsetDims = {
-      static_cast<hsize_t>(nMoments),
-      static_cast<hsize_t>(nOpacities)};
-  std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
-  WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
-
-  const std::array<int, 5> kernelDimsC = {
-      TestNE, TestNE, nMoments, TestNT, TestNEta};
-  const std::array<hsize_t, 5> kernelDims = {
-      static_cast<hsize_t>(kernelDimsC[4]),
-      static_cast<hsize_t>(kernelDimsC[3]),
-      static_cast<hsize_t>(kernelDimsC[2]),
-      static_cast<hsize_t>(kernelDimsC[1]),
-      static_cast<hsize_t>(kernelDimsC[0])};
-  const std::vector<double> data =
-      BuildFortranOrdered5dData(kernelDimsC, PairBase);
-  WriteDoubleArray5dDataset(group, "Kernels", kernelDims, data);
-
-  H5Gclose(group);
-  H5Fclose(file);
+  CreateWeakLibEtaScatTestFile(filePath, "Scat_Pair_Kernels", 400000.0);
 }
 
 void CreateWeakLibBremTestFile(const std::filesystem::path& filePath)
 {
-  constexpr int nMoments = 1;
-  constexpr int nOpacities = 1;
-  constexpr double BremBase = 500000.0;
-
   hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(file >= 0);
 
@@ -301,27 +273,8 @@ void CreateWeakLibBremTestFile(const std::filesystem::path& filePath)
 
   hid_t group = H5Gcreate(file, "Scat_Brem_Kernels", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(group >= 0);
-  WriteIntArrayDataset(group, "nOpacities", {nOpacities});
-  WriteIntArrayDataset(group, "nMoments", {nMoments});
-  WriteStringArrayDataset(group, "Units", {"1/cm"});
-
-  const std::array<hsize_t, 2> offsetDims = {
-      static_cast<hsize_t>(nMoments),
-      static_cast<hsize_t>(nOpacities)};
-  std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
-  WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
-
-  const std::array<int, 5> kernelDimsC = {
-      TestNE, TestNE, nMoments, TestNRho, TestNT};
-  const std::array<hsize_t, 5> kernelDims = {
-      static_cast<hsize_t>(kernelDimsC[4]),
-      static_cast<hsize_t>(kernelDimsC[3]),
-      static_cast<hsize_t>(kernelDimsC[2]),
-      static_cast<hsize_t>(kernelDimsC[1]),
-      static_cast<hsize_t>(kernelDimsC[0])};
-  const std::vector<double> data =
-      BuildFortranOrdered5dData(kernelDimsC, BremBase);
-  WriteDoubleArray5dDataset(group, "S_sigma", kernelDims, data);
+  WriteScatKernelMetadata(group, 1, 1, {"1/cm"});
+  WriteKernel5d(group, "S_sigma", {TestNE, TestNE, 1, TestNRho, TestNT}, 500000.0);
 
   H5Gclose(group);
   H5Fclose(file);

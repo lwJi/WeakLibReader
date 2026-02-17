@@ -9,7 +9,6 @@
 
 #include <array>
 #include <cmath>
-#include <limits>
 
 namespace {
 
