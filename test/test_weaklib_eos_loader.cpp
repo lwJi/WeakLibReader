@@ -11,7 +11,7 @@
 #include <array>
 #include <filesystem>
 #include <string>
-#include <vector>
+#include <AMReX_Vector.H>
 
 namespace {
 
@@ -44,7 +44,7 @@ enum class DimOrder { Fortran, COrder };
 
 void CreateWeakLibEosTestFileImpl(const std::filesystem::path& filePath,
                                   int nRho, int nT, int nYe,
-                                  const std::vector<double>& yeValues,
+                                  const amrex::Vector<double>& yeValues,
                                   DimOrder order)
 {
   constexpr int nVariables = 3;
@@ -73,7 +73,7 @@ void CreateWeakLibEosTestFileImpl(const std::filesystem::path& filePath,
 
   WriteIntArrayDataset(dvGroup, "nVariables", {nVariables});
 
-  const std::vector<std::string> varNames = {
+  const amrex::Vector<std::string> varNames = {
       "Pressure", "Entropy Per Baryon", "Gamma1"};
   WriteStringArrayDataset(dvGroup, "Names", varNames);
   WriteStringArrayDataset(dvGroup, "Units",
@@ -93,14 +93,14 @@ void CreateWeakLibEosTestFileImpl(const std::filesystem::path& filePath,
   const std::size_t totalSize = static_cast<std::size_t>(nRho * nT * nYe);
 
   for (int iVar = 0; iVar < nVariables; ++iVar) {
-    std::vector<double> data(totalSize);
+    amrex::Vector<double> data(totalSize);
     for (std::size_t i = 0; i < totalSize; ++i) {
       data[i] = static_cast<double>(iVar) + 0.01 * static_cast<double>(i);
     }
     WriteDoubleArray3dDataset(dvGroup, varNames[iVar], fileDims, data);
   }
 
-  std::vector<int> repaired(totalSize, 0);
+  amrex::Vector<int> repaired(totalSize, 0);
   WriteIntArray3dDataset(dvGroup, "Repaired", fileDims, repaired);
 
   WriteEosVariableIndices(dvGroup);

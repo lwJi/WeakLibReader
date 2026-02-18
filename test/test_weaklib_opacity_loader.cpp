@@ -12,7 +12,7 @@
 #include <array>
 #include <filesystem>
 #include <string>
-#include <vector>
+#include <AMReX_Vector.H>
 
 namespace {
 
@@ -37,7 +37,7 @@ double Encode5dIndexValue(int i0, int i1, int i2, int i3, int i4,
          10000.0 * static_cast<double>(i4);
 }
 
-std::vector<double> BuildFortranOrdered5dData(const std::array<int, 5>& cOrderDims,
+amrex::Vector<double> BuildFortranOrdered5dData(const std::array<int, 5>& cOrderDims,
                                               double base = 0.0)
 {
   const std::size_t totalSize =
@@ -47,7 +47,7 @@ std::vector<double> BuildFortranOrdered5dData(const std::array<int, 5>& cOrderDi
       static_cast<std::size_t>(cOrderDims[3]) *
       static_cast<std::size_t>(cOrderDims[4]);
 
-  std::vector<double> data;
+  amrex::Vector<double> data;
   data.reserve(totalSize);
 
   // Build linear data with i0 fastest, matching expected C-order indexing.
@@ -70,7 +70,7 @@ void WriteOpacityGridGroup(hid_t file,
                            const std::string& groupName,
                            const std::string& name,
                            const std::string& unit,
-                           const std::vector<double>& values,
+                           const amrex::Vector<double>& values,
                            int logInterp)
 {
   hid_t group = H5Gcreate(file, groupName.c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -138,7 +138,7 @@ void CreateWeakLibEmAbTestFile(const std::filesystem::path& filePath)
   const std::size_t totalSize =
       static_cast<std::size_t>(nE) * nRho * nT * nYe;
 
-  std::vector<double> data(totalSize, 0.0);
+  amrex::Vector<double> data(totalSize, 0.0);
   std::size_t idx = 0;
   for (int ye = 0; ye < nYe; ++ye) {
     for (int temp = 0; temp < nT; ++temp) {
@@ -185,7 +185,7 @@ void CreateWeakLibIsoTestFile(const std::filesystem::path& filePath)
   const std::array<hsize_t, 2> offsetDims = {
       static_cast<hsize_t>(nMoments),
       static_cast<hsize_t>(nOpacities)};
-  std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
+  amrex::Vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
   WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
 
   const std::array<int, 5> kernelDimsC = {
@@ -196,9 +196,9 @@ void CreateWeakLibIsoTestFile(const std::filesystem::path& filePath)
       static_cast<hsize_t>(kernelDimsC[2]),
       static_cast<hsize_t>(kernelDimsC[1]),
       static_cast<hsize_t>(kernelDimsC[0])};
-  const std::vector<double> nuData =
+  const amrex::Vector<double> nuData =
       BuildFortranOrdered5dData(kernelDimsC, IsoNuBase);
-  const std::vector<double> nuBarData =
+  const amrex::Vector<double> nuBarData =
       BuildFortranOrdered5dData(kernelDimsC, IsoNuBarBase);
   WriteDoubleArray5dDataset(group, "Electron Neutrino", kernelDims, nuData);
   WriteDoubleArray5dDataset(group, "Electron Antineutrino", kernelDims, nuBarData);
@@ -209,7 +209,7 @@ void CreateWeakLibIsoTestFile(const std::filesystem::path& filePath)
 
 // Write scattering kernel metadata (nOpacities, nMoments, Units, Offsets) into an HDF5 group.
 void WriteScatKernelMetadata(hid_t group, int nOpacities, int nMoments,
-                             const std::vector<std::string>& units)
+                             const amrex::Vector<std::string>& units)
 {
   WriteIntArrayDataset(group, "nOpacities", {nOpacities});
   WriteIntArrayDataset(group, "nMoments", {nMoments});
@@ -218,7 +218,7 @@ void WriteScatKernelMetadata(hid_t group, int nOpacities, int nMoments,
   const std::array<hsize_t, 2> offsetDims = {
       static_cast<hsize_t>(nMoments),
       static_cast<hsize_t>(nOpacities)};
-  std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
+  amrex::Vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
   WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
 }
 
@@ -232,7 +232,7 @@ void WriteKernel5d(hid_t group, const char* name,
       static_cast<hsize_t>(cDims[2]),
       static_cast<hsize_t>(cDims[1]),
       static_cast<hsize_t>(cDims[0])};
-  const std::vector<double> data = BuildFortranOrdered5dData(cDims, base);
+  const amrex::Vector<double> data = BuildFortranOrdered5dData(cDims, base);
   WriteDoubleArray5dDataset(group, name, hdfDims, data);
 }
 

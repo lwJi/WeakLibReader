@@ -10,7 +10,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
-#include <vector>
+#include <AMReX_Vector.H>
 
 namespace {
 
@@ -47,7 +47,7 @@ constexpr double Offset = 1.0;
 
 // Build the synthetic table and axes. Returns the data vector and populates
 // axes and layout.
-std::vector<double> BuildSyntheticTable(
+amrex::Vector<double> BuildSyntheticTable(
     WeakLibReader::Axis axes[3],
     WeakLibReader::Layout& layout)
 {
@@ -60,7 +60,7 @@ std::vector<double> BuildSyntheticTable(
   const int extents[3] = {nD, nT, nY};
   layout = MakeLayout(extents, 3);
 
-  std::vector<double> data(totalSize);
+  amrex::Vector<double> data(totalSize);
   for (int iRho = 0; iRho < nD; ++iRho) {
     for (int iTemp = 0; iTemp < nT; ++iTemp) {
       for (int iYe = 0; iYe < nY; ++iYe) {
@@ -75,9 +75,9 @@ std::vector<double> BuildSyntheticTable(
 
 // Extended synthetic data for pressure/entropy inversion tests.
 struct SyntheticEosData {
-  std::vector<double> energy;
-  std::vector<double> pressure;
-  std::vector<double> entropy;
+  amrex::Vector<double> energy;
+  amrex::Vector<double> pressure;
+  amrex::Vector<double> entropy;
   WeakLibReader::Axis axes[3];
   WeakLibReader::Layout layout;
   WeakLibReader::EosInversionBounds bounds;

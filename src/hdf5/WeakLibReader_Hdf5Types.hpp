@@ -7,7 +7,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
-#include <vector>
+
 
 #include "base/WeakLibReader_Layout.hpp"
 #include "base/WeakLibReader_AxisTypes.hpp"
@@ -128,10 +128,10 @@ struct WeakLibEosTable {
   std::array<std::string, 3> axisUnits;
 
   // DependentVariables data
-  std::vector<std::string> variableNames;
-  std::vector<std::string> variableUnits;
+  amrex::Vector<std::string> variableNames;
+  amrex::Vector<std::string> variableUnits;
   amrex::Gpu::PinnedVector<double> offsets;
-  std::vector<amrex::Gpu::PinnedVector<double>> variables;
+  amrex::Vector<amrex::Gpu::PinnedVector<double>> variables;
   amrex::Gpu::PinnedVector<int> repaired;
   WeakLibEosIndices indices;
 
@@ -159,7 +159,7 @@ struct WeakLibEosTableDevice {
   Layout layout{};
 
   amrex::Gpu::DeviceVector<double> offsets;
-  std::vector<amrex::Gpu::DeviceVector<double>> variables;
+  amrex::Vector<amrex::Gpu::DeviceVector<double>> variables;
   amrex::Gpu::DeviceVector<int> repaired;
   WeakLibEosIndices indices;
 

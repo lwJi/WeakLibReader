@@ -32,7 +32,7 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
   scatIso.dimensions[4] = thermoState.dimensions[2];  // nYe
 
   // Read Units
-  std::vector<std::string> unitVec;
+  amrex::Vector<std::string> unitVec;
   if (!detail::ReadStringArray(group.Get(), "Units", unitVec) ||
       unitVec.size() < static_cast<size_t>(scatIso.nOpacities)) {
     return Hdf5LoadStatus::DatasetReadFailed;
@@ -152,7 +152,7 @@ inline Hdf5LoadStatus LoadScatKernelTable(
   table.dimensions[2] = table.nMoments;
 
   // Read Units
-  std::vector<std::string> unitVec;
+  amrex::Vector<std::string> unitVec;
   if (!ReadStringArray(group.Get(), "Units", unitVec) || unitVec.empty()) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }

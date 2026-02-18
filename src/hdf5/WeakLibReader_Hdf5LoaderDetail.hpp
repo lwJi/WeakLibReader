@@ -8,7 +8,7 @@
 #include <cstring>
 #include <limits>
 #include <string>
-#include <vector>
+
 
 #include "hdf5/WeakLibReader_Hdf5Types.hpp"
 
@@ -119,7 +119,7 @@ inline bool ReadStringAttribute(hid_t parent, const std::string& name, std::stri
   }
 
   const std::size_t size = static_cast<std::size_t>(H5Tget_size(native.Get()));
-  std::vector<char> storage(size + 1, '\0');
+  amrex::Vector<char> storage(size + 1, '\0');
   if (H5Aread(attr.Get(), native.Get(), storage.data()) < 0) {
     return false;
   }
@@ -213,7 +213,7 @@ inline bool ReadScalarInt(hid_t parent, const char* name, int& out)
 
 // Read a 1D string array dataset
 // Matches Fortran Read1dHDF_string (wlIOModuleHDF.F90:601-618)
-inline bool ReadStringArray(hid_t parent, const char* name, std::vector<std::string>& out)
+inline bool ReadStringArray(hid_t parent, const char* name, amrex::Vector<std::string>& out)
 {
   if (parent < 0) {
     return false;
@@ -246,7 +246,7 @@ inline bool ReadStringArray(hid_t parent, const char* name, std::vector<std::str
 
   if (isVariable) {
     // Variable-length strings
-    std::vector<char*> buffer(count, nullptr);
+    amrex::Vector<char*> buffer(count, nullptr);
     ScopedHandle memtype(H5Tcopy(H5T_C_S1), H5Tclose);
     H5Tset_size(memtype.Get(), H5T_VARIABLE);
 
@@ -267,7 +267,7 @@ inline bool ReadStringArray(hid_t parent, const char* name, std::vector<std::str
   } else {
     // Fixed-length strings
     const std::size_t strLen = H5Tget_size(dtype.Get());
-    std::vector<char> buffer(count * strLen);
+    amrex::Vector<char> buffer(count * strLen);
 
     if (H5Dread(dataset.Get(), dtype.Get(), H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()) < 0) {
       return false;
@@ -395,7 +395,7 @@ inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char* groupName,
   }
 
   // Read Name and Unit
-  std::vector<std::string> nameVec, unitVec;
+  amrex::Vector<std::string> nameVec, unitVec;
   if (!ReadStringArray(group.Get(), "Name", nameVec) || nameVec.empty()) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
@@ -564,7 +564,7 @@ inline Hdf5LoadStatus LoadWeakLibAxis(hid_t thermoGroup,
 
 /// Broadcast a vector of strings from root to all ranks.
 /// Format: [count][len0][len1]...[lenN-1][chars...]
-inline void BcastStringVector(std::vector<std::string>& strings, int root)
+inline void BcastStringVector(amrex::Vector<std::string>& strings, int root)
 {
   const int myRank = amrex::ParallelDescriptor::MyProc();
 
@@ -580,7 +580,7 @@ inline void BcastStringVector(std::vector<std::string>& strings, int root)
   }
 
   // Broadcast lengths
-  std::vector<int> lengths(count);
+  amrex::Vector<int> lengths(count);
   if (myRank == root) {
     for (int i = 0; i < count; ++i) {
       lengths[i] = static_cast<int>(strings[i].size());
@@ -594,7 +594,7 @@ inline void BcastStringVector(std::vector<std::string>& strings, int root)
     totalChars += lengths[i];
   }
 
-  std::vector<char> buffer(totalChars);
+  amrex::Vector<char> buffer(totalChars);
   if (myRank == root) {
     int offset = 0;
     for (int i = 0; i < count; ++i) {
@@ -622,7 +622,7 @@ inline void BcastStringVector(std::vector<std::string>& strings, int root)
 template <std::size_t N>
 inline void BcastStringArray(std::array<std::string, N>& strings, int root)
 {
-  std::vector<std::string> vec(strings.begin(), strings.end());
+  amrex::Vector<std::string> vec(strings.begin(), strings.end());
   BcastStringVector(vec, root);
   for (std::size_t i = 0; i < N && i < vec.size(); ++i) {
     strings[i] = std::move(vec[i]);

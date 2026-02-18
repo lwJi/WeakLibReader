@@ -8,7 +8,7 @@
 #include <array>
 #include <cstring>
 #include <string>
-#include <vector>
+#include <AMReX_Vector.H>
 
 namespace TestHelpers {
 
@@ -28,7 +28,7 @@ inline void WriteStringAttribute(hid_t parent, const std::string& name, const ch
 
 inline void WriteIntArrayDataset(hid_t parent,
                                   const std::string& name,
-                                  const std::vector<int>& values)
+                                  const amrex::Vector<int>& values)
 {
   const hsize_t dims = static_cast<hsize_t>(values.size());
   hid_t space = H5Screate_simple(1, &dims, nullptr);
@@ -42,7 +42,7 @@ inline void WriteIntArrayDataset(hid_t parent,
 
 inline void WriteDoubleArrayDataset(hid_t parent,
                                      const std::string& name,
-                                     const std::vector<double>& values)
+                                     const amrex::Vector<double>& values)
 {
   const hsize_t dims = static_cast<hsize_t>(values.size());
   hid_t space = H5Screate_simple(1, &dims, nullptr);
@@ -56,7 +56,7 @@ inline void WriteDoubleArrayDataset(hid_t parent,
 
 inline void WriteStringArrayDataset(hid_t parent,
                                      const std::string& name,
-                                     const std::vector<std::string>& values)
+                                     const amrex::Vector<std::string>& values)
 {
   const hsize_t dims = static_cast<hsize_t>(values.size());
   hid_t space = H5Screate_simple(1, &dims, nullptr);
@@ -75,7 +75,7 @@ inline void WriteStringArrayDataset(hid_t parent,
                             H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(dataset >= 0);
 
-  std::vector<char> buffer(values.size() * stride, '\0');
+  amrex::Vector<char> buffer(values.size() * stride, '\0');
   for (std::size_t i = 0; i < values.size(); ++i) {
     std::memcpy(buffer.data() + i * stride, values[i].c_str(), values[i].size());
   }
@@ -91,7 +91,7 @@ template <std::size_t N>
 void WriteDoubleNdDataset(hid_t parent,
                           const std::string& name,
                           const std::array<hsize_t, N>& dims,
-                          const std::vector<double>& values)
+                          const amrex::Vector<double>& values)
 {
   hid_t space = H5Screate_simple(static_cast<int>(N), dims.data(), nullptr);
   hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_IEEE_F64LE, space,
@@ -107,7 +107,7 @@ template <std::size_t N>
 void WriteIntNdDataset(hid_t parent,
                        const std::string& name,
                        const std::array<hsize_t, N>& dims,
-                       const std::vector<int>& values)
+                       const amrex::Vector<int>& values)
 {
   hid_t space = H5Screate_simple(static_cast<int>(N), dims.data(), nullptr);
   hid_t dataset = H5Dcreate(parent, name.c_str(), H5T_NATIVE_INT, space,
@@ -121,33 +121,33 @@ void WriteIntNdDataset(hid_t parent,
 // Backward-compatible aliases for existing callers
 inline void WriteDoubleArray2dDataset(hid_t parent, const std::string& name,
                                        const std::array<hsize_t, 2>& dims,
-                                       const std::vector<double>& values)
+                                       const amrex::Vector<double>& values)
 { WriteDoubleNdDataset<2>(parent, name, dims, values); }
 
 inline void WriteDoubleArray3dDataset(hid_t parent, const std::string& name,
                                        const std::array<hsize_t, 3>& dims,
-                                       const std::vector<double>& values)
+                                       const amrex::Vector<double>& values)
 { WriteDoubleNdDataset<3>(parent, name, dims, values); }
 
 inline void WriteIntArray3dDataset(hid_t parent, const std::string& name,
                                     const std::array<hsize_t, 3>& dims,
-                                    const std::vector<int>& values)
+                                    const amrex::Vector<int>& values)
 { WriteIntNdDataset<3>(parent, name, dims, values); }
 
 inline void WriteDoubleArray4dDataset(hid_t parent, const std::string& name,
                                        const std::array<hsize_t, 4>& dims,
-                                       const std::vector<double>& values)
+                                       const amrex::Vector<double>& values)
 { WriteDoubleNdDataset<4>(parent, name, dims, values); }
 
 inline void WriteDoubleArray5dDataset(hid_t parent, const std::string& name,
                                        const std::array<hsize_t, 5>& dims,
-                                       const std::vector<double>& values)
+                                       const amrex::Vector<double>& values)
 { WriteDoubleNdDataset<5>(parent, name, dims, values); }
 
 // Create an axis dataset with a scale attribute (used by test_hdf5_loader.cpp)
 inline void CreateAxisDataset(hid_t file,
                                const std::string& name,
-                               const std::vector<double>& values,
+                               const amrex::Vector<double>& values,
                                const char* scale)
 {
   const hsize_t dims = static_cast<hsize_t>(values.size());

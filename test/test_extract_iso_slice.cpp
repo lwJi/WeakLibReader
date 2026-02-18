@@ -4,7 +4,7 @@
 #include "hdf5/WeakLibReader_Hdf5LoaderOpacityScat.hpp"
 #include "base/WeakLibReader_Layout.hpp"
 
-#include <vector>
+#include <AMReX_Vector.H>
 
 TEST_CASE("ExtractIsoMomentSlice4D extracts correct 4D slice", "[isoslice]")
 {
@@ -24,7 +24,7 @@ TEST_CASE("ExtractIsoMomentSlice4D extracts correct 4D slice", "[isoslice]")
 
   // Fill 5D array with index-encoding:
   // data[offset] = iE + 10*iMom + 100*iRho + 1000*iT + 10000*iYe
-  std::vector<double> data(totalSize);
+  amrex::Vector<double> data(totalSize);
   for (int iYe = 0; iYe < nYe; ++iYe) {
     for (int iT = 0; iT < nT; ++iT) {
       for (int iRho = 0; iRho < nRho; ++iRho) {
@@ -82,7 +82,7 @@ TEST_CASE("ExtractIsoMomentSlice4D single-moment degenerate case",
       static_cast<std::size_t>(nE) * nMom * nRho * nT * nYe;
 
   // Fill with index-encoding (nMom=1, so iMom always 0)
-  std::vector<double> data(totalSize);
+  amrex::Vector<double> data(totalSize);
   for (int iYe = 0; iYe < nYe; ++iYe) {
     for (int iT = 0; iT < nT; ++iT) {
       for (int iRho = 0; iRho < nRho; ++iRho) {

@@ -42,7 +42,7 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
   result.dimensions[2] = fileDims[2];  // nYe
 
   // Read axis names and units
-  std::vector<std::string> axisNamesVec, axisUnitsVec;
+  amrex::Vector<std::string> axisNamesVec, axisUnitsVec;
   if (!detail::ReadStringArray(thermoGroup.Get(), "Names", axisNamesVec) || axisNamesVec.size() != 3) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }

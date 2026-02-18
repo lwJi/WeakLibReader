@@ -12,7 +12,7 @@
 
 #include <filesystem>
 #include <string>
-#include <vector>
+#include <AMReX_Vector.H>
 
 namespace {
 
@@ -31,7 +31,7 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_test.h5";
 
   const hsize_t dims[3] = {4, 3, 2}; // reversed (axis2, axis1, axis0)
-  std::vector<double> rawData;
+  amrex::Vector<double> rawData;
   rawData.reserve(static_cast<std::size_t>(dims[0] * dims[1] * dims[2]));
   for (hsize_t k = 0; k < dims[0]; ++k) {
     for (hsize_t j = 0; j < dims[1]; ++j) {
@@ -108,7 +108,7 @@ TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
 
   for (int dim = 0; dim < table.nd; ++dim) {
     const auto& deviceAxis = deviceTable.axisStorage[dim];
-    std::vector<double> hostAxis(deviceAxis.size());
+    amrex::Vector<double> hostAxis(deviceAxis.size());
     amrex::Gpu::copy(amrex::Gpu::deviceToHost,
                      deviceAxis.begin(), deviceAxis.end(),
                      hostAxis.begin());
@@ -214,7 +214,7 @@ TEST_CASE("HDF5 loader returns AxisDatasetOpenFailed for missing axis", "[hdf5][
 
   // Create file with values dataset but missing axis1
   const hsize_t dims[2] = {3, 2}; // 2D dataset needs axis0 and axis1
-  std::vector<double> rawData(6, 1.0);
+  amrex::Vector<double> rawData(6, 1.0);
 
   hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(file >= 0);
@@ -249,7 +249,7 @@ TEST_CASE("HDF5 loader returns AxisExtentMismatch when axis size differs from va
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_extent_mismatch.h5";
 
   const hsize_t dims[2] = {3, 2}; // values has shape 3x2
-  std::vector<double> rawData(6, 1.0);
+  amrex::Vector<double> rawData(6, 1.0);
 
   hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(file >= 0);
@@ -285,7 +285,7 @@ TEST_CASE("HDF5 loader returns AxisInvalidScale for unknown scale attribute", "[
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_invalid_scale.h5";
 
   const hsize_t dims[1] = {3};
-  std::vector<double> rawData(3, 1.0);
+  amrex::Vector<double> rawData(3, 1.0);
 
   hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(file >= 0);
@@ -320,7 +320,7 @@ TEST_CASE("HDF5 loader returns AxisNotMonotone for non-monotonic axis", "[hdf5][
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_nonmonotonic.h5";
 
   const hsize_t dims[1] = {3};
-  std::vector<double> rawData(3, 1.0);
+  amrex::Vector<double> rawData(3, 1.0);
 
   hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(file >= 0);
@@ -355,7 +355,7 @@ TEST_CASE("HDF5 loader returns AxisNotMonotone for descending axis", "[hdf5][loa
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_descending.h5";
 
   const hsize_t dims[1] = {3};
-  std::vector<double> rawData(3, 1.0);
+  amrex::Vector<double> rawData(3, 1.0);
 
   hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(file >= 0);
@@ -390,7 +390,7 @@ TEST_CASE("HDF5 loader returns AxisNotMonotone for Log10 axis with non-positive 
       std::filesystem::temp_directory_path() / "weaklibreader_hdf5_log_nonpositive.h5";
 
   const hsize_t dims[1] = {3};
-  std::vector<double> rawData(3, 1.0);
+  amrex::Vector<double> rawData(3, 1.0);
 
   hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(file >= 0);
@@ -459,7 +459,7 @@ TEST_CASE("HDF5 loader handles 5D tables correctly", "[hdf5][loader][5d]")
   const hsize_t dims[5] = {6, 5, 4, 3, 2};
   const std::size_t totalSize = 2 * 3 * 4 * 5 * 6; // 720 elements
 
-  std::vector<double> rawData;
+  amrex::Vector<double> rawData;
   rawData.reserve(totalSize);
   // Fill with unique values based on multi-index
   for (hsize_t i4 = 0; i4 < dims[0]; ++i4) {
@@ -549,7 +549,7 @@ TEST_CASE("HDF5 loader handles 5D tables correctly", "[hdf5][loader][5d]")
   // Verify device axis data
   for (int dim = 0; dim < table.nd; ++dim) {
     const auto& deviceAxis = deviceTable.axisStorage[dim];
-    std::vector<double> hostAxis(deviceAxis.size());
+    amrex::Vector<double> hostAxis(deviceAxis.size());
     amrex::Gpu::copy(amrex::Gpu::deviceToHost,
                      deviceAxis.begin(), deviceAxis.end(),
                      hostAxis.begin());

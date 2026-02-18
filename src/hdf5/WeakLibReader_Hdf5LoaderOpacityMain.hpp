@@ -35,7 +35,7 @@ inline Hdf5LoadStatus LoadWeakLibOpacityThermoState(hid_t file,
   ts.dimensions[2] = dims[2];  // nYe
 
   // Read Names and Units
-  std::vector<std::string> namesVec, unitsVec;
+  amrex::Vector<std::string> namesVec, unitsVec;
   if (!ReadStringArray(group.Get(), "Names", namesVec) || namesVec.size() != 3) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }

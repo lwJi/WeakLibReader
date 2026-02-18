@@ -2,7 +2,7 @@
 
 #include <AMReX_GpuQualifiers.H>
 #include <cstddef>
-#include <vector>
+#include <AMReX_Vector.H>
 
 #include "interp/WeakLibReader_LogInterpolateCore.hpp"
 
@@ -35,8 +35,8 @@ inline int SumLogInterpolateSingleVariable2D2DCustomAligned(
   const Layout layout = MakeLayout(extents, 4);
 
   const std::size_t planeSize = sizeE * sizeE;
-  std::vector<int> idxD(nAlpha);
-  std::vector<double> fracD(nAlpha);
+  amrex::Vector<int> idxD(nAlpha);
+  amrex::Vector<double> fracD(nAlpha);
 
   for (std::size_t k = 0; k < count; ++k) {
     double* plane = out + k * planeSize;

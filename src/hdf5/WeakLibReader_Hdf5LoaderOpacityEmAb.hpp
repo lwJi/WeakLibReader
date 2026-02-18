@@ -88,7 +88,7 @@ inline Hdf5LoadStatus LoadECTable(hid_t file, WeakLibECTable& ecTable)
   readScalar("maxYe", ecTable.yeMax);
 
   // Read units and offsets
-  std::vector<std::string> unitVec;
+  amrex::Vector<std::string> unitVec;
   if (ReadStringArray(group.Get(), "Units", unitVec) && !unitVec.empty()) {
     ecTable.unit = unitVec[0];
   }
@@ -161,7 +161,7 @@ inline Hdf5LoadStatus LoadWeakLibEmAbTable(hid_t file,
   emAb.dimensions[3] = thermoState.dimensions[2];  // nYe
 
   // Read Units
-  std::vector<std::string> unitVec;
+  amrex::Vector<std::string> unitVec;
   if (!detail::ReadStringArray(group.Get(), "Units", unitVec) ||
       unitVec.size() < static_cast<size_t>(emAb.nOpacities)) {
     return Hdf5LoadStatus::DatasetReadFailed;

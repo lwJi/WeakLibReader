@@ -8,7 +8,7 @@
 
 #include <array>
 #include <cmath>
-#include <vector>
+#include <AMReX_Vector.H>
 
 namespace {
 
@@ -237,7 +237,7 @@ TEST_CASE("LinearInterp3D4DArray1DAlignedPoint matches slice extraction", "[inte
   const int extents[4] = {2, 3, 3, 3};
   const Layout layout = MakeLayout(extents, 4);
   const std::size_t totalSize = 2 * 3 * 3 * 3;
-  std::vector<double> table(totalSize);
+  amrex::Vector<double> table(totalSize);
 
   for (std::size_t k = 0; k < totalSize; ++k) {
     table[k] = std::log10(static_cast<double>(k + 1));
@@ -267,7 +267,7 @@ TEST_CASE("LinearInterp3D5DArray2DAlignedPoint matches slice extraction", "[inte
   const int extents[5] = {2, 2, 3, 3, 3};
   const Layout layout = MakeLayout(extents, 5);
   const std::size_t totalSize = 2 * 2 * 3 * 3 * 3;
-  std::vector<double> table(totalSize);
+  amrex::Vector<double> table(totalSize);
 
   for (std::size_t k = 0; k < totalSize; ++k) {
     table[k] = std::log10(static_cast<double>(k + 1));
@@ -300,7 +300,7 @@ TEST_CASE("LinearInterp4D5DArray1DAlignedPoint matches slice extraction", "[inte
   const int extents[5] = {2, 3, 3, 3, 3};
   const Layout layout = MakeLayout(extents, 5);
   const std::size_t totalSize = 2 * 3 * 3 * 3 * 3;
-  std::vector<double> table(totalSize);
+  amrex::Vector<double> table(totalSize);
 
   for (std::size_t k = 0; k < totalSize; ++k) {
     table[k] = std::log10(static_cast<double>(k + 1));

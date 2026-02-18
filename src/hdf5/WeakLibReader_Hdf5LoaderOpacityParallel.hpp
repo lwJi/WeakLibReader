@@ -17,7 +17,7 @@ inline void BcastString(std::string& s, int root)
     if (myRank != root) { s.clear(); }
     return;
   }
-  std::vector<char> buf(len);
+  amrex::Vector<char> buf(len);
   if (myRank == root) { std::memcpy(buf.data(), s.data(), len); }
   amrex::ParallelDescriptor::Bcast(buf.data(), len, root);
   if (myRank != root) { s.assign(buf.data(), len); }

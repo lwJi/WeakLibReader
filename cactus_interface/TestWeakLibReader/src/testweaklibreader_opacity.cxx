@@ -3,7 +3,7 @@
 #include <cctk_Parameters.h>
 #include <loop_device.hxx>
 
-#include <vector>
+#include <AMReX_Vector.H>
 
 #include <hdf5/WeakLibReader_Hdf5Loader.hpp>
 #include <interp/WeakLibReader_LogInterpolate.hpp>
@@ -29,9 +29,9 @@ struct AlignedKernel {
   WeakLibReader::Layout layout{};
 };
 
-std::vector<AlignedKernel> nes_aligned;
-std::vector<AlignedKernel> pair_aligned;
-std::vector<AlignedKernel> brem_aligned;
+amrex::Vector<AlignedKernel> nes_aligned;
+amrex::Vector<AlignedKernel> pair_aligned;
+amrex::Vector<AlignedKernel> brem_aligned;
 
 extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
   DECLARE_CCTK_PARAMETERS;
