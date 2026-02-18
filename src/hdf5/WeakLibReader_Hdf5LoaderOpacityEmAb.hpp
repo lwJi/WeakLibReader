@@ -172,7 +172,7 @@ inline Hdf5LoadStatus LoadWeakLibEmAbTable(hid_t file,
 
   // Read Offsets (1D: [nOpacities])
   {
-    amrex::Gpu::PinnedVector<double> offsetVec;
+    std::vector<double> offsetVec;
     std::array<int, 1> offsetDims{{emAb.nOpacities}};
     if (!detail::ReadWeakLibArrayNd<double, 1>(group.Get(), "Offsets", offsetVec, offsetDims)) {
       return Hdf5LoadStatus::DatasetReadFailed;

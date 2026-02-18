@@ -367,12 +367,12 @@ bool ReadWeakLibArrayNdImpl(hid_t parent, const char* name,
   return true;
 }
 
-template <typename T, int ND>
+template <typename T, int ND, typename Container>
 bool ReadWeakLibArrayNd(hid_t parent, const char* name,
-                        amrex::Gpu::PinnedVector<T>& output,
+                        Container& output,
                         const std::array<int, ND>& expectedDims)
 {
-  return ReadWeakLibArrayNdImpl<amrex::Gpu::PinnedVector<T>, T, ND>(
+  return ReadWeakLibArrayNdImpl<Container, T, ND>(
       parent, name, output, expectedDims);
 }
 
