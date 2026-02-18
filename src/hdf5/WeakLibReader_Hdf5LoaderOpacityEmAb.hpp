@@ -58,7 +58,7 @@ inline Hdf5LoadStatus LoadECTable(hid_t file, WeakLibECTable& ecTable)
   ecTable.tempValues.resize(ecTable.nT);
   ecTable.yeValues.resize(ecTable.nYe);
 
-  auto readArray = [&](const char* name, amrex::Vector<double>& arr) -> bool {
+  auto readArray = [&](const char* name, std::vector<double>& arr) -> bool {
     ScopedHandle ds(H5Dopen(group.Get(), name, H5P_DEFAULT), H5Dclose);
     if (!ds.Valid()) return false;
     return H5Dread(ds.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,

@@ -82,7 +82,7 @@ inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
     output.values.resize(totalSize);
     output.layout = MakeLayout(extents.data(), output.nd);
     for (int dim = 0; dim < 5; ++dim) {
-      amrex::Vector<double>& storage = output.axisStorage[dim];
+      std::vector<double>& storage = output.axisStorage[dim];
       storage.resize(static_cast<std::size_t>(axisCounts[dim]));
       if (!storage.empty()) {
         output.axes[dim].grid = storage.data();

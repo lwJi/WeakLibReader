@@ -1,7 +1,6 @@
 #pragma once
 
 #include <AMReX_ParallelDescriptor.H>
-#include <AMReX_Vector.H>
 
 #include <array>
 #include <cctype>
@@ -153,7 +152,7 @@ inline bool ReadIntArray(hid_t parent, const char* name, int* out, std::size_t c
   return true;
 }
 
-inline bool ValidateAxis(const amrex::Vector<double>& values, AxisScale scale)
+inline bool ValidateAxis(const std::vector<double>& values, AxisScale scale)
 {
   if (values.size() < 2) {
     return false;
@@ -474,7 +473,7 @@ inline std::size_t ComputeTotalSize(int nd, const std::array<int, 5>& extents)
 inline Hdf5LoadStatus ReadAxisDataset1D(hid_t datasetId,
                                         int expectedExtent,
                                         AxisScale scale,
-                                        amrex::Vector<double>& storage,
+                                        std::vector<double>& storage,
                                         Axis& outAxis)
 {
   ScopedHandle space(H5Dget_space(datasetId), H5Sclose);
@@ -551,7 +550,7 @@ inline Hdf5LoadStatus LoadWeakLibAxis(hid_t thermoGroup,
                                       const char* datasetName,
                                       int expectedExtent,
                                       AxisScale scale,
-                                      amrex::Vector<double>& storage,
+                                      std::vector<double>& storage,
                                       Axis& outAxis)
 {
   ScopedHandle dataset(H5Dopen(thermoGroup, datasetName, H5P_DEFAULT), H5Dclose);

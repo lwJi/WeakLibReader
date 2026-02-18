@@ -91,7 +91,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
       const double nesOffset = nes.OffsetValue(0, iMom);
       const std::size_t alignedSize =
           static_cast<std::size_t>(nE) * nE * nT * nEta;
-      amrex::Vector<double> hostBuf(alignedSize);
+      std::vector<double> hostBuf(alignedSize);
 
       WeakLibReader::PreAlignScatteringKernelMoment(
           nes.KernelData(), nesLayout, energyAxis,
@@ -127,7 +127,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
       const double pairOffset = pair.OffsetValue(0, iMom);
       const std::size_t alignedSize =
           static_cast<std::size_t>(nE) * nE * nT * nEta;
-      amrex::Vector<double> hostBuf(alignedSize);
+      std::vector<double> hostBuf(alignedSize);
 
       WeakLibReader::PreAlignScatteringKernelMoment(
           pair.KernelData(), pairLayout, energyAxis,
@@ -163,7 +163,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
       const double bremOffset = brem.OffsetValue(0, iMom);
       const std::size_t alignedSize =
           static_cast<std::size_t>(nE) * nE * nRho * nT;
-      amrex::Vector<double> hostBuf(alignedSize);
+      std::vector<double> hostBuf(alignedSize);
 
       WeakLibReader::PreAlignScatteringKernelMoment(
           brem.KernelData(), bremLayout, energyAxis,
