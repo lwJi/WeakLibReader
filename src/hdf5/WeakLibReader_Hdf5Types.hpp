@@ -2,8 +2,6 @@
 
 #include <AMReX_Array.H>
 #include <AMReX_GpuContainers.H>
-#include <AMReX_Vector.H>
-
 #include <array>
 #include <cstdint>
 #include <string>
@@ -72,7 +70,7 @@ struct Hdf5Table {
   Layout layout{};
   Axis axes[5]{};
   amrex::Gpu::PinnedVector<double> values;
-  std::array<amrex::Vector<double>, 5> axisStorage{};
+  std::array<std::vector<double>, 5> axisStorage{};
 
   Hdf5Table() = default;
   Hdf5Table(Hdf5Table&&) = default;
@@ -122,7 +120,7 @@ struct WeakLibEosTable {
   std::array<int, 3> dimensions{{0, 0, 0}};  // [nRho, nT, nYe] after reversal
 
   // ThermoState data
-  std::array<amrex::Vector<double>, 3> axisStorage;  // Density, Temperature, Ye
+  std::array<std::vector<double>, 3> axisStorage;  // Density, Temperature, Ye
   Axis axes[3]{};
   std::array<std::string, 3> axisNames;
   std::array<std::string, 3> axisUnits;
@@ -185,7 +183,7 @@ struct WeakLibOpacityGrid {
   std::string unit;
   int nPoints = 0;
   AxisScale scale = AxisScale::Linear;
-  amrex::Vector<double> values;
+  std::vector<double> values;
 
   // For geometric grids (optional)
   double zoom = 0.0;
@@ -226,10 +224,10 @@ struct WeakLibECTable {
   int nT = 0;
   int nYe = 0;
 
-  amrex::Vector<double> energyValues;
-  amrex::Vector<double> rhoValues;
-  amrex::Vector<double> tempValues;
-  amrex::Vector<double> yeValues;
+  std::vector<double> energyValues;
+  std::vector<double> rhoValues;
+  std::vector<double> tempValues;
+  std::vector<double> yeValues;
 
   double rhoMin = 0.0, rhoMax = 0.0;
   double tempMin = 0.0, tempMax = 0.0;
@@ -489,7 +487,7 @@ using WeakLibScatBremTableDevice = WeakLibScatKernelTableDevice;
 struct WeakLibOpacityThermoState {
   std::array<int, 3> dimensions{{0, 0, 0}};  // [nRho, nT, nYe]
   std::array<AxisScale, 3> scales{{AxisScale::Log10, AxisScale::Log10, AxisScale::Linear}};
-  std::array<amrex::Vector<double>, 3> axisStorage;  // Density, Temperature, Ye
+  std::array<std::vector<double>, 3> axisStorage;  // Density, Temperature, Ye
   Axis axes[3]{};
   std::array<std::string, 3> names;
   std::array<std::string, 3> units;

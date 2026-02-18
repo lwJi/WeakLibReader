@@ -90,7 +90,7 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
 /// @param dims       5D dimensions: [nE, nMom, nRho, nT, nYe]
 /// @param iMom       Moment index to extract (0-based)
 /// @return           Contiguous 4D array [nE, nRho, nT, nYe]
-inline amrex::Vector<double> ExtractIsoMomentSlice4D(
+inline std::vector<double> ExtractIsoMomentSlice4D(
     const double* kernel5d,
     const std::array<int, 5>& dims,
     int iMom)
@@ -104,7 +104,7 @@ inline amrex::Vector<double> ExtractIsoMomentSlice4D(
   const Layout layout5d = MakeLayout(dims.data(), 5);
   const std::size_t size4d =
       static_cast<std::size_t>(nE) * nRho * nT * nYe;
-  amrex::Vector<double> result(size4d);
+  std::vector<double> result(size4d);
 
   const std::array<int, 4> dims4d{{nE, nRho, nT, nYe}};
   const Layout layout4d = MakeLayout(dims4d.data(), 4);
