@@ -100,7 +100,7 @@ Scattering kernels are 5D with energy×energy leading dimensions. For device use
 ```cpp
 // Per-moment pre-alignment
 for (int iMom = 0; iMom < nMom; ++iMom) {
-  amrex::Vector<double> hostBuf(alignedSize);
+  std::vector<double> hostBuf(alignedSize);
   PreAlignScatteringKernelMoment(rawKernel, rawLayout, energyAxis,
       iMom, nDim3, nDim4, alignedEnergyValues, nAlignedE,
       offset, hostBuf.data());
