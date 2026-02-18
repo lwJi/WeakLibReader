@@ -86,9 +86,7 @@ inline void BcastThermoState(WeakLibOpacityThermoState& ts, int root)
     if (ts.dimensions[i] > 0) {
       amrex::ParallelDescriptor::Bcast(ts.axisStorage[i].data(), ts.dimensions[i], root);
     }
-    ts.axes[i].grid = ts.axisStorage[i].data();
-    ts.axes[i].n = ts.dimensions[i];
-    ts.axes[i].scale = ts.scales[i];
+    ts.axes[i] = Axis{ts.axisStorage[i].data(), ts.dimensions[i], ts.scales[i]};
   }
 
   BcastStringArray(ts.names, root);
@@ -175,13 +173,11 @@ inline void BcastEmAbTable(WeakLibEmAbTable& tab, int root)
   std::array<int, 4> dims{{header[1], header[2], header[3], header[4]}};
   const auto dataSize = static_cast<std::size_t>(dims[0]) * dims[1] * dims[2] * dims[3];
 
-  // Broadcast parameters (7 ints)
   static_assert(sizeof(WeakLibEmAbParameters) == 7 * sizeof(int),
                 "WeakLibEmAbParameters must be 7 contiguous ints");
   amrex::ParallelDescriptor::Bcast(
       reinterpret_cast<int*>(&tab.parameters), 7, root);
 
-  // Broadcast offsets
   amrex::ParallelDescriptor::Bcast(tab.offsets.data(), 2, root);
 
   if (myRank != root) {
@@ -322,7 +318,6 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFullParallel(
     const std::string& fileBrem = "",
     int readerRank = amrex::ParallelDescriptor::IOProcessorNumber())
 {
-  // Single-rank fallback
   const int nProcs = amrex::ParallelDescriptor::NProcs();
   if (nProcs <= 1) {
     return LoadWeakLibOpacityTableFull(output, fileEmAb, fileIso,
@@ -335,7 +330,6 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFullParallel(
   }
   const int myRank = amrex::ParallelDescriptor::MyProc();
 
-  // Root loads via serial
   WeakLibOpacityTable localTable;
   Hdf5LoadStatus status = Hdf5LoadStatus::Success;
   if (myRank == root) {
@@ -343,7 +337,6 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFullParallel(
                                           fileNES, filePair, fileBrem);
   }
 
-  // Broadcast status
   int statusInt = static_cast<int>(status);
   amrex::ParallelDescriptor::Bcast(&statusInt, 1, root);
   status = static_cast<Hdf5LoadStatus>(statusInt);
@@ -351,8 +344,7 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFullParallel(
     return status;
   }
 
-  // Broadcast presence bitmask
-  // [hasEmAb, hasIso, hasNES, hasPair, hasBrem, hasEtaGrid]
+  // Presence bitmask: [hasEmAb, hasIso, hasNES, hasPair, hasBrem, hasEtaGrid]
   int presence[6] = {0, 0, 0, 0, 0, 0};
   if (myRank == root) {
     presence[0] = localTable.HasEmAb() ? 1 : 0;
@@ -364,26 +356,21 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFullParallel(
   }
   amrex::ParallelDescriptor::Bcast(presence, 6, root);
 
-  // Get reference to working table
   WeakLibOpacityTable& table = (myRank == root) ? localTable : output;
 
-  // Broadcast shared grids (always present)
   detail::BcastOpacityGrid(table.energyGrid, root);
   detail::BcastThermoState(table.thermoState, root);
 
-  // Broadcast etaGrid if present
   if (presence[5]) {
     detail::BcastOpacityGrid(table.etaGrid, root);
   }
 
-  // Broadcast sub-tables conditionally
   if (presence[0]) { detail::BcastEmAbTable(table.emAb, root); }
   if (presence[1]) { detail::BcastScatIsoTable(table.scatIso, root); }
   if (presence[2]) { detail::BcastScatKernelTable(table.scatNES, root); }
   if (presence[3]) { detail::BcastScatKernelTable(table.scatPair, root); }
   if (presence[4]) { detail::BcastScatKernelTable(table.scatBrem, root); }
 
-  // Root moves local table to output
   if (myRank == root) {
     output = std::move(localTable);
   }

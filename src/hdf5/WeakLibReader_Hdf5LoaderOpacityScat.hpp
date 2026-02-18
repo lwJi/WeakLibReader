@@ -18,20 +18,18 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
     return Hdf5LoadStatus::DatasetOpenFailed;
   }
 
-  // Read nOpacities and nMoments
   if (!detail::ReadScalarInt(group.Get(), "nOpacities", scatIso.nOpacities) ||
       !detail::ReadScalarInt(group.Get(), "nMoments", scatIso.nMoments)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
-  // Set dimensions: [nE, nMom, nRho, nT, nYe]
+  // Dimensions: [nE, nMom, nRho, nT, nYe]
   scatIso.dimensions[0] = energyGrid.nPoints;
   scatIso.dimensions[1] = scatIso.nMoments;
   scatIso.dimensions[2] = thermoState.dimensions[0];  // nRho
   scatIso.dimensions[3] = thermoState.dimensions[1];  // nT
   scatIso.dimensions[4] = thermoState.dimensions[2];  // nYe
 
-  // Read Units
   std::vector<std::string> unitVec;
   if (!detail::ReadStringArray(group.Get(), "Units", unitVec) ||
       unitVec.size() < static_cast<size_t>(scatIso.nOpacities)) {
@@ -41,13 +39,12 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
     scatIso.units[i] = unitVec[i];
   }
 
-  // Read Offsets (2D: [nOpacities, nMoments])
-  std::array<int, 2> offsetDims{{scatIso.nOpacities, scatIso.nMoments}};
+  const std::array<int, 2> offsetDims{{scatIso.nOpacities, scatIso.nMoments}};
   if (!detail::ReadWeakLibArrayNd<double, 2>(group.Get(), "Offsets", scatIso.offsets, offsetDims)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
-  // Read correction flags and ga_strange (optional, may not exist in legacy files)
+  // Correction flags are optional (may not exist in legacy files).
   {
     detail::ScopedH5ErrorSuppressor suppress;
 
@@ -61,11 +58,9 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
     }
   }
 
-  // Set species names
   scatIso.names[0] = "Electron Neutrino";
   scatIso.names[1] = "Electron Antineutrino";
 
-  // Read kernel data for each species
   for (int iSpecies = 0; iSpecies < WeakLibScatIsoTable::NumSpecies && iSpecies < scatIso.nOpacities; ++iSpecies) {
     if (!detail::ReadWeakLibArrayNd<double, 5>(group.Get(), scatIso.names[iSpecies].c_str(),
                                                scatIso.kernels[iSpecies], scatIso.dimensions)) {
@@ -73,7 +68,6 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
     }
   }
 
-  // Compute layout
   scatIso.layout = MakeLayout(scatIso.dimensions.data(), 5);
 
   return Hdf5LoadStatus::Success;
@@ -142,7 +136,6 @@ inline Hdf5LoadStatus LoadScatKernelTable(
     return Hdf5LoadStatus::DatasetOpenFailed;
   }
 
-  // Read nOpacities and nMoments
   if (!ReadScalarInt(group.Get(), "nOpacities", table.nOpacities) ||
       !ReadScalarInt(group.Get(), "nMoments", table.nMoments)) {
     return Hdf5LoadStatus::DatasetReadFailed;
@@ -151,26 +144,22 @@ inline Hdf5LoadStatus LoadScatKernelTable(
   table.dimensions = dims;
   table.dimensions[2] = table.nMoments;
 
-  // Read Units
   std::vector<std::string> unitVec;
   if (!ReadStringArray(group.Get(), "Units", unitVec) || unitVec.empty()) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
   table.unit = unitVec[0];
 
-  // Read Offsets (2D: [nOpacities, nMoments] in C order)
-  std::array<int, 2> offsetDims{{table.nOpacities, table.nMoments}};
+  const std::array<int, 2> offsetDims{{table.nOpacities, table.nMoments}};
   if (!ReadWeakLibArrayNd<double, 2>(group.Get(), "Offsets", table.offsets, offsetDims)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
-  // Set kernel name and read kernel data
   table.name = kernelDatasetName;
   if (!ReadWeakLibArrayNd<double, 5>(group.Get(), kernelDatasetName, table.kernel, table.dimensions)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
-  // Compute layout
   table.layout = MakeLayout(table.dimensions.data(), 5);
 
   return Hdf5LoadStatus::Success;
@@ -194,7 +183,7 @@ inline Hdf5LoadStatus LoadWeakLibScatNESTable(hid_t file,
     return status;
   }
 
-  // Read NPS flag (optional — suppress HDF5 error if absent)
+  // NPS flag is optional.
   {
     detail::ScopedH5ErrorSuppressor suppress;
     detail::ScopedHandle group(H5Gopen(file, "Scat_NES_Kernels", H5P_DEFAULT), H5Gclose);

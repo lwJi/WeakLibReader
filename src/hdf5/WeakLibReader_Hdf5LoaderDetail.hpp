@@ -146,10 +146,7 @@ inline bool ReadIntArray(hid_t parent, const char* name, int* out, std::size_t c
   if (dims != static_cast<hsize_t>(count)) {
     return false;
   }
-  if (H5Dread(dataset.Get(), H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, out) < 0) {
-    return false;
-  }
-  return true;
+  return H5Dread(dataset.Get(), H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, out) >= 0;
 }
 
 inline bool ValidateAxis(const std::vector<double>& values, AxisScale scale)
@@ -173,8 +170,8 @@ inline bool ValidateAxis(const std::vector<double>& values, AxisScale scale)
   return true;
 }
 
-// Read a single integer from a 1-element dataset
-// Matches pattern used in Fortran ReadDependentVariablesHDF for index datasets
+// Read a single integer from a 1-element dataset.
+// Matches pattern used in Fortran ReadDependentVariablesHDF for index datasets.
 inline bool ReadScalarInt(hid_t parent, const char* name, int& out)
 {
   if (parent < 0) {
@@ -202,16 +199,11 @@ inline bool ReadScalarInt(hid_t parent, const char* name, int& out)
     return false;
   }
 
-  int buffer[1] = {0};
-  if (H5Dread(dataset.Get(), H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer) < 0) {
-    return false;
-  }
-  out = buffer[0];
-  return true;
+  return H5Dread(dataset.Get(), H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &out) >= 0;
 }
 
-// Read a 1D string array dataset
-// Matches Fortran Read1dHDF_string (wlIOModuleHDF.F90:601-618)
+// Read a 1D string array dataset.
+// Matches Fortran Read1dHDF_string (wlIOModuleHDF.F90:601-618).
 inline bool ReadStringArray(hid_t parent, const char* name, std::vector<std::string>& out)
 {
   if (parent < 0) {
@@ -311,15 +303,8 @@ inline bool OpenWeakLibDataset(hid_t parent, const char* name,
     return false;
   }
 
-  hsize_t dims[ND] = {};
-  if (H5Sget_simple_extent_dims(dataspace.Get(), dims, nullptr) < 0) {
-    return false;
-  }
-
-  for (int i = 0; i < ND; ++i) {
-    fileDims[i] = dims[i];
-  }
-  return true;
+  fileDims.fill(0);
+  return H5Sget_simple_extent_dims(dataspace.Get(), fileDims.data(), nullptr) >= 0;
 }
 
 template <int ND>
@@ -358,13 +343,8 @@ bool ReadWeakLibArrayNdImpl(hid_t parent, const char* name,
   }
   output.resize(totalSize);
 
-  hid_t memType = std::is_same_v<T, double> ? H5T_NATIVE_DOUBLE : H5T_NATIVE_INT;
-  if (H5Dread(dataset.Get(), memType, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-              output.data()) < 0) {
-    return false;
-  }
-
-  return true;
+  const hid_t memType = std::is_same_v<T, double> ? H5T_NATIVE_DOUBLE : H5T_NATIVE_INT;
+  return H5Dread(dataset.Get(), memType, H5S_ALL, H5S_ALL, H5P_DEFAULT, output.data()) >= 0;
 }
 
 template <typename T, int ND>
@@ -376,7 +356,6 @@ bool ReadWeakLibArrayNd(hid_t parent, const char* name,
       parent, name, output, expectedDims);
 }
 
-// Check if HDF5 group exists (suppress errors)
 inline bool GroupExists(hid_t loc, const char* name)
 {
   ScopedH5ErrorSuppressor suppress;
@@ -384,7 +363,7 @@ inline bool GroupExists(hid_t loc, const char* name)
   return exists > 0;
 }
 
-// Load EnergyGrid or EtaGrid from opacity file
+// Load an opacity grid group (EnergyGrid or EtaGrid) from an HDF5 file.
 inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char* groupName,
                                               WeakLibOpacityGrid& grid)
 {
@@ -393,7 +372,6 @@ inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char* groupName,
     return Hdf5LoadStatus::DatasetOpenFailed;
   }
 
-  // Read Name and Unit
   std::vector<std::string> nameVec, unitVec;
   if (!ReadStringArray(group.Get(), "Name", nameVec) || nameVec.empty()) {
     return Hdf5LoadStatus::DatasetReadFailed;
@@ -404,19 +382,16 @@ inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char* groupName,
   grid.name = nameVec[0];
   grid.unit = unitVec[0];
 
-  // Read nPoints
   if (!ReadScalarInt(group.Get(), "nPoints", grid.nPoints)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
-  // Read LogInterp
   int logInterp = 0;
   if (!ReadScalarInt(group.Get(), "LogInterp", logInterp)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
   grid.scale = (logInterp == 1) ? AxisScale::Log10 : AxisScale::Linear;
 
-  // Read Values
   grid.values.resize(grid.nPoints);
   {
     ScopedHandle dataset(H5Dopen(group.Get(), "Values", H5P_DEFAULT), H5Dclose);
@@ -429,7 +404,6 @@ inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char* groupName,
     }
   }
 
-  // Validate axis (monotonicity, min size, Log10 positivity)
   if (!ValidateAxis(grid.values, grid.scale)) {
     return Hdf5LoadStatus::AxisNotMonotone;
   }
@@ -437,7 +411,7 @@ inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char* groupName,
   grid.minValue = grid.values[0];
   grid.maxValue = grid.values[grid.nPoints - 1];
 
-  // Try to read optional Zoom (geometric grid)
+  // Zoom is optional (geometric grid parameter)
   {
     ScopedH5ErrorSuppressor suppress;
     ScopedHandle zoomDs(H5Dopen(group.Get(), "Zoom", H5P_DEFAULT), H5Dclose);
@@ -504,9 +478,7 @@ inline Hdf5LoadStatus ReadAxisDataset1D(hid_t datasetId,
     return Hdf5LoadStatus::AxisNotMonotone;
   }
 
-  outAxis.grid = storage.data();
-  outAxis.n = static_cast<int>(storage.size());
-  outAxis.scale = scale;
+  outAxis = Axis{storage.data(), static_cast<int>(storage.size()), scale};
   return Hdf5LoadStatus::Success;
 }
 
