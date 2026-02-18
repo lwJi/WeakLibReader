@@ -48,6 +48,12 @@ struct TableDevice {
   amrex::Gpu::DeviceVector<double> values;
   std::array<amrex::Gpu::DeviceVector<double>, 5> axisStorage{};
 
+  TableDevice() = default;
+  TableDevice(TableDevice&&) = default;
+  TableDevice& operator=(TableDevice&&) = default;
+  TableDevice(const TableDevice&) = delete;
+  TableDevice& operator=(const TableDevice&) = delete;
+
   [[nodiscard]] TableView View() const noexcept
   {
     TableView view{};
@@ -157,6 +163,12 @@ struct WeakLibEosTableDevice {
   amrex::Gpu::DeviceVector<int> repaired;
   WeakLibEosIndices indices;
 
+  WeakLibEosTableDevice() = default;
+  WeakLibEosTableDevice(WeakLibEosTableDevice&&) = default;
+  WeakLibEosTableDevice& operator=(WeakLibEosTableDevice&&) = default;
+  WeakLibEosTableDevice(const WeakLibEosTableDevice&) = delete;
+  WeakLibEosTableDevice& operator=(const WeakLibEosTableDevice&) = delete;
+
   // Get device data pointer for a specific variable
   [[nodiscard]] const double* VariableData(int varIndex) const noexcept {
     return variables[varIndex].data();
@@ -180,6 +192,12 @@ struct WeakLibOpacityGrid {
   double minValue = 0.0;
   double maxValue = 0.0;
 
+  WeakLibOpacityGrid() = default;
+  WeakLibOpacityGrid(WeakLibOpacityGrid&&) = default;
+  WeakLibOpacityGrid& operator=(WeakLibOpacityGrid&&) = default;
+  WeakLibOpacityGrid(const WeakLibOpacityGrid&) = delete;
+  WeakLibOpacityGrid& operator=(const WeakLibOpacityGrid&) = delete;
+
   [[nodiscard]] Axis MakeAxis() const noexcept {
     return Axis{values.data(), nPoints, scale};
   }
@@ -189,6 +207,12 @@ struct WeakLibOpacityGridDevice {
   int nPoints = 0;
   AxisScale scale = AxisScale::Linear;
   amrex::Gpu::DeviceVector<double> values;
+
+  WeakLibOpacityGridDevice() = default;
+  WeakLibOpacityGridDevice(WeakLibOpacityGridDevice&&) = default;
+  WeakLibOpacityGridDevice& operator=(WeakLibOpacityGridDevice&&) = default;
+  WeakLibOpacityGridDevice(const WeakLibOpacityGridDevice&) = delete;
+  WeakLibOpacityGridDevice& operator=(const WeakLibOpacityGridDevice&) = delete;
 
   [[nodiscard]] Axis MakeAxis() const noexcept {
     return Axis{values.data(), nPoints, scale};
@@ -220,6 +244,12 @@ struct WeakLibECTable {
   // Rate: 3D [nRho, nT, nYe]
   amrex::Gpu::PinnedVector<double> rate;
 
+  WeakLibECTable() = default;
+  WeakLibECTable(WeakLibECTable&&) = default;
+  WeakLibECTable& operator=(WeakLibECTable&&) = default;
+  WeakLibECTable(const WeakLibECTable&) = delete;
+  WeakLibECTable& operator=(const WeakLibECTable&) = delete;
+
   [[nodiscard]] bool IsPresent() const noexcept { return nE > 0; }
 };
 
@@ -243,6 +273,12 @@ struct WeakLibECTableDevice {
 
   amrex::Gpu::DeviceVector<double> spectrum;
   amrex::Gpu::DeviceVector<double> rate;
+
+  WeakLibECTableDevice() = default;
+  WeakLibECTableDevice(WeakLibECTableDevice&&) = default;
+  WeakLibECTableDevice& operator=(WeakLibECTableDevice&&) = default;
+  WeakLibECTableDevice(const WeakLibECTableDevice&) = delete;
+  WeakLibECTableDevice& operator=(const WeakLibECTableDevice&) = delete;
 
   [[nodiscard]] bool IsPresent() const noexcept { return nE > 0; }
 };
@@ -301,6 +337,12 @@ struct WeakLibEmAbTableDevice {
   WeakLibEmAbParameters parameters;
   WeakLibECTableDevice ecTable;
   Layout layout{};
+
+  WeakLibEmAbTableDevice() = default;
+  WeakLibEmAbTableDevice(WeakLibEmAbTableDevice&&) = default;
+  WeakLibEmAbTableDevice& operator=(WeakLibEmAbTableDevice&&) = default;
+  WeakLibEmAbTableDevice(const WeakLibEmAbTableDevice&) = delete;
+  WeakLibEmAbTableDevice& operator=(const WeakLibEmAbTableDevice&) = delete;
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
   [[nodiscard]] const double* OpacityData(int species) const noexcept {
@@ -364,6 +406,12 @@ struct WeakLibScatIsoTableDevice {
 
   Layout layout{};
 
+  WeakLibScatIsoTableDevice() = default;
+  WeakLibScatIsoTableDevice(WeakLibScatIsoTableDevice&&) = default;
+  WeakLibScatIsoTableDevice& operator=(WeakLibScatIsoTableDevice&&) = default;
+  WeakLibScatIsoTableDevice(const WeakLibScatIsoTableDevice&) = delete;
+  WeakLibScatIsoTableDevice& operator=(const WeakLibScatIsoTableDevice&) = delete;
+
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
   [[nodiscard]] const double* KernelData(int species) const noexcept {
     return kernels[species].data();
@@ -416,6 +464,12 @@ struct WeakLibScatKernelTableDevice {
   int NPS = -1;
   Layout layout{};
 
+  WeakLibScatKernelTableDevice() = default;
+  WeakLibScatKernelTableDevice(WeakLibScatKernelTableDevice&&) = default;
+  WeakLibScatKernelTableDevice& operator=(WeakLibScatKernelTableDevice&&) = default;
+  WeakLibScatKernelTableDevice(const WeakLibScatKernelTableDevice&) = delete;
+  WeakLibScatKernelTableDevice& operator=(const WeakLibScatKernelTableDevice&) = delete;
+
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
   [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
   [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
@@ -439,6 +493,12 @@ struct WeakLibOpacityThermoState {
   Axis axes[3]{};
   std::array<std::string, 3> names;
   std::array<std::string, 3> units;
+
+  WeakLibOpacityThermoState() = default;
+  WeakLibOpacityThermoState(WeakLibOpacityThermoState&&) = default;
+  WeakLibOpacityThermoState& operator=(WeakLibOpacityThermoState&&) = default;
+  WeakLibOpacityThermoState(const WeakLibOpacityThermoState&) = delete;
+  WeakLibOpacityThermoState& operator=(const WeakLibOpacityThermoState&) = delete;
 };
 
 struct WeakLibOpacityThermoStateDevice {
@@ -446,6 +506,12 @@ struct WeakLibOpacityThermoStateDevice {
   std::array<AxisScale, 3> scales{{AxisScale::Log10, AxisScale::Log10, AxisScale::Linear}};
   std::array<amrex::Gpu::DeviceVector<double>, 3> axisStorage;
   Axis axes[3]{};
+
+  WeakLibOpacityThermoStateDevice() = default;
+  WeakLibOpacityThermoStateDevice(WeakLibOpacityThermoStateDevice&&) = default;
+  WeakLibOpacityThermoStateDevice& operator=(WeakLibOpacityThermoStateDevice&&) = default;
+  WeakLibOpacityThermoStateDevice(const WeakLibOpacityThermoStateDevice&) = delete;
+  WeakLibOpacityThermoStateDevice& operator=(const WeakLibOpacityThermoStateDevice&) = delete;
 };
 
 // Unified opacity table containing all types
@@ -485,6 +551,12 @@ struct WeakLibOpacityTableDevice {
   WeakLibScatNESTableDevice scatNES;
   WeakLibScatPairTableDevice scatPair;
   WeakLibScatBremTableDevice scatBrem;
+
+  WeakLibOpacityTableDevice() = default;
+  WeakLibOpacityTableDevice(WeakLibOpacityTableDevice&&) = default;
+  WeakLibOpacityTableDevice& operator=(WeakLibOpacityTableDevice&&) = default;
+  WeakLibOpacityTableDevice(const WeakLibOpacityTableDevice&) = delete;
+  WeakLibOpacityTableDevice& operator=(const WeakLibOpacityTableDevice&) = delete;
 
   [[nodiscard]] bool HasEmAb() const noexcept { return emAb.IsLoaded(); }
   [[nodiscard]] bool HasScatIso() const noexcept { return scatIso.IsLoaded(); }
