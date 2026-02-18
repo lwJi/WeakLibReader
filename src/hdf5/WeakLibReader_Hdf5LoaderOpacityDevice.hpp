@@ -5,16 +5,23 @@
 namespace WeakLibReader {
 namespace detail {
 
+// Copy a host vector to a device vector (resize + copy).
+template <typename T, typename HostVec, typename DeviceVec>
+inline void CopyVectorToDevice(const HostVec& host, DeviceVec& device)
+{
+  device.resize(host.size());
+  if (!host.empty()) {
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                     host.begin(), host.end(),
+                     device.begin());
+  }
+}
+
 inline void CopyGridToDevice(const WeakLibOpacityGrid& host, WeakLibOpacityGridDevice& device)
 {
   device.nPoints = host.nPoints;
   device.scale = host.scale;
-  device.values.resize(host.values.size());
-  if (!host.values.empty()) {
-    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                     host.values.begin(), host.values.end(),
-                     device.values.begin());
-  }
+  CopyVectorToDevice<double>(host.values, device.values);
 }
 
 inline void CopyThermoStateToDevice(const WeakLibOpacityThermoState& host,
@@ -24,17 +31,8 @@ inline void CopyThermoStateToDevice(const WeakLibOpacityThermoState& host,
   device.scales = host.scales;
 
   for (int i = 0; i < 3; ++i) {
-    const auto& hostAxis = host.axisStorage[i];
-    auto& deviceAxis = device.axisStorage[i];
-    deviceAxis.resize(hostAxis.size());
-    if (!hostAxis.empty()) {
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                       hostAxis.begin(), hostAxis.end(),
-                       deviceAxis.begin());
-    }
-    device.axes[i].grid = deviceAxis.data();
-    device.axes[i].n = host.axes[i].n;
-    device.axes[i].scale = host.axes[i].scale;
+    CopyVectorToDevice<double>(host.axisStorage[i], device.axisStorage[i]);
+    device.axes[i] = Axis{device.axisStorage[i].data(), host.axes[i].n, host.axes[i].scale};
   }
 }
 
@@ -48,17 +46,8 @@ inline void CopyScatKernelToDevice(
   device.NPS = host.NPS;
   device.layout = host.layout;
 
-  device.offsets.resize(host.offsets.size());
-  amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                   host.offsets.begin(), host.offsets.end(),
-                   device.offsets.begin());
-
-  if (!host.kernel.empty()) {
-    device.kernel.resize(host.kernel.size());
-    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                     host.kernel.begin(), host.kernel.end(),
-                     device.kernel.begin());
-  }
+  CopyVectorToDevice<double>(host.offsets, device.offsets);
+  CopyVectorToDevice<double>(host.kernel, device.kernel);
 }
 
 } // namespace detail
@@ -67,12 +56,10 @@ inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host)
 {
   WeakLibOpacityTableDevice device{};
 
-  // Copy grids
   detail::CopyGridToDevice(host.energyGrid, device.energyGrid);
   detail::CopyGridToDevice(host.etaGrid, device.etaGrid);
   detail::CopyThermoStateToDevice(host.thermoState, device.thermoState);
 
-  // Copy EmAb
   if (host.emAb.IsLoaded()) {
     device.emAb.nOpacities = host.emAb.nOpacities;
     device.emAb.dimensions = host.emAb.dimensions;
@@ -81,17 +68,11 @@ inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host)
     device.emAb.layout = host.emAb.layout;
 
     for (int i = 0; i < WeakLibEmAbTable::NumSpecies; ++i) {
-      if (host.emAb.opacities[i].size() > 0) {
-        device.emAb.opacities[i].resize(host.emAb.opacities[i].size());
-        amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                         host.emAb.opacities[i].begin(), host.emAb.opacities[i].end(),
-                         device.emAb.opacities[i].begin());
-      }
+      detail::CopyVectorToDevice<double>(host.emAb.opacities[i], device.emAb.opacities[i]);
     }
 
-    // Copy EC table if present
     if (host.emAb.ecTable.IsPresent()) {
-      auto& hostEC = host.emAb.ecTable;
+      const auto& hostEC = host.emAb.ecTable;
       auto& deviceEC = device.emAb.ecTable;
 
       deviceEC.nE = hostEC.nE;
@@ -107,31 +88,15 @@ inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host)
       deviceEC.specOffset = hostEC.specOffset;
       deviceEC.rateOffset = hostEC.rateOffset;
 
-      // Copy axis values
-      deviceEC.energyValues.resize(hostEC.energyValues.size());
-      deviceEC.rhoValues.resize(hostEC.rhoValues.size());
-      deviceEC.tempValues.resize(hostEC.tempValues.size());
-      deviceEC.yeValues.resize(hostEC.yeValues.size());
-
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice, hostEC.energyValues.begin(), hostEC.energyValues.end(), deviceEC.energyValues.begin());
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice, hostEC.rhoValues.begin(), hostEC.rhoValues.end(), deviceEC.rhoValues.begin());
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice, hostEC.tempValues.begin(), hostEC.tempValues.end(), deviceEC.tempValues.begin());
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice, hostEC.yeValues.begin(), hostEC.yeValues.end(), deviceEC.yeValues.begin());
-
-      // Copy spectrum and rate
-      deviceEC.spectrum.resize(hostEC.spectrum.size());
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                       hostEC.spectrum.begin(), hostEC.spectrum.end(),
-                       deviceEC.spectrum.begin());
-
-      deviceEC.rate.resize(hostEC.rate.size());
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                       hostEC.rate.begin(), hostEC.rate.end(),
-                       deviceEC.rate.begin());
+      detail::CopyVectorToDevice<double>(hostEC.energyValues, deviceEC.energyValues);
+      detail::CopyVectorToDevice<double>(hostEC.rhoValues, deviceEC.rhoValues);
+      detail::CopyVectorToDevice<double>(hostEC.tempValues, deviceEC.tempValues);
+      detail::CopyVectorToDevice<double>(hostEC.yeValues, deviceEC.yeValues);
+      detail::CopyVectorToDevice<double>(hostEC.spectrum, deviceEC.spectrum);
+      detail::CopyVectorToDevice<double>(hostEC.rate, deviceEC.rate);
     }
   }
 
-  // Copy ScatIso
   if (host.scatIso.IsLoaded()) {
     device.scatIso.nOpacities = host.scatIso.nOpacities;
     device.scatIso.nMoments = host.scatIso.nMoments;
@@ -142,24 +107,13 @@ inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host)
     device.scatIso.ga_strange = host.scatIso.ga_strange;
     device.scatIso.layout = host.scatIso.layout;
 
-    device.scatIso.offsets.resize(host.scatIso.offsets.size());
-    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                     host.scatIso.offsets.begin(), host.scatIso.offsets.end(),
-                     device.scatIso.offsets.begin());
-
-    // Kernels are stored as flat vectors
+    detail::CopyVectorToDevice<double>(host.scatIso.offsets, device.scatIso.offsets);
     for (int i = 0; i < WeakLibScatIsoTable::NumSpecies; ++i) {
-      if (!host.scatIso.kernels[i].empty()) {
-        device.scatIso.kernels[i].resize(host.scatIso.kernels[i].size());
-        amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                         host.scatIso.kernels[i].begin(), host.scatIso.kernels[i].end(),
-                         device.scatIso.kernels[i].begin());
-      }
+      detail::CopyVectorToDevice<double>(host.scatIso.kernels[i], device.scatIso.kernels[i]);
     }
   }
 
-  // Copy ScatNES / ScatPair / ScatBrem
-  if (host.scatNES.IsLoaded()) detail::CopyScatKernelToDevice(host.scatNES, device.scatNES);
+  if (host.scatNES.IsLoaded())  detail::CopyScatKernelToDevice(host.scatNES, device.scatNES);
   if (host.scatPair.IsLoaded()) detail::CopyScatKernelToDevice(host.scatPair, device.scatPair);
   if (host.scatBrem.IsLoaded()) detail::CopyScatKernelToDevice(host.scatBrem, device.scatBrem);
 

@@ -52,11 +52,7 @@ inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
   }
 
   int axisCounts[5] = {0, 0, 0, 0, 0};
-  int axisScales[5] = {static_cast<int>(AxisScale::Linear),
-                       static_cast<int>(AxisScale::Linear),
-                       static_cast<int>(AxisScale::Linear),
-                       static_cast<int>(AxisScale::Linear),
-                       static_cast<int>(AxisScale::Linear)};
+  int axisScales[5] = {0, 0, 0, 0, 0};
 
   if (myRank == root) {
     for (int dim = 0; dim < 5; ++dim) {
@@ -82,15 +78,11 @@ inline Hdf5LoadStatus LoadHdf5TableParallel(const std::string& filePath,
     output.values.resize(totalSize);
     output.layout = MakeLayout(extents.data(), output.nd);
     for (int dim = 0; dim < 5; ++dim) {
-      std::vector<double>& storage = output.axisStorage[dim];
+      auto& storage = output.axisStorage[dim];
       storage.resize(static_cast<std::size_t>(axisCounts[dim]));
-      if (!storage.empty()) {
-        output.axes[dim].grid = storage.data();
-      } else {
-        output.axes[dim].grid = nullptr;
-      }
-      output.axes[dim].n = axisCounts[dim];
-      output.axes[dim].scale = static_cast<AxisScale>(axisScales[dim]);
+      output.axes[dim] = Axis{storage.empty() ? nullptr : storage.data(),
+                              axisCounts[dim],
+                              static_cast<AxisScale>(axisScales[dim])};
     }
   }
 
@@ -126,28 +118,23 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFullParallel(
     WeakLibEosTable& output,
     int readerRank = amrex::ParallelDescriptor::IOProcessorNumber())
 {
-  // Single-rank fallback
   const int nProcs = amrex::ParallelDescriptor::NProcs();
   if (nProcs <= 1) {
     return LoadWeakLibEosTableFull(filePath, output);
   }
 
-  // Validate readerRank
   int root = readerRank;
   if (root < 0 || root >= nProcs) {
     root = amrex::ParallelDescriptor::IOProcessorNumber();
   }
-
   const int myRank = amrex::ParallelDescriptor::MyProc();
 
-  // Root rank loads the table
   WeakLibEosTable localTable;
   Hdf5LoadStatus status = Hdf5LoadStatus::Success;
   if (myRank == root) {
     status = LoadWeakLibEosTableFull(filePath, localTable);
   }
 
-  // Broadcast status
   int statusInt = static_cast<int>(status);
   amrex::ParallelDescriptor::Bcast(&statusInt, 1, root);
   status = static_cast<Hdf5LoadStatus>(statusInt);
@@ -155,28 +142,20 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFullParallel(
     return status;
   }
 
-  // Broadcast header: [nVariables, dims x3, axisScales x3]
+  // Header: [nVariables, dims x3, axisScales x3]
   int header[7] = {0, 0, 0, 0, 0, 0, 0};
   if (myRank == root) {
     header[0] = localTable.nVariables;
-    header[1] = localTable.dimensions[0];
-    header[2] = localTable.dimensions[1];
-    header[3] = localTable.dimensions[2];
-    header[4] = static_cast<int>(localTable.axes[0].scale);
-    header[5] = static_cast<int>(localTable.axes[1].scale);
-    header[6] = static_cast<int>(localTable.axes[2].scale);
+    for (int i = 0; i < 3; ++i) {
+      header[1 + i] = localTable.dimensions[i];
+      header[4 + i] = static_cast<int>(localTable.axes[i].scale);
+    }
   }
   amrex::ParallelDescriptor::Bcast(header, 7, root);
 
   const int nVariables = header[0];
-  std::array<int, 3> dimensions{{header[1], header[2], header[3]}};
-  std::array<AxisScale, 3> axisScales{{
-      static_cast<AxisScale>(header[4]),
-      static_cast<AxisScale>(header[5]),
-      static_cast<AxisScale>(header[6])
-  }};
+  const std::array<int, 3> dimensions{{header[1], header[2], header[3]}};
 
-  // Broadcast axis counts
   int axisCounts[3] = {0, 0, 0};
   if (myRank == root) {
     for (int dim = 0; dim < 3; ++dim) {
@@ -185,21 +164,18 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFullParallel(
   }
   amrex::ParallelDescriptor::Bcast(axisCounts, 3, root);
 
-  // Non-root: allocate base structure
   if (myRank != root) {
     output = WeakLibEosTable{};
     output.nVariables = nVariables;
     output.dimensions = dimensions;
 
-    // Allocate axis storage
     for (int dim = 0; dim < 3; ++dim) {
       output.axisStorage[dim].resize(axisCounts[dim]);
-      output.axes[dim].grid = output.axisStorage[dim].data();
-      output.axes[dim].n = axisCounts[dim];
-      output.axes[dim].scale = axisScales[dim];
+      output.axes[dim] = Axis{output.axisStorage[dim].data(),
+                              axisCounts[dim],
+                              static_cast<AxisScale>(header[4 + dim])};
     }
 
-    // Allocate variable arrays
     const std::size_t varSize = static_cast<std::size_t>(dimensions[0]) *
                                 static_cast<std::size_t>(dimensions[1]) *
                                 static_cast<std::size_t>(dimensions[2]);
@@ -207,42 +183,32 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFullParallel(
     for (int iVar = 0; iVar < nVariables; ++iVar) {
       output.variables[iVar].resize(varSize);
     }
-
-    // Allocate repaired mask
     output.repaired.resize(varSize);
-
-    // Allocate offset/string vectors
     output.offsets.resize(nVariables);
     output.variableNames.resize(nVariables);
     output.variableUnits.resize(nVariables);
 
-    // Compute layout
-    std::array<int, 5> extents5{{dimensions[0], dimensions[1], dimensions[2], 1, 1}};
+    const std::array<int, 5> extents5{{dimensions[0], dimensions[1], dimensions[2], 1, 1}};
     output.layout = MakeLayout(extents5.data(), 3);
   }
 
-  // Get reference to working table
   WeakLibEosTable& table = (myRank == root) ? localTable : output;
 
-  // Broadcast axis grids
   for (int dim = 0; dim < 3; ++dim) {
     if (axisCounts[dim] > 0) {
       amrex::ParallelDescriptor::Bcast(table.axisStorage[dim].data(), axisCounts[dim], root);
     }
   }
 
-  // Broadcast string metadata
   detail::BcastStringArray(table.axisNames, root);
   detail::BcastStringArray(table.axisUnits, root);
   detail::BcastStringVector(table.variableNames, root);
   detail::BcastStringVector(table.variableUnits, root);
 
-  // Broadcast offsets
   if (nVariables > 0) {
     amrex::ParallelDescriptor::Bcast(table.offsets.data(), nVariables, root);
   }
 
-  // Broadcast each variable's 3D data
   const std::size_t varSize = static_cast<std::size_t>(dimensions[0]) *
                               static_cast<std::size_t>(dimensions[1]) *
                               static_cast<std::size_t>(dimensions[2]);
@@ -251,20 +217,14 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFullParallel(
       amrex::ParallelDescriptor::Bcast(table.variables[iVar].data(),
                                        static_cast<int>(varSize), root);
     }
-  }
-
-  // Broadcast repaired mask
-  if (varSize > 0) {
     amrex::ParallelDescriptor::Bcast(table.repaired.data(),
                                      static_cast<int>(varSize), root);
   }
 
-  // Broadcast indices (15 integers as a block)
   static_assert(sizeof(WeakLibEosIndices) == 15 * sizeof(int),
                 "WeakLibEosIndices must be 15 contiguous ints");
   amrex::ParallelDescriptor::Bcast(reinterpret_cast<int*>(&table.indices), 15, root);
 
-  // Root moves its local table to output
   if (myRank == root) {
     output = std::move(localTable);
   }
