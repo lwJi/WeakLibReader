@@ -124,7 +124,7 @@ struct WeakLibEosTable {
   // DependentVariables data
   std::vector<std::string> variableNames;
   std::vector<std::string> variableUnits;
-  std::vector<double> offsets;
+  amrex::Gpu::PinnedVector<double> offsets;
   std::vector<amrex::Gpu::PinnedVector<double>> variables;
   amrex::Gpu::PinnedVector<int> repaired;
   WeakLibEosIndices indices;
@@ -152,7 +152,7 @@ struct WeakLibEosTableDevice {
   Axis axes[3]{};
   Layout layout{};
 
-  std::vector<double> offsets;
+  amrex::Gpu::DeviceVector<double> offsets;
   std::vector<amrex::Gpu::DeviceVector<double>> variables;
   amrex::Gpu::DeviceVector<int> repaired;
   WeakLibEosIndices indices;

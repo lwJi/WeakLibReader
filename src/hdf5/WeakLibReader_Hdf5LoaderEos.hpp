@@ -95,29 +95,10 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
   }
 
   // Read offsets
-  result.offsets.resize(result.nVariables);
   {
-    detail::ScopedHandle offsetsDs(H5Dopen(dvGroup.Get(), "Offsets", H5P_DEFAULT), H5Dclose);
-    if (!offsetsDs.Valid()) {
-      return Hdf5LoadStatus::DatasetOpenFailed;
-    }
-    detail::ScopedHandle offsetsSpace(H5Dget_space(offsetsDs.Get()), H5Sclose);
-    if (!offsetsSpace.Valid()) {
-      return Hdf5LoadStatus::DatasetReadFailed;
-    }
-    const int rank = H5Sget_simple_extent_ndims(offsetsSpace.Get());
-    if (rank != 1) {
-      return Hdf5LoadStatus::DatasetReadFailed;
-    }
-    hsize_t length = 0;
-    if (H5Sget_simple_extent_dims(offsetsSpace.Get(), &length, nullptr) < 0) {
-      return Hdf5LoadStatus::DatasetReadFailed;
-    }
-    if (length != static_cast<hsize_t>(result.nVariables)) {
-      return Hdf5LoadStatus::DatasetReadFailed;
-    }
-    if (H5Dread(offsetsDs.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
-                result.offsets.data()) < 0) {
+    std::array<int, 1> offsetDims{{result.nVariables}};
+    if (!detail::ReadWeakLibArrayNd<double, 1>(dvGroup.Get(), "Offsets",
+                                               result.offsets, offsetDims)) {
       return Hdf5LoadStatus::DatasetReadFailed;
     }
   }
@@ -197,7 +178,10 @@ inline WeakLibEosTableDevice MakeDeviceCopy(const WeakLibEosTable& host)
   device.dimensions = host.dimensions;
   device.layout = host.layout;
   device.indices = host.indices;
-  device.offsets = host.offsets;
+  device.offsets.resize(host.offsets.size());
+  amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                   host.offsets.begin(), host.offsets.end(),
+                   device.offsets.begin());
 
   // Copy axes to device
   for (int dim = 0; dim < 3; ++dim) {
