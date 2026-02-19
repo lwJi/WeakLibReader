@@ -72,10 +72,10 @@ inline TableDevice MakeDeviceCopy(const Hdf5Table& host)
   device.nd = host.nd;
   device.layout = host.layout;
 
-  detail::CopyVectorToDevice<double>(host.values, device.values);
+  detail::CopyVectorToDevice(host.values, device.values);
 
   for (int dim = 0; dim < host.nd; ++dim) {
-    detail::CopyVectorToDevice<double>(host.axisStorage[dim], device.axisStorage[dim]);
+    detail::CopyVectorToDevice(host.axisStorage[dim], device.axisStorage[dim]);
     device.axes[dim] = Axis{device.axisStorage[dim].data(),
                             static_cast<int>(device.axisStorage[dim].size()),
                             host.axes[dim].scale};

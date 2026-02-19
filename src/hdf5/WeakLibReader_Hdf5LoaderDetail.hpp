@@ -653,7 +653,7 @@ inline Hdf5LoadStatus LoadWeakLibThermoState(hid_t file,
 }
 
 // Copy a host vector to a device vector (resize + copy).
-template <typename T, typename HostVec, typename DeviceVec>
+template <typename HostVec, typename DeviceVec>
 inline void CopyVectorToDevice(const HostVec& host, DeviceVec& device)
 {
   device.resize(host.size());

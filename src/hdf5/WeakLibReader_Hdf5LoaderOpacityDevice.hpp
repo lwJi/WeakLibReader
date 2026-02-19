@@ -10,7 +10,7 @@ inline void CopyGridToDevice(const WeakLibOpacityGrid& host, WeakLibOpacityGridD
 {
   device.nPoints = host.nPoints;
   device.scale = host.scale;
-  CopyVectorToDevice<double>(host.values, device.values);
+  CopyVectorToDevice(host.values, device.values);
 }
 
 inline void CopyThermoStateToDevice(const WeakLibThermoState& host,
@@ -19,7 +19,7 @@ inline void CopyThermoStateToDevice(const WeakLibThermoState& host,
   device.dimensions = host.dimensions;
 
   for (int i = 0; i < 3; ++i) {
-    CopyVectorToDevice<double>(host.axisStorage[i], device.axisStorage[i]);
+    CopyVectorToDevice(host.axisStorage[i], device.axisStorage[i]);
     device.axes[i] = Axis{device.axisStorage[i].data(), host.axes[i].n, host.axes[i].scale};
   }
 }
@@ -39,12 +39,12 @@ inline void CopyECTableToDevice(const WeakLibECTable& host, WeakLibECTableDevice
   device.specOffset = host.specOffset;
   device.rateOffset = host.rateOffset;
 
-  CopyVectorToDevice<double>(host.energyValues, device.energyValues);
-  CopyVectorToDevice<double>(host.rhoValues, device.rhoValues);
-  CopyVectorToDevice<double>(host.tempValues, device.tempValues);
-  CopyVectorToDevice<double>(host.yeValues, device.yeValues);
-  CopyVectorToDevice<double>(host.spectrum, device.spectrum);
-  CopyVectorToDevice<double>(host.rate, device.rate);
+  CopyVectorToDevice(host.energyValues, device.energyValues);
+  CopyVectorToDevice(host.rhoValues, device.rhoValues);
+  CopyVectorToDevice(host.tempValues, device.tempValues);
+  CopyVectorToDevice(host.yeValues, device.yeValues);
+  CopyVectorToDevice(host.spectrum, device.spectrum);
+  CopyVectorToDevice(host.rate, device.rate);
 }
 
 inline void CopyEmAbToDevice(const WeakLibEmAbTable& host, WeakLibEmAbTableDevice& device)
@@ -56,7 +56,7 @@ inline void CopyEmAbToDevice(const WeakLibEmAbTable& host, WeakLibEmAbTableDevic
   device.layout = host.layout;
 
   for (int i = 0; i < WeakLibEmAbTable::NumSpecies; ++i) {
-    CopyVectorToDevice<double>(host.opacities[i], device.opacities[i]);
+    CopyVectorToDevice(host.opacities[i], device.opacities[i]);
   }
 
   if (host.ecTable.IsPresent()) {
@@ -76,9 +76,9 @@ inline void CopyScatIsoToDevice(const WeakLibScatIsoTable& host,
   device.ga_strange = host.ga_strange;
   device.layout = host.layout;
 
-  CopyVectorToDevice<double>(host.offsets, device.offsets);
+  CopyVectorToDevice(host.offsets, device.offsets);
   for (int i = 0; i < WeakLibScatIsoTable::NumSpecies; ++i) {
-    CopyVectorToDevice<double>(host.kernels[i], device.kernels[i]);
+    CopyVectorToDevice(host.kernels[i], device.kernels[i]);
   }
 }
 
@@ -92,8 +92,8 @@ inline void CopyScatKernelToDevice(
   device.NPS = host.NPS;
   device.layout = host.layout;
 
-  CopyVectorToDevice<double>(host.offsets, device.offsets);
-  CopyVectorToDevice<double>(host.kernel, device.kernel);
+  CopyVectorToDevice(host.offsets, device.offsets);
+  CopyVectorToDevice(host.kernel, device.kernel);
 }
 
 } // namespace detail
