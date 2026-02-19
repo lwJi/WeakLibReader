@@ -1,7 +1,8 @@
 #pragma once
 
+#include <AMReX_Extension.H>
 #include <AMReX_GpuQualifiers.H>
-#include <cstddef>
+
 #include <cstdint>
 
 #include "base/WeakLibReader_IndexDelta.hpp"
@@ -19,11 +20,7 @@ struct Axis {
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Axis MakeAxis(const double* grid, int n, AxisScale scale) noexcept
 {
-  Axis axis{};
-  axis.grid = grid;
-  axis.n = n;
-  axis.scale = scale;
-  return axis;
+  return Axis{grid, n, scale};
 }
 
 namespace detail {

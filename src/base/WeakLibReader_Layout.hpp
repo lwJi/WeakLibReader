@@ -1,7 +1,8 @@
 #pragma once
 
-#include <AMReX_GpuQualifiers.H>
 #include <AMReX_Extension.H>
+#include <AMReX_GpuQualifiers.H>
+
 #include <cstddef>
 
 namespace WeakLibReader {
@@ -76,12 +77,9 @@ Layout SliceLeading(const Layout& layout, int drop) noexcept
 {
   Layout result{};
   result.nd = layout.nd - drop;
-  for (int dim = drop; dim < layout.nd; ++dim) {
-    const int out = dim - drop;
-    result.n[out] = layout.n[dim];
-  }
   std::size_t stride = 1;
   for (int dim = 0; dim < result.nd; ++dim) {
+    result.n[dim] = layout.n[dim + drop];
     result.stride[dim] = stride;
     stride *= static_cast<std::size_t>(result.n[dim]);
   }
