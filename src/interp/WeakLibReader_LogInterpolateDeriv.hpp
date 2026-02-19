@@ -7,7 +7,6 @@
 
 namespace WeakLibReader {
 
-/// GPU-optimized 3D log-interpolation with derivatives (single point)
 inline int LogInterpolateDifferentiateSingleVariable3DCustomPoint(
     double d, double t, double y,
     const Axis axes[3],
@@ -21,15 +20,16 @@ inline int LogInterpolateDifferentiateSingleVariable3DCustomPoint(
     return 1;
   }
 
-  int extents[3] = {axes[0].n, axes[1].n, axes[2].n};
-  const Layout layout = MakeLayout(extents, 3);
+  constexpr int ND = 3;
+  int extents[ND] = {axes[0].n, axes[1].n, axes[2].n};
+  const Layout layout = MakeLayout(extents, ND);
+  const double coords[ND] = {d, t, y};
 
-  detail::LogInterpolateDifferentiateSingleVariable3DCustomPointImpl(
-      d, t, y, data, layout, axes, offset, interpolant, derivatives);
+  detail::LogInterpolatedDerivativeDirect<ND>(
+      data, layout, axes, coords, offset, interpolant, derivatives);
   return 0;
 }
 
-/// GPU-optimized 3D log-interpolation with derivatives (batch)
 inline int LogInterpolateDifferentiateSingleVariable3DCustom(
     const double* d, const double* t, const double* y, std::size_t count,
     const Axis axes[3],
@@ -44,16 +44,16 @@ inline int LogInterpolateDifferentiateSingleVariable3DCustom(
     return 1;
   }
 
-  int extents[3] = {axes[0].n, axes[1].n, axes[2].n};
-  const Layout layout = MakeLayout(extents, 3);
+  constexpr int ND = 3;
+  int extents[ND] = {axes[0].n, axes[1].n, axes[2].n};
+  const Layout layout = MakeLayout(extents, ND);
 
   for (std::size_t i = 0; i < count; ++i) {
-    double deriv[3] = {0.0, 0.0, 0.0};
+    double deriv[ND] = {0.0, 0.0, 0.0};
     double interp = 0.0;
-    detail::LogInterpolateDifferentiateSingleVariable3DCustomPointImpl(
-        d[i], t[i], y[i],
-        data, layout, axes,
-        offset, interp, deriv);
+    const double coords[ND] = {d[i], t[i], y[i]};
+    detail::LogInterpolatedDerivativeDirect<ND>(
+        data, layout, axes, coords, offset, interp, deriv);
     interpolants[i] = interp;
     derivatives[i * 3 + 0] = deriv[0];
     derivatives[i * 3 + 1] = deriv[1];

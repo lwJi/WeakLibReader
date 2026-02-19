@@ -7,7 +7,7 @@
 
 namespace WeakLibReader {
 
-/// GPU-optimized 4D log-interpolation with 1D sweep (single point, multiple E values)
+/// 4D log-interpolation with 1D sweep over energy (single point)
 inline int LogInterpolateSingleVariable1D3DCustomPoint(
     const double* logE, std::size_t sizeE,
     double logD, double logT, double y,
@@ -37,7 +37,7 @@ inline int LogInterpolateSingleVariable1D3DCustomPoint(
   return 0;
 }
 
-/// GPU-optimized 4D log-interpolation with 1D sweep (batch)
+/// 4D log-interpolation with 1D sweep over energy (batch)
 inline int LogInterpolateSingleVariable1D3DCustom(
     const double* logE, std::size_t sizeE,
     const double* logD, const double* logT, const double* y, std::size_t count,
@@ -71,7 +71,7 @@ inline int LogInterpolateSingleVariable1D3DCustom(
   return 0;
 }
 
-/// GPU-optimized 4D log-interpolation with 2D symmetric sweep (single point)
+/// 4D log-interpolation with 2D symmetric energy sweep (single point)
 inline int LogInterpolateSingleVariable2D2DCustomPoint(
     const double* logE, std::size_t sizeE,
     double logT, double logX,
@@ -104,7 +104,7 @@ inline int LogInterpolateSingleVariable2D2DCustomPoint(
   return 0;
 }
 
-/// GPU-optimized 4D log-interpolation with 2D symmetric sweep (batch)
+/// 4D log-interpolation with 2D symmetric energy sweep (batch)
 inline int LogInterpolateSingleVariable2D2DCustom(
     const double* logE, std::size_t sizeE,
     const double* logT, const double* logX, std::size_t count,
@@ -217,24 +217,10 @@ inline int LogInterpolateSingleVariable2D2DCustomAligned(
 }
 
 /// Pre-align one moment of a scattering kernel onto aligned energy nodes.
-///
 /// Transforms a 5D raw kernel [nE, nE, nMom, nDim3, nDim4] into a 4D aligned
 /// table [nAlignedE, nAlignedE, nDim3, nDim4] stored as log10(value + offset).
-///
-/// Relies on column-major layout: the 2D energy slice [nE_in, nE_out] at any
-/// fixed (iMom, iD3, iD4) is contiguous in memory, so we can pass a pointer
-/// directly to LogInterpolateSingleVariable2DCustomPoint.
-///
-/// @param rawKernel    Flat 5D kernel data
-/// @param rawLayout    Layout of the 5D kernel [nE, nE, nMom, nDim3, nDim4]
-/// @param energyAxis   Energy axis (raw values, same for both E dims)
-/// @param iMom         Which moment to extract (0-based index into dim 2)
-/// @param nDim3        Size of dimension 3 (nT for NES/Pair, nRho for Brem)
-/// @param nDim4        Size of dimension 4 (nEta for NES/Pair, nT for Brem)
-/// @param alignedE     Raw energy values for aligned grid
-/// @param nAlignedE    Number of aligned energy points
-/// @param offset       Opacity offset
-/// @param output       Output: [nAlignedE, nAlignedE, nDim3, nDim4] log10-stored
+/// Relies on column-major layout: the 2D energy slice at any fixed (iMom, iD3, iD4)
+/// is contiguous in memory.
 inline void PreAlignScatteringKernelMoment(
     const double* rawKernel,
     const Layout& rawLayout,
@@ -244,17 +230,12 @@ inline void PreAlignScatteringKernelMoment(
     double offset,
     double* output) noexcept
 {
-  // Output layout: [nAlignedE, nAlignedE, nDim3, nDim4]
   const int outExtents[4] = {nAlignedE, nAlignedE, nDim3, nDim4};
   const Layout outLayout = MakeLayout(outExtents, 4);
-
-  // 2D energy axes for interpolation
   const Axis energyAxes[2] = {energyAxis, energyAxis};
 
   for (int iD4 = 0; iD4 < nDim4; ++iD4) {
     for (int iD3 = 0; iD3 < nDim3; ++iD3) {
-      // Pointer to contiguous 2D energy slice [nE, nE] at (iMom, iD3, iD4)
-      // Column-major: first two dims (E_in, E_out) are fastest-varying
       const int sliceIdx[5] = {0, 0, iMom, iD3, iD4};
       const double* slice2d = rawKernel + rawLayout.Offset(sliceIdx);
 

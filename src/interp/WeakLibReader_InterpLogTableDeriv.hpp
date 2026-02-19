@@ -145,16 +145,6 @@ void LinearInterpDeriv4DPoint(int i0, int i1, int i2, int i3,
                                                d0, d1, d2);
 }
 
-/// Template wrapper for dimension-specific log-interpolation with derivatives (compile-time dispatch)
-/// @tparam ND Number of dimensions (2-4), known at compile time
-/// @param indices Cell indices for each dimension
-/// @param fractions Interpolation fractions [0,1] for each dimension
-/// @param scales Axis-dependent scaling factors for derivative computation
-/// @param offset Offset to subtract after converting from log space
-/// @param data Raw data array in column-major order
-/// @param layout Layout describing array dimensions and strides
-/// @param[out] interpolant Interpolated value: 10^(interp_log_value) - offset
-/// @param[out] derivatives Partial derivatives w.r.t. each dimension (array of size ND)
 template<int ND>
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void LinearInterpDerivPointDirect(const int indices[ND],
@@ -166,10 +156,8 @@ void LinearInterpDerivPointDirect(const int indices[ND],
                                   double& interpolant,
                                   double derivatives[ND]) noexcept
 {
-  // Compile-time check: derivatives only implemented for 2D, 3D, 4D
   static_assert(ND >= 2 && ND <= 4, "Derivatives only supported for 2D-4D");
 
-  // Compile-time dispatch for derivative functions (2D, 3D, 4D only)
   if constexpr (ND == 2) {
     LinearInterpDeriv2DPoint(indices[0], indices[1],
                              fractions[0], fractions[1],

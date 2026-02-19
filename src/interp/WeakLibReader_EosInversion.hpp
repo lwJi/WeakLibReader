@@ -118,9 +118,9 @@ double EvalAtFixedTIndex(
     const double* data,
     const Layout& layout) noexcept
 {
-  const auto s0 = layout.stride[0]; // rho stride (=1)
-  const auto s1 = layout.stride[1]; // T stride
-  const auto s2 = layout.stride[2]; // Ye stride
+  const auto s0 = layout.stride[0];
+  const auto s1 = layout.stride[1];
+  const auto s2 = layout.stride[2];
   const auto base = static_cast<std::size_t>(iD) * s0
                   + static_cast<std::size_t>(iT) * s1
                   + static_cast<std::size_t>(iY) * s2;
@@ -408,9 +408,8 @@ int ComputeTemperatureWith_DXY_NoGuess(
   return error;
 }
 
-// --- Convenience wrappers ---
+// Convenience wrappers for temperature inversion from different EOS variables.
 
-// Energy inversion (no guess)
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 int ComputeTemperatureFromEnergy(
     double D, double E, double Y,
@@ -429,7 +428,6 @@ int ComputeTemperatureFromEnergy(
       D, E, Y, axes, energyData, layout, energyOffset, T);
 }
 
-// Energy inversion (with guess)
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 int ComputeTemperatureFromEnergy(
     double D, double E, double Y,
@@ -449,7 +447,6 @@ int ComputeTemperatureFromEnergy(
       D, E, Y, axes, energyData, layout, energyOffset, tGuess, T);
 }
 
-// Pressure inversion (no guess)
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 int ComputeTemperatureFromPressure(
     double D, double P, double Y,
@@ -468,7 +465,6 @@ int ComputeTemperatureFromPressure(
       D, P, Y, axes, pressureData, layout, pressureOffset, T);
 }
 
-// Pressure inversion (with guess)
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 int ComputeTemperatureFromPressure(
     double D, double P, double Y,
@@ -488,7 +484,6 @@ int ComputeTemperatureFromPressure(
       D, P, Y, axes, pressureData, layout, pressureOffset, tGuess, T);
 }
 
-// Entropy inversion (no guess)
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 int ComputeTemperatureFromEntropy(
     double D, double S, double Y,
@@ -507,7 +502,6 @@ int ComputeTemperatureFromEntropy(
       D, S, Y, axes, entropyData, layout, entropyOffset, T);
 }
 
-// Entropy inversion (with guess)
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 int ComputeTemperatureFromEntropy(
     double D, double S, double Y,

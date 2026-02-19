@@ -8,8 +8,6 @@
 
 namespace WeakLibReader {
 
-/// GPU-optimized 2D log-interpolation (single point)
-/// Uses compile-time dimensionality for zero runtime branching
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LogInterpolateSingleVariable2DCustomPoint(
     double x0, double x1,
@@ -20,17 +18,13 @@ double LogInterpolateSingleVariable2DCustomPoint(
   if (data == nullptr || axes[0].grid == nullptr || axes[1].grid == nullptr) {
     return std::numeric_limits<double>::quiet_NaN();
   }
-  // Compile-time known dimensionality (eliminates runtime branching!)
   constexpr int ND = 2;
   int extents[ND] = {axes[0].n, axes[1].n};
   const Layout layout = MakeLayout(extents, ND);
   double coords[ND] = {x0, x1};
-  // Template parameter known at compile time - zero branching!
   return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
 }
 
-/// GPU-optimized 2D log-interpolation (batch)
-/// Uses compile-time dimensionality for zero runtime branching
 inline int LogInterpolateSingleVariable2DCustom(
     const double* x0, const double* x1, std::size_t count,
     const Axis axes[2],
@@ -52,8 +46,6 @@ inline int LogInterpolateSingleVariable2DCustom(
   return 0;
 }
 
-/// GPU-optimized 3D log-interpolation (single point)
-/// Uses compile-time dimensionality for zero runtime branching
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LogInterpolateSingleVariable3DCustomPoint(
     double x0, double x1, double x2,
@@ -72,8 +64,6 @@ double LogInterpolateSingleVariable3DCustomPoint(
   return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
 }
 
-/// GPU-optimized 3D log-interpolation (batch)
-/// Uses compile-time dimensionality for zero runtime branching
 inline int LogInterpolateSingleVariable3DCustom(
     const double* x0, const double* x1, const double* x2, std::size_t count,
     const Axis axes[3],
@@ -96,8 +86,6 @@ inline int LogInterpolateSingleVariable3DCustom(
   return 0;
 }
 
-/// GPU-optimized 4D log-interpolation (single point)
-/// Uses compile-time dimensionality for zero runtime branching
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LogInterpolateSingleVariable4DCustomPoint(
     double x0, double x1, double x2, double x3,
@@ -116,8 +104,6 @@ double LogInterpolateSingleVariable4DCustomPoint(
   return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
 }
 
-/// GPU-optimized 4D log-interpolation (batch)
-/// Uses compile-time dimensionality for zero runtime branching
 inline int LogInterpolateSingleVariable4DCustom(
     const double* x0, const double* x1, const double* x2, const double* x3,
     std::size_t count,
