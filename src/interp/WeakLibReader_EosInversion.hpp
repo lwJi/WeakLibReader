@@ -118,12 +118,9 @@ double EvalAtFixedTIndex(
     const double* data,
     const Layout& layout) noexcept
 {
+  const auto base = layout.Offset(iD, iT, iY);
   const auto s0 = layout.stride[0];
-  const auto s1 = layout.stride[1];
   const auto s2 = layout.stride[2];
-  const auto base = static_cast<std::size_t>(iD) * s0
-                  + static_cast<std::size_t>(iT) * s1
-                  + static_cast<std::size_t>(iY) * s2;
 
   const double p00 = data[base];
   const double p10 = data[base + s0];
@@ -408,6 +405,49 @@ int ComputeTemperatureWith_DXY_NoGuess(
   return error;
 }
 
+namespace detail {
+
+// Shared check-and-dispatch for all ComputeTemperatureFrom* wrappers (no guess).
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int ComputeTemperatureFromVariable(
+    double D, double X, double Y,
+    const Axis axes[3],
+    const double* xData,
+    const Layout& layout,
+    double xOffset,
+    const EosInversionBounds& bounds,
+    double minX, double maxX,
+    double& T) noexcept
+{
+  T = 0.0;
+  const int error = CheckInversionInputError(D, X, Y, bounds, minX, maxX);
+  if (error != 0) return error;
+  return ComputeTemperatureWith_DXY_NoGuess(
+      D, X, Y, axes, xData, layout, xOffset, T);
+}
+
+// Shared check-and-dispatch for all ComputeTemperatureFrom* wrappers (with guess).
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int ComputeTemperatureFromVariable(
+    double D, double X, double Y,
+    const Axis axes[3],
+    const double* xData,
+    const Layout& layout,
+    double xOffset,
+    const EosInversionBounds& bounds,
+    double minX, double maxX,
+    double tGuess,
+    double& T) noexcept
+{
+  T = 0.0;
+  const int error = CheckInversionInputError(D, X, Y, bounds, minX, maxX);
+  if (error != 0) return error;
+  return ComputeTemperatureWith_DXY_Guess(
+      D, X, Y, axes, xData, layout, xOffset, tGuess, T);
+}
+
+} // namespace detail
+
 // Convenience wrappers for temperature inversion from different EOS variables.
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -420,12 +460,9 @@ int ComputeTemperatureFromEnergy(
     const EosInversionBounds& bounds,
     double& T) noexcept
 {
-  T = 0.0;
-  const int error = CheckInversionInputError(
-      D, E, Y, bounds, bounds.minE, bounds.maxE);
-  if (error != 0) return error;
-  return ComputeTemperatureWith_DXY_NoGuess(
-      D, E, Y, axes, energyData, layout, energyOffset, T);
+  return detail::ComputeTemperatureFromVariable(
+      D, E, Y, axes, energyData, layout, energyOffset,
+      bounds, bounds.minE, bounds.maxE, T);
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -439,12 +476,9 @@ int ComputeTemperatureFromEnergy(
     double tGuess,
     double& T) noexcept
 {
-  T = 0.0;
-  const int error = CheckInversionInputError(
-      D, E, Y, bounds, bounds.minE, bounds.maxE);
-  if (error != 0) return error;
-  return ComputeTemperatureWith_DXY_Guess(
-      D, E, Y, axes, energyData, layout, energyOffset, tGuess, T);
+  return detail::ComputeTemperatureFromVariable(
+      D, E, Y, axes, energyData, layout, energyOffset,
+      bounds, bounds.minE, bounds.maxE, tGuess, T);
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -457,12 +491,9 @@ int ComputeTemperatureFromPressure(
     const EosInversionBounds& bounds,
     double& T) noexcept
 {
-  T = 0.0;
-  const int error = CheckInversionInputError(
-      D, P, Y, bounds, bounds.minP, bounds.maxP);
-  if (error != 0) return error;
-  return ComputeTemperatureWith_DXY_NoGuess(
-      D, P, Y, axes, pressureData, layout, pressureOffset, T);
+  return detail::ComputeTemperatureFromVariable(
+      D, P, Y, axes, pressureData, layout, pressureOffset,
+      bounds, bounds.minP, bounds.maxP, T);
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -476,12 +507,9 @@ int ComputeTemperatureFromPressure(
     double tGuess,
     double& T) noexcept
 {
-  T = 0.0;
-  const int error = CheckInversionInputError(
-      D, P, Y, bounds, bounds.minP, bounds.maxP);
-  if (error != 0) return error;
-  return ComputeTemperatureWith_DXY_Guess(
-      D, P, Y, axes, pressureData, layout, pressureOffset, tGuess, T);
+  return detail::ComputeTemperatureFromVariable(
+      D, P, Y, axes, pressureData, layout, pressureOffset,
+      bounds, bounds.minP, bounds.maxP, tGuess, T);
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -494,12 +522,9 @@ int ComputeTemperatureFromEntropy(
     const EosInversionBounds& bounds,
     double& T) noexcept
 {
-  T = 0.0;
-  const int error = CheckInversionInputError(
-      D, S, Y, bounds, bounds.minS, bounds.maxS);
-  if (error != 0) return error;
-  return ComputeTemperatureWith_DXY_NoGuess(
-      D, S, Y, axes, entropyData, layout, entropyOffset, T);
+  return detail::ComputeTemperatureFromVariable(
+      D, S, Y, axes, entropyData, layout, entropyOffset,
+      bounds, bounds.minS, bounds.maxS, T);
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -513,12 +538,9 @@ int ComputeTemperatureFromEntropy(
     double tGuess,
     double& T) noexcept
 {
-  T = 0.0;
-  const int error = CheckInversionInputError(
-      D, S, Y, bounds, bounds.minS, bounds.maxS);
-  if (error != 0) return error;
-  return ComputeTemperatureWith_DXY_Guess(
-      D, S, Y, axes, entropyData, layout, entropyOffset, tGuess, T);
+  return detail::ComputeTemperatureFromVariable(
+      D, S, Y, axes, entropyData, layout, entropyOffset,
+      bounds, bounds.minS, bounds.maxS, tGuess, T);
 }
 
 } // namespace WeakLibReader

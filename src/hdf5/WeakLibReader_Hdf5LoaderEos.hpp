@@ -14,51 +14,22 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
     return Hdf5LoadStatus::FileOpenFailed;
   }
 
-  detail::ScopedHandle thermoGroup(H5Gopen(file.Get(), "ThermoState", H5P_DEFAULT), H5Gclose);
-  if (!thermoGroup.Valid()) {
-    return Hdf5LoadStatus::DatasetOpenFailed;
-  }
-
-  int logInterp[3] = {0, 0, 0};
-  if (!detail::ReadIntArray(thermoGroup.Get(), "LogInterp", logInterp, 3)) {
-    return Hdf5LoadStatus::DatasetReadFailed;
-  }
-  std::array<AxisScale, 3> scales{};
-  for (int i = 0; i < 3; ++i) {
-    scales[i] = (logInterp[i] == 1) ? AxisScale::Log10 : AxisScale::Linear;
-  }
-
-  // File order is [nRho, nT, nYe]
-  int fileDims[3] = {0, 0, 0};
-  if (!detail::ReadIntArray(thermoGroup.Get(), "Dimensions", fileDims, 3)) {
-    return Hdf5LoadStatus::DatasetReadFailed;
-  }
-  for (int i = 0; i < 3; ++i) {
-    result.dimensions[i] = fileDims[i];
-  }
-
-  std::vector<std::string> axisNamesVec, axisUnitsVec;
-  if (!detail::ReadStringArray(thermoGroup.Get(), "Names", axisNamesVec) || axisNamesVec.size() != 3) {
-    return Hdf5LoadStatus::DatasetReadFailed;
-  }
-  if (!detail::ReadStringArray(thermoGroup.Get(), "Units", axisUnitsVec) || axisUnitsVec.size() != 3) {
-    return Hdf5LoadStatus::DatasetReadFailed;
-  }
-  for (int i = 0; i < 3; ++i) {
-    result.axisNames[i] = axisNamesVec[i];
-    result.axisUnits[i] = axisUnitsVec[i];
-  }
-
-  // Load axes: [Density, Temperature, Electron Fraction]
-  const char* axisDatasetNames[3] = {"Density", "Temperature", "Electron Fraction"};
-  for (int i = 0; i < 3; ++i) {
-    Hdf5LoadStatus axisStatus = detail::LoadWeakLibAxis(
-        thermoGroup.Get(), axisDatasetNames[i],
-        result.dimensions[i], scales[i],
-        result.axisStorage[i], result.axes[i]);
-    if (axisStatus != Hdf5LoadStatus::Success) {
-      return axisStatus;
+  // Load ThermoState via shared helper
+  WeakLibOpacityThermoState ts;
+  {
+    Hdf5LoadStatus tsStatus = detail::LoadWeakLibOpacityThermoState(file.Get(), ts);
+    if (tsStatus != Hdf5LoadStatus::Success) {
+      return tsStatus;
     }
+  }
+
+  // Move ThermoState fields into EOS table
+  result.dimensions = ts.dimensions;
+  for (int i = 0; i < 3; ++i) {
+    result.axisStorage[i] = std::move(ts.axisStorage[i]);
+    result.axes[i] = Axis{result.axisStorage[i].data(), ts.axes[i].n, ts.axes[i].scale};
+    result.axisNames[i] = std::move(ts.names[i]);
+    result.axisUnits[i] = std::move(ts.units[i]);
   }
 
   detail::ScopedHandle dvGroup(H5Gopen(file.Get(), "DependentVariables", H5P_DEFAULT), H5Gclose);
