@@ -309,9 +309,9 @@ TEST_CASE("LoadWeakLibEmAbTable loads legacy EmAb opacity table", "[weaklib][opa
   CHECK(thermoState.dimensions[0] == 2);  // nRho
   CHECK(thermoState.dimensions[1] == 3);  // nT
   CHECK(thermoState.dimensions[2] == 2);  // nYe
-  CHECK(thermoState.scales[0] == AxisScale::Log10);
-  CHECK(thermoState.scales[1] == AxisScale::Log10);
-  CHECK(thermoState.scales[2] == AxisScale::Linear);
+  CHECK(thermoState.axes[0].scale == AxisScale::Log10);
+  CHECK(thermoState.axes[1].scale == AxisScale::Log10);
+  CHECK(thermoState.axes[2].scale == AxisScale::Linear);
 
   // Load EmAb table
   WeakLibEmAbTable emAb;
@@ -647,7 +647,9 @@ TEST_CASE("LoadWeakLibOpacityTableFullParallel loads EmAb and Iso",
 
   // Verify thermoState
   CHECK(parTable.thermoState.dimensions == seqTable.thermoState.dimensions);
-  CHECK(parTable.thermoState.scales == seqTable.thermoState.scales);
+  for (int i = 0; i < 3; ++i) {
+    CHECK(parTable.thermoState.axes[i].scale == seqTable.thermoState.axes[i].scale);
+  }
   CHECK(parTable.thermoState.names == seqTable.thermoState.names);
   CHECK(parTable.thermoState.units == seqTable.thermoState.units);
   for (int i = 0; i < 3; ++i) {

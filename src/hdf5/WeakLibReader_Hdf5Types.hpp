@@ -486,7 +486,6 @@ using WeakLibScatBremTableDevice = WeakLibScatKernelTableDevice;
 // ThermoState for opacity tables (shared across types)
 struct WeakLibOpacityThermoState {
   std::array<int, 3> dimensions{{0, 0, 0}};  // [nRho, nT, nYe]
-  std::array<AxisScale, 3> scales{{AxisScale::Log10, AxisScale::Log10, AxisScale::Linear}};
   std::array<std::vector<double>, 3> axisStorage;  // Density, Temperature, Ye
   Axis axes[3]{};
   std::array<std::string, 3> names;
@@ -501,7 +500,6 @@ struct WeakLibOpacityThermoState {
 
 struct WeakLibOpacityThermoStateDevice {
   std::array<int, 3> dimensions{{0, 0, 0}};
-  std::array<AxisScale, 3> scales{{AxisScale::Log10, AxisScale::Log10, AxisScale::Linear}};
   std::array<amrex::Gpu::DeviceVector<double>, 3> axisStorage;
   Axis axes[3]{};
 
