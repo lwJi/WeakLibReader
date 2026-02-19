@@ -119,4 +119,4 @@ for (int iMom = 0; iMom < nMom; ++iMom) {
 
 ## Usage Example
 
-See `cactus_interface/TestWeakLibReader/src/testweaklibreader.cxx` for a complete working example showing all five table types loaded, pre-aligned, device-copied, and interpolated in CarpetX device loops.
+See `cactus_interface/TestWeakLibReader/src/testweaklibreader_eos.cxx` and `testweaklibreader_opacity.cxx` for a complete working example showing all five table types loaded, pre-aligned, device-copied, and interpolated in CarpetX device loops.

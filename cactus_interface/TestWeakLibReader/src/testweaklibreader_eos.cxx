@@ -181,4 +181,118 @@ extern "C" void TestWeakLibReader_InvertEos(CCTK_ARGUMENTS) {
       });
 }
 
+extern "C" void TestWeakLibReader_InvertEosPressure(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InvertEosPressure;
+
+  CCTK_INFO("Testing EOS inversion: recovering T from (rho, P, Ye)");
+
+  const WeakLibReader::Axis axes[3] = {
+    eos_table_device.axes[0],
+    eos_table_device.axes[1],
+    eos_table_device.axes[2],
+  };
+  const WeakLibReader::Layout layout = eos_table_device.layout;
+
+  const int iP = eos_table_device.indices.iPressure;
+  const double* pData = eos_table_device.VariableData(iP);
+  const double pOffset = eos_table_device.offsets[iP];
+
+  const WeakLibReader::EosInversionBounds bounds = eos_inversion_bounds;
+
+  grid.loop_int_device<0, 0, 0>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+      const double rho = RescaleToAxis(p.x, axes[0]);
+      const double T   = RescaleToAxis(p.y, axes[1]);
+      const double Ye  = RescaleToAxis(p.z, axes[2]);
+
+      // Forward interpolate pressure
+      const double P = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
+          rho, T, Ye, axes, pData, pOffset);
+
+      // Invert to recover T
+      double T_recovered = 0.0;
+      const int error = WeakLibReader::ComputeTemperatureFromPressure(
+          rho, P, Ye, axes, pData, layout, pOffset, bounds, T_recovered);
+
+      eos_inv_temp_press(p.I)  = T_recovered;
+      eos_inv_error_press(p.I) = static_cast<double>(error);
+      });
+}
+
+extern "C" void TestWeakLibReader_InvertEosEntropy(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InvertEosEntropy;
+
+  CCTK_INFO("Testing EOS inversion: recovering T from (rho, S, Ye)");
+
+  const WeakLibReader::Axis axes[3] = {
+    eos_table_device.axes[0],
+    eos_table_device.axes[1],
+    eos_table_device.axes[2],
+  };
+  const WeakLibReader::Layout layout = eos_table_device.layout;
+
+  const int iS = eos_table_device.indices.iEntropyPerBaryon;
+  const double* sData = eos_table_device.VariableData(iS);
+  const double sOffset = eos_table_device.offsets[iS];
+
+  const WeakLibReader::EosInversionBounds bounds = eos_inversion_bounds;
+
+  grid.loop_int_device<0, 0, 0>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+      const double rho = RescaleToAxis(p.x, axes[0]);
+      const double T   = RescaleToAxis(p.y, axes[1]);
+      const double Ye  = RescaleToAxis(p.z, axes[2]);
+
+      const double S = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
+          rho, T, Ye, axes, sData, sOffset);
+
+      double T_recovered = 0.0;
+      const int error = WeakLibReader::ComputeTemperatureFromEntropy(
+          rho, S, Ye, axes, sData, layout, sOffset, bounds, T_recovered);
+
+      eos_inv_temp_s(p.I)  = T_recovered;
+      eos_inv_error_s(p.I) = static_cast<double>(error);
+      });
+}
+
+extern "C" void TestWeakLibReader_InvertEosGuess(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InvertEosGuess;
+
+  CCTK_INFO("Testing EOS inversion with T guess");
+
+  const WeakLibReader::Axis axes[3] = {
+    eos_table_device.axes[0],
+    eos_table_device.axes[1],
+    eos_table_device.axes[2],
+  };
+  const WeakLibReader::Layout layout = eos_table_device.layout;
+
+  const int iE = eos_table_device.indices.iInternalEnergyDensity;
+  const double* eData = eos_table_device.VariableData(iE);
+  const double eOffset = eos_table_device.offsets[iE];
+
+  const WeakLibReader::EosInversionBounds bounds = eos_inversion_bounds;
+
+  grid.loop_int_device<0, 0, 0>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+      const double rho = RescaleToAxis(p.x, axes[0]);
+      const double T   = RescaleToAxis(p.y, axes[1]);
+      const double Ye  = RescaleToAxis(p.z, axes[2]);
+
+      const double E = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
+          rho, T, Ye, axes, eData, eOffset);
+
+      // Use the known T as initial guess (simulates a good guess scenario)
+      double T_recovered = 0.0;
+      const int error = WeakLibReader::ComputeTemperatureFromEnergy(
+          rho, E, Ye, axes, eData, layout, eOffset, bounds, T, T_recovered);
+
+      eos_inv_temp_g(p.I)  = T_recovered;
+      eos_inv_error_g(p.I) = static_cast<double>(error);
+      });
+}
+
 } // namespace TestWeakLibReader
