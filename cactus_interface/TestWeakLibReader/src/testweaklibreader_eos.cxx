@@ -215,8 +215,8 @@ extern "C" void TestWeakLibReader_InvertEosPressure(CCTK_ARGUMENTS) {
       const int error = WeakLibReader::ComputeTemperatureFromPressure(
           rho, P, Ye, axes, pData, layout, pOffset, bounds, T_recovered);
 
-      eos_inv_temp_p(p.I)  = T_recovered;
-      eos_inv_error_p(p.I) = static_cast<double>(error);
+      eos_inv_temp_press(p.I)  = T_recovered;
+      eos_inv_error_press(p.I) = static_cast<double>(error);
       });
 }
 

@@ -8,7 +8,7 @@ STORAGE: opacity_nes opacity_pair opacity_brem
 STORAGE: eos_inv_temp eos_inv_error
 
 STORAGE: opacity_emab_anue
-STORAGE: eos_inv_temp_p eos_inv_error_p
+STORAGE: eos_inv_temp_press eos_inv_error_press
 STORAGE: eos_inv_temp_s eos_inv_error_s
 STORAGE: eos_inv_temp_g eos_inv_error_g
 STORAGE: opacity_nes_offdiag opacity_pair_offdiag
@@ -88,8 +88,8 @@ SCHEDULE TestWeakLibReader_InitBrem AT INITIAL AFTER TestWeakLibReader_ComputeEo
 SCHEDULE TestWeakLibReader_InvertEosPressure AT INITIAL AFTER TestWeakLibReader_InvertEos
 {
   LANG: C
-  WRITES: eos_inv_temp_p(interior) eos_inv_error_p(interior)
-  SYNC: eos_inv_temp_p eos_inv_error_p
+  WRITES: eos_inv_temp_press(interior) eos_inv_error_press(interior)
+  SYNC: eos_inv_temp_press eos_inv_error_press
 } "Test EOS inversion: recover T from (rho, P, Ye)"
 
 SCHEDULE TestWeakLibReader_InvertEosEntropy AT INITIAL AFTER TestWeakLibReader_InvertEos
