@@ -652,5 +652,17 @@ inline Hdf5LoadStatus LoadWeakLibThermoState(hid_t file,
   return Hdf5LoadStatus::Success;
 }
 
+// Copy a host vector to a device vector (resize + copy).
+template <typename HostVec, typename DeviceVec>
+inline void CopyVectorToDevice(const HostVec& host, DeviceVec& device)
+{
+  device.resize(host.size());
+  if (!host.empty()) {
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                     host.begin(), host.end(),
+                     device.begin());
+  }
+}
+
 } // namespace detail
 } // namespace WeakLibReader
