@@ -24,8 +24,8 @@ inline void CopyGridToDevice(const WeakLibOpacityGrid& host, WeakLibOpacityGridD
   CopyVectorToDevice<double>(host.values, device.values);
 }
 
-inline void CopyThermoStateToDevice(const WeakLibOpacityThermoState& host,
-                                    WeakLibOpacityThermoStateDevice& device)
+inline void CopyThermoStateToDevice(const WeakLibThermoState& host,
+                                    WeakLibThermoStateDevice& device)
 {
   device.dimensions = host.dimensions;
 

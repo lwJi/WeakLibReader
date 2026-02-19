@@ -7,7 +7,7 @@ namespace WeakLibReader {
 inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
                                                WeakLibScatIsoTable& scatIso,
                                                const WeakLibOpacityGrid& energyGrid,
-                                               const WeakLibOpacityThermoState& thermoState)
+                                               const WeakLibThermoState& thermoState)
 {
   if (!detail::GroupExists(file, "Scat_Iso_Kernels")) {
     return Hdf5LoadStatus::DatasetOpenFailed;
@@ -171,7 +171,7 @@ inline Hdf5LoadStatus LoadWeakLibScatNESTable(hid_t file,
                                                WeakLibScatNESTable& scatNES,
                                                const WeakLibOpacityGrid& energyGrid,
                                                const WeakLibOpacityGrid& etaGrid,
-                                               const WeakLibOpacityThermoState& thermoState)
+                                               const WeakLibThermoState& thermoState)
 {
   const std::array<int, 5> dims{{
       energyGrid.nPoints, energyGrid.nPoints, 0 /*placeholder*/,
@@ -199,7 +199,7 @@ inline Hdf5LoadStatus LoadWeakLibScatPairTable(hid_t file,
                                                 WeakLibScatPairTable& scatPair,
                                                 const WeakLibOpacityGrid& energyGrid,
                                                 const WeakLibOpacityGrid& etaGrid,
-                                                const WeakLibOpacityThermoState& thermoState)
+                                                const WeakLibThermoState& thermoState)
 {
   const std::array<int, 5> dims{{
       energyGrid.nPoints, energyGrid.nPoints, 0 /*placeholder*/,
@@ -212,7 +212,7 @@ inline Hdf5LoadStatus LoadWeakLibScatPairTable(hid_t file,
 inline Hdf5LoadStatus LoadWeakLibScatBremTable(hid_t file,
                                                 WeakLibScatBremTable& scatBrem,
                                                 const WeakLibOpacityGrid& energyGrid,
-                                                const WeakLibOpacityThermoState& thermoState)
+                                                const WeakLibThermoState& thermoState)
 {
   const std::array<int, 5> dims{{
       energyGrid.nPoints, energyGrid.nPoints, 0 /*placeholder*/,

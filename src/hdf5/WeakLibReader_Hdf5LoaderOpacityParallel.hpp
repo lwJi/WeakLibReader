@@ -60,8 +60,8 @@ inline void BcastOpacityGrid(WeakLibOpacityGrid& grid, int root)
   BcastString(grid.unit, root);
 }
 
-/// Broadcast a WeakLibOpacityThermoState from root to all ranks.
-inline void BcastThermoState(WeakLibOpacityThermoState& ts, int root)
+/// Broadcast a WeakLibThermoState from root to all ranks.
+inline void BcastThermoState(WeakLibThermoState& ts, int root)
 {
   const int myRank = amrex::ParallelDescriptor::MyProc();
 

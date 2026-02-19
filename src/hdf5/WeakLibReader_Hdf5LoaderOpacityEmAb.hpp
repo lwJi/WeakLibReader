@@ -102,7 +102,7 @@ inline Hdf5LoadStatus LoadECTable(hid_t file, WeakLibECTable& ecTable)
 inline Hdf5LoadStatus LoadWeakLibEmAbTable(hid_t file,
                                             WeakLibEmAbTable& emAb,
                                             const WeakLibOpacityGrid& energyGrid,
-                                            const WeakLibOpacityThermoState& thermoState)
+                                            const WeakLibThermoState& thermoState)
 {
   if (!detail::LoadEmAbParameters(file, emAb.parameters)) {
     return Hdf5LoadStatus::DatasetReadFailed;

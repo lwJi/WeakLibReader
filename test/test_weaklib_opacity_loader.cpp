@@ -303,8 +303,8 @@ TEST_CASE("LoadWeakLibEmAbTable loads legacy EmAb opacity table", "[weaklib][opa
   CHECK(energyGrid.unit == "MeV");
 
   // Load thermo state
-  WeakLibOpacityThermoState thermoState;
-  status = detail::LoadWeakLibOpacityThermoState(file, thermoState);
+  WeakLibThermoState thermoState;
+  status = detail::LoadWeakLibThermoState(file, thermoState);
   REQUIRE(status == Hdf5LoadStatus::Success);
   CHECK(thermoState.dimensions[0] == 2);  // nRho
   CHECK(thermoState.dimensions[1] == 3);  // nT
