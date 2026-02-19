@@ -154,11 +154,11 @@ void CreateWeakLibEmAbTestFile(const std::filesystem::path& filePath)
     }
   }
 
-  WriteDoubleArray4dDataset(emabGroup, "Electron Neutrino", dims, data);
+  WriteDoubleNdDataset<4>(emabGroup, "Electron Neutrino", dims, data);
   for (double& value : data) {
     value += 100.0;
   }
-  WriteDoubleArray4dDataset(emabGroup, "Electron Antineutrino", dims, data);
+  WriteDoubleNdDataset<4>(emabGroup, "Electron Antineutrino", dims, data);
 
   H5Gclose(emabGroup);
   H5Fclose(file);
@@ -186,7 +186,7 @@ void CreateWeakLibIsoTestFile(const std::filesystem::path& filePath)
       static_cast<hsize_t>(nMoments),
       static_cast<hsize_t>(nOpacities)};
   std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
-  WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
+  WriteDoubleNdDataset<2>(group, "Offsets", offsetDims, offsets);
 
   const std::array<int, 5> kernelDimsC = {
       TestNE, nMoments, TestNRho, TestNT, TestNYe};
@@ -200,8 +200,8 @@ void CreateWeakLibIsoTestFile(const std::filesystem::path& filePath)
       BuildFortranOrdered5dData(kernelDimsC, IsoNuBase);
   const std::vector<double> nuBarData =
       BuildFortranOrdered5dData(kernelDimsC, IsoNuBarBase);
-  WriteDoubleArray5dDataset(group, "Electron Neutrino", kernelDims, nuData);
-  WriteDoubleArray5dDataset(group, "Electron Antineutrino", kernelDims, nuBarData);
+  WriteDoubleNdDataset<5>(group, "Electron Neutrino", kernelDims, nuData);
+  WriteDoubleNdDataset<5>(group, "Electron Antineutrino", kernelDims, nuBarData);
 
   H5Gclose(group);
   H5Fclose(file);
@@ -219,7 +219,7 @@ void WriteScatKernelMetadata(hid_t group, int nOpacities, int nMoments,
       static_cast<hsize_t>(nMoments),
       static_cast<hsize_t>(nOpacities)};
   std::vector<double> offsets(static_cast<std::size_t>(nMoments) * nOpacities, 0.0);
-  WriteDoubleArray2dDataset(group, "Offsets", offsetDims, offsets);
+  WriteDoubleNdDataset<2>(group, "Offsets", offsetDims, offsets);
 }
 
 // Write a 5D kernel dataset from C-order dimensions (stored Fortran-reversed in HDF5).
@@ -233,7 +233,7 @@ void WriteKernel5d(hid_t group, const char* name,
       static_cast<hsize_t>(cDims[1]),
       static_cast<hsize_t>(cDims[0])};
   const std::vector<double> data = BuildFortranOrdered5dData(cDims, base);
-  WriteDoubleArray5dDataset(group, name, hdfDims, data);
+  WriteDoubleNdDataset<5>(group, name, hdfDims, data);
 }
 
 // NES and Pair share the same structure: eta grid, 2 moments, 1 opacity, dataset name "Kernels".

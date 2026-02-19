@@ -5,15 +5,12 @@
 #include "interp/WeakLibReader_InterpLogTable.hpp"
 #include "base/WeakLibReader_Layout.hpp"
 #include "base/WeakLibReader_AxisTypes.hpp"
+#include "test_constants.hpp"
 
 #include <array>
 #include <cmath>
 
-namespace {
-
-constexpr double Tol = 1.0e-12;
-
-} // namespace
+using test_constants::Tol;
 
 TEST_CASE("2D log interpolation matches bilinear expectation", "[loginterp][2d]")
 {

@@ -4,7 +4,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <exception>
-#include <functional>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -26,31 +25,17 @@ inline std::vector<TestCase>& registry()
   return tests;
 }
 
-inline void register_test(const char* name, void (*func)())
-{
-  registry().push_back(TestCase{name, func});
-}
-
 struct TestRegistrar {
   TestRegistrar(const char* name, void (*func)())
   {
-    register_test(name, func);
+    registry().push_back(TestCase{name, func});
   }
 };
 
-struct TestContext {
-  bool failed = false;
-};
-
-inline TestContext& current_context()
+inline bool& test_failed()
 {
-  thread_local TestContext ctx{};
-  return ctx;
-}
-
-inline void reset_context()
-{
-  current_context() = TestContext{};
+  thread_local bool failed = false;
+  return failed;
 }
 
 inline bool is_verbose()
@@ -59,14 +44,10 @@ inline bool is_verbose()
   return verbose;
 }
 
-inline void report_failure(const char* expr, const char* file, int line, const std::string& message)
+inline void report_failure(const char* expr, const char* file, int line)
 {
-  std::cerr << file << ":" << line << ": FAILED: " << expr;
-  if (!message.empty()) {
-    std::cerr << " (" << message << ")";
-  }
-  std::cerr << std::endl;
-  current_context().failed = true;
+  std::cerr << file << ":" << line << ": FAILED: " << expr << std::endl;
+  test_failed() = true;
 }
 
 } // namespace simple_catch
@@ -134,7 +115,7 @@ private:
 #define CHECK(expr)                                                                                  \
   do {                                                                                               \
     if (!(expr)) {                                                                                   \
-      ::simple_catch::report_failure(#expr, __FILE__, __LINE__, "");                                 \
+      ::simple_catch::report_failure(#expr, __FILE__, __LINE__);                                     \
     }                                                                                                \
   } while (false)
 
@@ -143,7 +124,7 @@ private:
 #define REQUIRE(expr)                                                                                \
   do {                                                                                               \
     if (!(expr)) {                                                                                   \
-      ::simple_catch::report_failure(#expr, __FILE__, __LINE__, "");                                 \
+      ::simple_catch::report_failure(#expr, __FILE__, __LINE__);                                     \
       throw ::simple_catch::FatalAssertion();                                                        \
     }                                                                                                \
   } while (false)
@@ -160,14 +141,14 @@ inline int run_all()
     if (verbose) {
       std::cout << "[ RUN      ] " << tc.name << std::endl;
     }
-    reset_context();
+    test_failed() = false;
     try {
       tc.func();
     } catch (const FatalAssertion&) {
-      // fatal assertion already recorded as failure.
+      // Fatal assertion already recorded via report_failure.
     }
 
-    if (current_context().failed) {
+    if (test_failed()) {
       ++failures;
       std::cout << "[  FAILED ] " << tc.name << std::endl;
     } else if (verbose) {
