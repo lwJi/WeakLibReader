@@ -7,6 +7,13 @@ STORAGE: eos_log_eta eos_dxp eos_dxn eos_dxpn
 STORAGE: opacity_nes opacity_pair opacity_brem
 STORAGE: eos_inv_temp eos_inv_error
 
+STORAGE: opacity_emab_anue
+STORAGE: eos_inv_temp_p eos_inv_error_p
+STORAGE: eos_inv_temp_s eos_inv_error_s
+STORAGE: eos_inv_temp_g eos_inv_error_g
+STORAGE: opacity_nes_offdiag opacity_pair_offdiag
+STORAGE: opacity_emab_sweep
+
 SCHEDULE TestWeakLibReader_LoadTable AT INITIAL
 {
   LANG: C
@@ -77,6 +84,57 @@ SCHEDULE TestWeakLibReader_InitBrem AT INITIAL AFTER TestWeakLibReader_ComputeEo
   WRITES: opacity_brem(interior)
   SYNC: opacity_brem
 } "Test Brem sum-aligned interpolation"
+
+SCHEDULE TestWeakLibReader_InvertEosPressure AT INITIAL AFTER TestWeakLibReader_InvertEos
+{
+  LANG: C
+  WRITES: eos_inv_temp_p(interior) eos_inv_error_p(interior)
+  SYNC: eos_inv_temp_p eos_inv_error_p
+} "Test EOS inversion: recover T from (rho, P, Ye)"
+
+SCHEDULE TestWeakLibReader_InvertEosEntropy AT INITIAL AFTER TestWeakLibReader_InvertEos
+{
+  LANG: C
+  WRITES: eos_inv_temp_s(interior) eos_inv_error_s(interior)
+  SYNC: eos_inv_temp_s eos_inv_error_s
+} "Test EOS inversion: recover T from (rho, S, Ye)"
+
+SCHEDULE TestWeakLibReader_InvertEosGuess AT INITIAL AFTER TestWeakLibReader_InvertEos
+{
+  LANG: C
+  WRITES: eos_inv_temp_g(interior) eos_inv_error_g(interior)
+  SYNC: eos_inv_temp_g eos_inv_error_g
+} "Test EOS inversion: recover T from (rho, E, Ye) with T guess"
+
+SCHEDULE TestWeakLibReader_InitEmAbAnue AT INITIAL AFTER TestWeakLibReader_LoadOpacityTable
+{
+  LANG: C
+  WRITES: opacity_emab_anue(interior)
+  SYNC: opacity_emab_anue
+} "Test EmAb 4D interpolation (species=1, antineutrino)"
+
+SCHEDULE TestWeakLibReader_InitNESOffDiag AT INITIAL AFTER TestWeakLibReader_ComputeEosDerived
+{
+  LANG: C
+  READS: eos_log_eta(interior)
+  WRITES: opacity_nes_offdiag(interior)
+  SYNC: opacity_nes_offdiag
+} "Test NES aligned interpolation with off-diagonal energy pair"
+
+SCHEDULE TestWeakLibReader_InitPairOffDiag AT INITIAL AFTER TestWeakLibReader_ComputeEosDerived
+{
+  LANG: C
+  READS: eos_log_eta(interior)
+  WRITES: opacity_pair_offdiag(interior)
+  SYNC: opacity_pair_offdiag
+} "Test Pair aligned interpolation with off-diagonal energy pair"
+
+SCHEDULE TestWeakLibReader_TestEmAbSweep AT INITIAL AFTER TestWeakLibReader_LoadOpacityTable
+{
+  LANG: C
+  WRITES: opacity_emab_sweep(interior)
+  SYNC: opacity_emab_sweep
+} "Test EmAb energy sweep via LogInterpolateSingleVariable1D3DCustomPoint"
 
 SCHEDULE TestWeakLibReader_Cleanup AT TERMINATE
 {

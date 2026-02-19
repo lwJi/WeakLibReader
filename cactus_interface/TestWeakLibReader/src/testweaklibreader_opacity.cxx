@@ -230,6 +230,42 @@ extern "C" void TestWeakLibReader_InitEmAb(CCTK_ARGUMENTS) {
       });
 }
 
+extern "C" void TestWeakLibReader_InitEmAbAnue(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InitEmAbAnue;
+
+  if (!opacity_table_device.HasEmAb()) {
+    CCTK_INFO("No EmAb table loaded, skipping antineutrino test");
+    return;
+  }
+
+  CCTK_INFO("Testing EmAb 4D interpolation (species=1, antineutrino)");
+
+  const WeakLibReader::Axis axes[4] = {
+    opacity_table_device.energyGrid.MakeAxis(),
+    opacity_table_device.thermoState.axes[0],
+    opacity_table_device.thermoState.axes[1],
+    opacity_table_device.thermoState.axes[2],
+  };
+
+  const double fixedE = fixedEnergyMidpoint;
+
+  // Species 1 = electron antineutrino
+  const double offset = opacity_table_device.emAb.offsets[1];
+  const double* opacityData = opacity_table_device.emAb.OpacityData(1);
+
+  grid.loop_int_device<0, 0, 0>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+      const double rho = RescaleToAxis(p.x, axes[1]);
+      const double T   = RescaleToAxis(p.y, axes[2]);
+      const double Ye  = RescaleToAxis(p.z, axes[3]);
+      opacity_emab_anue(p.I) = WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
+          fixedE, rho, T, Ye,
+          axes,
+          opacityData, offset);
+      });
+}
+
 extern "C" void TestWeakLibReader_InitIso(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InitIso;
 
@@ -312,6 +348,49 @@ extern "C" void TestWeakLibReader_InitNES(CCTK_ARGUMENTS) {
       });
 }
 
+extern "C" void TestWeakLibReader_InitNESOffDiag(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InitNESOffDiag;
+
+  if (nes_aligned.empty()) {
+    CCTK_INFO("No NES aligned table, skipping off-diagonal test");
+    return;
+  }
+
+  CCTK_INFO("Testing NES aligned interpolation (off-diagonal energy pair)");
+
+  const double* nesData = nes_aligned[0].data.data();
+  const WeakLibReader::Layout nesLayout = nes_aligned[0].layout;
+  const int nAlignedE = nes_aligned[0].nAlignedE;
+  const int iE_lo = nAlignedE / 2 - 1;
+  const int iE_hi = nAlignedE / 2 + 1;
+
+  const WeakLibReader::Axis axes[2] = {
+    opacity_table_device.thermoState.axes[1],
+    opacity_table_device.etaGrid.MakeAxis(),
+  };
+
+  const double nesOffset = opacity_table_device.scatNES.OffsetValue(0, 0);
+
+  grid.loop_int_device<0, 0, 0>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+      const double T   = RescaleToAxis(p.y, axes[0]);
+      const double eta = eos_log_eta(p.I);
+
+      int idxT = 0, idxEta = 0;
+      double fracT = 0.0, fracEta = 0.0;
+      WeakLibReader::detail::IndexAndDelta(axes[0], T, idxT, fracT);
+      WeakLibReader::detail::IndexAndDelta(axes[1], eta, idxEta, fracEta);
+
+      opacity_nes_offdiag(p.I) = WeakLibReader::LinearInterp2D4DArray2DAlignedPoint(
+          iE_lo, iE_hi,
+          idxT, idxEta,
+          fracT, fracEta,
+          nesOffset,
+          nesData, nesLayout);
+      });
+}
+
 extern "C" void TestWeakLibReader_InitPair(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InitPair;
 
@@ -348,6 +427,49 @@ extern "C" void TestWeakLibReader_InitPair(CCTK_ARGUMENTS) {
 
       opacity_pair(p.I) = WeakLibReader::LinearInterp2D4DArray2DAlignedPoint(
           iE_mid, iE_mid,
+          idxT, idxEta,
+          fracT, fracEta,
+          pairOffset,
+          pairData, pairLayout);
+      });
+}
+
+extern "C" void TestWeakLibReader_InitPairOffDiag(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InitPairOffDiag;
+
+  if (pair_aligned.empty()) {
+    CCTK_INFO("No Pair aligned table, skipping off-diagonal test");
+    return;
+  }
+
+  CCTK_INFO("Testing Pair aligned interpolation (off-diagonal energy pair)");
+
+  const double* pairData = pair_aligned[0].data.data();
+  const WeakLibReader::Layout pairLayout = pair_aligned[0].layout;
+  const int nAlignedE = pair_aligned[0].nAlignedE;
+  const int iE_lo = nAlignedE / 2 - 1;
+  const int iE_hi = nAlignedE / 2 + 1;
+
+  const WeakLibReader::Axis axes[2] = {
+    opacity_table_device.thermoState.axes[1],
+    opacity_table_device.etaGrid.MakeAxis(),
+  };
+
+  const double pairOffset = opacity_table_device.scatPair.OffsetValue(0, 0);
+
+  grid.loop_int_device<0, 0, 0>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+      const double T   = RescaleToAxis(p.y, axes[0]);
+      const double eta = eos_log_eta(p.I);
+
+      int idxT = 0, idxEta = 0;
+      double fracT = 0.0, fracEta = 0.0;
+      WeakLibReader::detail::IndexAndDelta(axes[0], T, idxT, fracT);
+      WeakLibReader::detail::IndexAndDelta(axes[1], eta, idxEta, fracEta);
+
+      opacity_pair_offdiag(p.I) = WeakLibReader::LinearInterp2D4DArray2DAlignedPoint(
+          iE_lo, iE_hi,
           idxT, idxEta,
           fracT, fracEta,
           pairOffset,
@@ -414,6 +536,58 @@ extern "C" void TestWeakLibReader_InitBrem(CCTK_ARGUMENTS) {
       }
 
       opacity_brem(p.I) = sum;
+      });
+}
+
+extern "C" void TestWeakLibReader_TestEmAbSweep(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_TestEmAbSweep;
+
+  if (!opacity_table_device.HasEmAb()) {
+    CCTK_INFO("No EmAb table loaded, skipping sweep test");
+    return;
+  }
+
+  CCTK_INFO("Testing EmAb energy sweep (LogInterpolateSingleVariable1D3DCustomPoint)");
+
+  const WeakLibReader::Axis axes[4] = {
+    opacity_table_device.energyGrid.MakeAxis(),
+    opacity_table_device.thermoState.axes[0],
+    opacity_table_device.thermoState.axes[1],
+    opacity_table_device.thermoState.axes[2],
+  };
+
+  const double offset = opacity_table_device.emAb.offsets[0];
+  const double* opacityData = opacity_table_device.emAb.OpacityData(0);
+
+  const double* energyValues = opacity_table_device.energyGrid.values.data();
+  const int nE = opacity_table_device.energyGrid.nPoints;
+
+  // Stack buffer limit for device kernels. Low-res tables have nE=40.
+  constexpr int kMaxE = 128;
+
+  grid.loop_int_device<0, 0, 0>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+      const double rho = RescaleToAxis(p.x, axes[1]);
+      const double T   = RescaleToAxis(p.y, axes[2]);
+      const double Ye  = RescaleToAxis(p.z, axes[3]);
+
+      double sweepOut[kMaxE];
+      const int actualE = (nE <= kMaxE) ? nE : kMaxE;
+
+      WeakLibReader::LogInterpolateSingleVariable1D3DCustomPoint(
+          energyValues, static_cast<std::size_t>(actualE),
+          rho, T, Ye,
+          axes,
+          opacityData, offset,
+          sweepOut);
+
+      // Store sum over energy bins as a single scalar
+      double sum = 0.0;
+      for (int i = 0; i < actualE; ++i) {
+        sum += sweepOut[i];
+      }
+      opacity_emab_sweep(p.I) = sum;
       });
 }
 
