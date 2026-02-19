@@ -157,14 +157,6 @@ double LinearInterp5DPoint(int i0, int i1, int i2, int i3, int i4,
                                  d0, d1, d2, d3, d4)) - os;
 }
 
-/// Template wrapper for dimension-specific log-interpolation (compile-time dispatch)
-/// @tparam ND Number of dimensions (1-5), known at compile time
-/// @param indices Cell indices for each dimension (output from IndexAndDelta*)
-/// @param fractions Interpolation fractions [0,1] for each dimension
-/// @param offset Offset to subtract after converting from log space
-/// @param data Raw data array in column-major order
-/// @param layout Layout describing array dimensions and strides
-/// @return Interpolated value: 10^(interp_log_value) - offset
 template<int ND>
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LinearInterpPointDirect(const int indices[ND],
@@ -173,10 +165,8 @@ double LinearInterpPointDirect(const int indices[ND],
                                const double* data,
                                const Layout& layout) noexcept
 {
-  // Compile-time check: interpolation only implemented for 1D-5D
   static_assert(ND >= 1 && ND <= 5, "Interpolation only supported for 1D-5D");
 
-  // Compile-time dispatch: branches eliminated at compile time, zero runtime overhead
   if constexpr (ND == 1) {
     return LinearInterp1DPoint(indices[0], fractions[0], offset, data, layout);
   } else if constexpr (ND == 2) {
