@@ -2,14 +2,11 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "base/WeakLibReader_InterpBasis.hpp"
+#include "test_constants.hpp"
 
 #include <cmath>
 
-namespace {
-
-constexpr double Tol = 1.0e-12;
-
-} // namespace
+using test_constants::Tol;
 
 // =============================================================================
 // Value Basis Function Tests (InterpBasis.hpp)

@@ -3,6 +3,7 @@
 
 #include "hdf5/WeakLibReader_Hdf5Loader.hpp"
 #include "test_amrex_guard.hpp"
+#include "test_constants.hpp"
 #include "test_hdf5_helpers.hpp"
 
 #include <AMReX_GpuContainers.H>
@@ -14,13 +15,8 @@
 #include <string>
 #include <vector>
 
-namespace {
-
 using namespace TestHelpers;
-
-constexpr double Tol = 1.0e-12;
-
-} // namespace
+using test_constants::Tol;
 
 TEST_CASE("HDF5 loader reads table and axes", "[hdf5][loader]")
 {

@@ -6,15 +6,12 @@
 #include "base/WeakLibReader_InterpBasis.hpp"
 #include "base/WeakLibReader_Layout.hpp"
 #include "base/WeakLibReader_AxisTypes.hpp"
+#include "test_constants.hpp"
 
 #include <array>
 #include <cmath>
 
-namespace {
-
-constexpr double Tol = 1.0e-12;
-
-} // namespace
+using test_constants::Tol;
 
 TEST_CASE("4D log interpolation matches quadrilinear expectation", "[loginterp][4d]")
 {

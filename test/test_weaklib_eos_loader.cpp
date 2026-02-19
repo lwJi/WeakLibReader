@@ -97,11 +97,11 @@ void CreateWeakLibEosTestFileImpl(const std::filesystem::path& filePath,
     for (std::size_t i = 0; i < totalSize; ++i) {
       data[i] = static_cast<double>(iVar) + 0.01 * static_cast<double>(i);
     }
-    WriteDoubleArray3dDataset(dvGroup, varNames[iVar], fileDims, data);
+    WriteDoubleNdDataset<3>(dvGroup, varNames[iVar], fileDims, data);
   }
 
   std::vector<int> repaired(totalSize, 0);
-  WriteIntArray3dDataset(dvGroup, "Repaired", fileDims, repaired);
+  WriteIntNdDataset<3>(dvGroup, "Repaired", fileDims, repaired);
 
   WriteEosVariableIndices(dvGroup);
 

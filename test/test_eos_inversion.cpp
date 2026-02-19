@@ -5,9 +5,7 @@
 #include "interp/WeakLibReader_LogInterpolate.hpp"
 #include "base/WeakLibReader_Layout.hpp"
 #include "base/WeakLibReader_AxisTypes.hpp"
-#include "base/WeakLibReader_Math.hpp"
 
-#include <array>
 #include <cmath>
 #include <limits>
 #include <vector>

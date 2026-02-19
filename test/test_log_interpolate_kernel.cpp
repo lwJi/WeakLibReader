@@ -5,16 +5,13 @@
 #include "base/WeakLibReader_InterpBasis.hpp"
 #include "base/WeakLibReader_Layout.hpp"
 #include "base/WeakLibReader_Math.hpp"
+#include "test_constants.hpp"
 
 #include <array>
 #include <cmath>
 #include <vector>
 
-namespace {
-
-constexpr double Tol = 1.0e-12;
-
-} // namespace
+using test_constants::Tol;
 
 // =============================================================================
 // 1D Interpolation and 2D Derivative Kernel Tests (InterpLogTable.hpp)
