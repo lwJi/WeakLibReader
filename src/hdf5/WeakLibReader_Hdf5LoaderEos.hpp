@@ -15,9 +15,9 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
   }
 
   // Load ThermoState via shared helper
-  WeakLibOpacityThermoState ts;
+  WeakLibThermoState ts;
   {
-    Hdf5LoadStatus tsStatus = detail::LoadWeakLibOpacityThermoState(file.Get(), ts);
+    Hdf5LoadStatus tsStatus = detail::LoadWeakLibThermoState(file.Get(), ts);
     if (tsStatus != Hdf5LoadStatus::Success) {
       return tsStatus;
     }

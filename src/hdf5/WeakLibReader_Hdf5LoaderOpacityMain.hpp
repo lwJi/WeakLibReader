@@ -48,7 +48,7 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFull(
   status = openAndLoad(firstFile, [&](hid_t fid) {
     Hdf5LoadStatus s = detail::LoadWeakLibOpacityGrid(fid, "EnergyGrid", result.energyGrid);
     if (s != Hdf5LoadStatus::Success) return s;
-    return detail::LoadWeakLibOpacityThermoState(fid, result.thermoState);
+    return detail::LoadWeakLibThermoState(fid, result.thermoState);
   });
   if (status != Hdf5LoadStatus::Success) return status;
 

@@ -484,30 +484,30 @@ using WeakLibScatPairTableDevice = WeakLibScatKernelTableDevice;
 using WeakLibScatBremTableDevice = WeakLibScatKernelTableDevice;
 
 // ThermoState for opacity tables (shared across types)
-struct WeakLibOpacityThermoState {
+struct WeakLibThermoState {
   std::array<int, 3> dimensions{{0, 0, 0}};  // [nRho, nT, nYe]
   std::array<std::vector<double>, 3> axisStorage;  // Density, Temperature, Ye
   Axis axes[3]{};
   std::array<std::string, 3> names;
   std::array<std::string, 3> units;
 
-  WeakLibOpacityThermoState() = default;
-  WeakLibOpacityThermoState(WeakLibOpacityThermoState&&) = default;
-  WeakLibOpacityThermoState& operator=(WeakLibOpacityThermoState&&) = default;
-  WeakLibOpacityThermoState(const WeakLibOpacityThermoState&) = delete;
-  WeakLibOpacityThermoState& operator=(const WeakLibOpacityThermoState&) = delete;
+  WeakLibThermoState() = default;
+  WeakLibThermoState(WeakLibThermoState&&) = default;
+  WeakLibThermoState& operator=(WeakLibThermoState&&) = default;
+  WeakLibThermoState(const WeakLibThermoState&) = delete;
+  WeakLibThermoState& operator=(const WeakLibThermoState&) = delete;
 };
 
-struct WeakLibOpacityThermoStateDevice {
+struct WeakLibThermoStateDevice {
   std::array<int, 3> dimensions{{0, 0, 0}};
   std::array<amrex::Gpu::DeviceVector<double>, 3> axisStorage;
   Axis axes[3]{};
 
-  WeakLibOpacityThermoStateDevice() = default;
-  WeakLibOpacityThermoStateDevice(WeakLibOpacityThermoStateDevice&&) = default;
-  WeakLibOpacityThermoStateDevice& operator=(WeakLibOpacityThermoStateDevice&&) = default;
-  WeakLibOpacityThermoStateDevice(const WeakLibOpacityThermoStateDevice&) = delete;
-  WeakLibOpacityThermoStateDevice& operator=(const WeakLibOpacityThermoStateDevice&) = delete;
+  WeakLibThermoStateDevice() = default;
+  WeakLibThermoStateDevice(WeakLibThermoStateDevice&&) = default;
+  WeakLibThermoStateDevice& operator=(WeakLibThermoStateDevice&&) = default;
+  WeakLibThermoStateDevice(const WeakLibThermoStateDevice&) = delete;
+  WeakLibThermoStateDevice& operator=(const WeakLibThermoStateDevice&) = delete;
 };
 
 // Unified opacity table containing all types
@@ -515,7 +515,7 @@ struct WeakLibOpacityTable {
   // Grids
   WeakLibOpacityGrid energyGrid;
   WeakLibOpacityGrid etaGrid;  // Only used by NES/Pair
-  WeakLibOpacityThermoState thermoState;
+  WeakLibThermoState thermoState;
 
   // Opacity types
   WeakLibEmAbTable emAb;
@@ -540,7 +540,7 @@ struct WeakLibOpacityTable {
 struct WeakLibOpacityTableDevice {
   WeakLibOpacityGridDevice energyGrid;
   WeakLibOpacityGridDevice etaGrid;
-  WeakLibOpacityThermoStateDevice thermoState;
+  WeakLibThermoStateDevice thermoState;
 
   WeakLibEmAbTableDevice emAb;
   WeakLibScatIsoTableDevice scatIso;

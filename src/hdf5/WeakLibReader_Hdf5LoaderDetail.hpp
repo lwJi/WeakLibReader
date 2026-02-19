@@ -601,8 +601,8 @@ inline void BcastStringArray(std::array<std::string, N>& strings, int root)
 }
 
 // Load the ThermoState group shared by EOS and opacity HDF5 files.
-inline Hdf5LoadStatus LoadWeakLibOpacityThermoState(hid_t file,
-                                                     WeakLibOpacityThermoState& ts)
+inline Hdf5LoadStatus LoadWeakLibThermoState(hid_t file,
+                                                     WeakLibThermoState& ts)
 {
   ScopedHandle group(H5Gopen(file, "ThermoState", H5P_DEFAULT), H5Gclose);
   if (!group.Valid()) {
