@@ -361,6 +361,10 @@ extern "C" void TestWeakLibReader_InitNESOffDiag(CCTK_ARGUMENTS) {
   const double* nesData = nes_aligned[0].data.data();
   const WeakLibReader::Layout nesLayout = nes_aligned[0].layout;
   const int nAlignedE = nes_aligned[0].nAlignedE;
+  if (nAlignedE < 3) {
+    CCTK_WARN(1, "NES aligned table has fewer than 3 energy points; skipping off-diagonal test");
+    return;
+  }
   const int iE_lo = nAlignedE / 2 - 1;
   const int iE_hi = nAlignedE / 2 + 1;
 
@@ -447,6 +451,10 @@ extern "C" void TestWeakLibReader_InitPairOffDiag(CCTK_ARGUMENTS) {
   const double* pairData = pair_aligned[0].data.data();
   const WeakLibReader::Layout pairLayout = pair_aligned[0].layout;
   const int nAlignedE = pair_aligned[0].nAlignedE;
+  if (nAlignedE < 3) {
+    CCTK_WARN(1, "Pair aligned table has fewer than 3 energy points; skipping off-diagonal test");
+    return;
+  }
   const int iE_lo = nAlignedE / 2 - 1;
   const int iE_hi = nAlignedE / 2 + 1;
 
