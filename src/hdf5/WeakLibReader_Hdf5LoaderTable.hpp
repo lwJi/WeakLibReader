@@ -72,22 +72,12 @@ inline TableDevice MakeDeviceCopy(const Hdf5Table& host)
   device.nd = host.nd;
   device.layout = host.layout;
 
-  device.values.resize(host.values.size());
-  amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                   host.values.begin(), host.values.end(),
-                   device.values.begin());
+  detail::CopyVectorToDevice<double>(host.values, device.values);
 
   for (int dim = 0; dim < host.nd; ++dim) {
-    const auto& hostAxis = host.axisStorage[dim];
-    auto& deviceAxis = device.axisStorage[dim];
-    deviceAxis.resize(hostAxis.size());
-    if (!hostAxis.empty()) {
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                       hostAxis.begin(), hostAxis.end(),
-                       deviceAxis.begin());
-    }
-    device.axes[dim] = Axis{deviceAxis.data(),
-                            static_cast<int>(deviceAxis.size()),
+    detail::CopyVectorToDevice<double>(host.axisStorage[dim], device.axisStorage[dim]);
+    device.axes[dim] = Axis{device.axisStorage[dim].data(),
+                            static_cast<int>(device.axisStorage[dim].size()),
                             host.axes[dim].scale};
   }
 

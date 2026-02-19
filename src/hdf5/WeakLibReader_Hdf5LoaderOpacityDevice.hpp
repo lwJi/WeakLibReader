@@ -1,21 +1,10 @@
 #pragma once
 
 #include "hdf5/WeakLibReader_Hdf5Types.hpp"
+#include "hdf5/WeakLibReader_Hdf5LoaderDetail.hpp"
 
 namespace WeakLibReader {
 namespace detail {
-
-// Copy a host vector to a device vector (resize + copy).
-template <typename T, typename HostVec, typename DeviceVec>
-inline void CopyVectorToDevice(const HostVec& host, DeviceVec& device)
-{
-  device.resize(host.size());
-  if (!host.empty()) {
-    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                     host.begin(), host.end(),
-                     device.begin());
-  }
-}
 
 inline void CopyGridToDevice(const WeakLibOpacityGrid& host, WeakLibOpacityGridDevice& device)
 {
@@ -32,6 +21,64 @@ inline void CopyThermoStateToDevice(const WeakLibThermoState& host,
   for (int i = 0; i < 3; ++i) {
     CopyVectorToDevice<double>(host.axisStorage[i], device.axisStorage[i]);
     device.axes[i] = Axis{device.axisStorage[i].data(), host.axes[i].n, host.axes[i].scale};
+  }
+}
+
+inline void CopyECTableToDevice(const WeakLibECTable& host, WeakLibECTableDevice& device)
+{
+  device.nE = host.nE;
+  device.nRho = host.nRho;
+  device.nT = host.nT;
+  device.nYe = host.nYe;
+  device.rhoMin = host.rhoMin;
+  device.rhoMax = host.rhoMax;
+  device.tempMin = host.tempMin;
+  device.tempMax = host.tempMax;
+  device.yeMin = host.yeMin;
+  device.yeMax = host.yeMax;
+  device.specOffset = host.specOffset;
+  device.rateOffset = host.rateOffset;
+
+  CopyVectorToDevice<double>(host.energyValues, device.energyValues);
+  CopyVectorToDevice<double>(host.rhoValues, device.rhoValues);
+  CopyVectorToDevice<double>(host.tempValues, device.tempValues);
+  CopyVectorToDevice<double>(host.yeValues, device.yeValues);
+  CopyVectorToDevice<double>(host.spectrum, device.spectrum);
+  CopyVectorToDevice<double>(host.rate, device.rate);
+}
+
+inline void CopyEmAbToDevice(const WeakLibEmAbTable& host, WeakLibEmAbTableDevice& device)
+{
+  device.nOpacities = host.nOpacities;
+  device.dimensions = host.dimensions;
+  device.offsets = host.offsets;
+  device.parameters = host.parameters;
+  device.layout = host.layout;
+
+  for (int i = 0; i < WeakLibEmAbTable::NumSpecies; ++i) {
+    CopyVectorToDevice<double>(host.opacities[i], device.opacities[i]);
+  }
+
+  if (host.ecTable.IsPresent()) {
+    CopyECTableToDevice(host.ecTable, device.ecTable);
+  }
+}
+
+inline void CopyScatIsoToDevice(const WeakLibScatIsoTable& host,
+                                WeakLibScatIsoTableDevice& device)
+{
+  device.nOpacities = host.nOpacities;
+  device.nMoments = host.nMoments;
+  device.dimensions = host.dimensions;
+  device.weak_magnetism_corrections = host.weak_magnetism_corrections;
+  device.ion_ion_corrections = host.ion_ion_corrections;
+  device.many_body_corrections = host.many_body_corrections;
+  device.ga_strange = host.ga_strange;
+  device.layout = host.layout;
+
+  CopyVectorToDevice<double>(host.offsets, device.offsets);
+  for (int i = 0; i < WeakLibScatIsoTable::NumSpecies; ++i) {
+    CopyVectorToDevice<double>(host.kernels[i], device.kernels[i]);
   }
 }
 
@@ -59,59 +106,8 @@ inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host)
   detail::CopyGridToDevice(host.etaGrid, device.etaGrid);
   detail::CopyThermoStateToDevice(host.thermoState, device.thermoState);
 
-  if (host.emAb.IsLoaded()) {
-    device.emAb.nOpacities = host.emAb.nOpacities;
-    device.emAb.dimensions = host.emAb.dimensions;
-    device.emAb.offsets = host.emAb.offsets;
-    device.emAb.parameters = host.emAb.parameters;
-    device.emAb.layout = host.emAb.layout;
-
-    for (int i = 0; i < WeakLibEmAbTable::NumSpecies; ++i) {
-      detail::CopyVectorToDevice<double>(host.emAb.opacities[i], device.emAb.opacities[i]);
-    }
-
-    if (host.emAb.ecTable.IsPresent()) {
-      const auto& hostEC = host.emAb.ecTable;
-      auto& deviceEC = device.emAb.ecTable;
-
-      deviceEC.nE = hostEC.nE;
-      deviceEC.nRho = hostEC.nRho;
-      deviceEC.nT = hostEC.nT;
-      deviceEC.nYe = hostEC.nYe;
-      deviceEC.rhoMin = hostEC.rhoMin;
-      deviceEC.rhoMax = hostEC.rhoMax;
-      deviceEC.tempMin = hostEC.tempMin;
-      deviceEC.tempMax = hostEC.tempMax;
-      deviceEC.yeMin = hostEC.yeMin;
-      deviceEC.yeMax = hostEC.yeMax;
-      deviceEC.specOffset = hostEC.specOffset;
-      deviceEC.rateOffset = hostEC.rateOffset;
-
-      detail::CopyVectorToDevice<double>(hostEC.energyValues, deviceEC.energyValues);
-      detail::CopyVectorToDevice<double>(hostEC.rhoValues, deviceEC.rhoValues);
-      detail::CopyVectorToDevice<double>(hostEC.tempValues, deviceEC.tempValues);
-      detail::CopyVectorToDevice<double>(hostEC.yeValues, deviceEC.yeValues);
-      detail::CopyVectorToDevice<double>(hostEC.spectrum, deviceEC.spectrum);
-      detail::CopyVectorToDevice<double>(hostEC.rate, deviceEC.rate);
-    }
-  }
-
-  if (host.scatIso.IsLoaded()) {
-    device.scatIso.nOpacities = host.scatIso.nOpacities;
-    device.scatIso.nMoments = host.scatIso.nMoments;
-    device.scatIso.dimensions = host.scatIso.dimensions;
-    device.scatIso.weak_magnetism_corrections = host.scatIso.weak_magnetism_corrections;
-    device.scatIso.ion_ion_corrections = host.scatIso.ion_ion_corrections;
-    device.scatIso.many_body_corrections = host.scatIso.many_body_corrections;
-    device.scatIso.ga_strange = host.scatIso.ga_strange;
-    device.scatIso.layout = host.scatIso.layout;
-
-    detail::CopyVectorToDevice<double>(host.scatIso.offsets, device.scatIso.offsets);
-    for (int i = 0; i < WeakLibScatIsoTable::NumSpecies; ++i) {
-      detail::CopyVectorToDevice<double>(host.scatIso.kernels[i], device.scatIso.kernels[i]);
-    }
-  }
-
+  if (host.emAb.IsLoaded())    detail::CopyEmAbToDevice(host.emAb, device.emAb);
+  if (host.scatIso.IsLoaded()) detail::CopyScatIsoToDevice(host.scatIso, device.scatIso);
   if (host.scatNES.IsLoaded())  detail::CopyScatKernelToDevice(host.scatNES, device.scatNES);
   if (host.scatPair.IsLoaded()) detail::CopyScatKernelToDevice(host.scatPair, device.scatPair);
   if (host.scatBrem.IsLoaded()) detail::CopyScatKernelToDevice(host.scatBrem, device.scatBrem);

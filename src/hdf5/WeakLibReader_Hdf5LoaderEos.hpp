@@ -118,35 +118,20 @@ inline WeakLibEosTableDevice MakeDeviceCopy(const WeakLibEosTable& host)
   device.dimensions = host.dimensions;
   device.layout = host.layout;
   device.indices = host.indices;
-  device.offsets.resize(host.offsets.size());
-  amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                   host.offsets.begin(), host.offsets.end(),
-                   device.offsets.begin());
+
+  detail::CopyVectorToDevice<double>(host.offsets, device.offsets);
 
   for (int dim = 0; dim < 3; ++dim) {
-    const auto& hostAxis = host.axisStorage[dim];
-    auto& deviceAxis = device.axisStorage[dim];
-    deviceAxis.resize(hostAxis.size());
-    if (!hostAxis.empty()) {
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                       hostAxis.begin(), hostAxis.end(),
-                       deviceAxis.begin());
-    }
-    device.axes[dim] = Axis{deviceAxis.data(), host.axes[dim].n, host.axes[dim].scale};
+    detail::CopyVectorToDevice<double>(host.axisStorage[dim], device.axisStorage[dim]);
+    device.axes[dim] = Axis{device.axisStorage[dim].data(), host.axes[dim].n, host.axes[dim].scale};
   }
 
   device.variables.resize(host.nVariables);
   for (int iVar = 0; iVar < host.nVariables; ++iVar) {
-    device.variables[iVar].resize(host.variables[iVar].size());
-    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                     host.variables[iVar].begin(), host.variables[iVar].end(),
-                     device.variables[iVar].begin());
+    detail::CopyVectorToDevice<double>(host.variables[iVar], device.variables[iVar]);
   }
 
-  device.repaired.resize(host.repaired.size());
-  amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                   host.repaired.begin(), host.repaired.end(),
-                   device.repaired.begin());
+  detail::CopyVectorToDevice<int>(host.repaired, device.repaired);
 
   return device;
 }
