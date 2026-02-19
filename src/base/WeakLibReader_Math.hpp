@@ -1,5 +1,6 @@
 #pragma once
 
+#include <AMReX_Extension.H>
 #include <AMReX_GpuQualifiers.H>
 
 #include <cmath>
@@ -16,16 +17,6 @@ double Floor(double value) noexcept
   return ::floor(value);
 #else
   return std::floor(value);
-#endif
-}
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double Log(double value) noexcept
-{
-#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
-  return ::log(value);
-#else
-  return std::log(value);
 #endif
 }
 
