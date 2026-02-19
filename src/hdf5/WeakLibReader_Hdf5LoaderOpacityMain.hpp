@@ -20,8 +20,9 @@ inline Hdf5LoadStatus LoadWeakLibOpacityThermoState(hid_t file,
   if (!ReadIntArray(group.Get(), "LogInterp", logInterp, 3)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
+  std::array<AxisScale, 3> axisScales{};
   for (int i = 0; i < 3; ++i) {
-    ts.scales[i] = (logInterp[i] == 1) ? AxisScale::Log10 : AxisScale::Linear;
+    axisScales[i] = (logInterp[i] == 1) ? AxisScale::Log10 : AxisScale::Linear;
   }
 
   int dims[3] = {0, 0, 0};
@@ -48,7 +49,7 @@ inline Hdf5LoadStatus LoadWeakLibOpacityThermoState(hid_t file,
   for (int i = 0; i < 3; ++i) {
     Hdf5LoadStatus status = LoadWeakLibAxis(
         group.Get(), axisDatasetNames[i],
-        ts.dimensions[i], ts.scales[i],
+        ts.dimensions[i], axisScales[i],
         ts.axisStorage[i], ts.axes[i]);
     if (status != Hdf5LoadStatus::Success) {
       return status;

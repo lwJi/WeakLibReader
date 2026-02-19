@@ -69,16 +69,21 @@ inline void BcastThermoState(WeakLibOpacityThermoState& ts, int root)
   if (myRank == root) {
     for (int i = 0; i < 3; ++i) {
       header[i] = ts.dimensions[i];
-      header[3 + i] = static_cast<int>(ts.scales[i]);
+      header[3 + i] = static_cast<int>(ts.axes[i].scale);
     }
   }
   amrex::ParallelDescriptor::Bcast(header, 6, root);
 
+  std::array<AxisScale, 3> axisScales{};
   if (myRank != root) {
     for (int i = 0; i < 3; ++i) {
       ts.dimensions[i] = header[i];
-      ts.scales[i] = static_cast<AxisScale>(header[3 + i]);
+      axisScales[i] = static_cast<AxisScale>(header[3 + i]);
       ts.axisStorage[i].resize(ts.dimensions[i]);
+    }
+  } else {
+    for (int i = 0; i < 3; ++i) {
+      axisScales[i] = ts.axes[i].scale;
     }
   }
 
@@ -86,7 +91,7 @@ inline void BcastThermoState(WeakLibOpacityThermoState& ts, int root)
     if (ts.dimensions[i] > 0) {
       amrex::ParallelDescriptor::Bcast(ts.axisStorage[i].data(), ts.dimensions[i], root);
     }
-    ts.axes[i] = Axis{ts.axisStorage[i].data(), ts.dimensions[i], ts.scales[i]};
+    ts.axes[i] = Axis{ts.axisStorage[i].data(), ts.dimensions[i], axisScales[i]};
   }
 
   BcastStringArray(ts.names, root);

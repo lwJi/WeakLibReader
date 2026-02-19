@@ -28,7 +28,6 @@ inline void CopyThermoStateToDevice(const WeakLibOpacityThermoState& host,
                                     WeakLibOpacityThermoStateDevice& device)
 {
   device.dimensions = host.dimensions;
-  device.scales = host.scales;
 
   for (int i = 0; i < 3; ++i) {
     CopyVectorToDevice<double>(host.axisStorage[i], device.axisStorage[i]);
