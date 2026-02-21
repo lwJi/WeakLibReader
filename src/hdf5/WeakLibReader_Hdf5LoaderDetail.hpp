@@ -68,24 +68,6 @@ struct ScopedHandle {
   [[nodiscard]] bool Valid() const noexcept { return id >= 0; }
 };
 
-inline bool ParseAxisScale(const std::string& raw, AxisScale& scale)
-{
-  std::string lower;
-  lower.reserve(raw.size());
-  for (char c : raw) {
-    lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-  }
-  if (lower == "linear") {
-    scale = AxisScale::Linear;
-    return true;
-  }
-  if (lower == "log10" || lower == "log") {
-    scale = AxisScale::Log10;
-    return true;
-  }
-  return false;
-}
-
 inline bool ReadStringAttribute(hid_t parent, const std::string& name, std::string& out)
 {
   if (parent < 0) {
@@ -479,42 +461,6 @@ inline Hdf5LoadStatus ReadAxisDataset1D(hid_t datasetId,
   }
 
   outAxis = Axis{storage.data(), static_cast<int>(storage.size()), scale};
-  return Hdf5LoadStatus::Success;
-}
-
-inline Hdf5LoadStatus LoadAxes(hid_t file,
-                               int nd,
-                               const Hdf5LoadConfig& cfg,
-                               Hdf5Table& table)
-{
-  for (int dim = 0; dim < nd; ++dim) {
-    const std::string datasetName = cfg.axisPrefix + std::to_string(dim);
-    ScopedHandle axisDataset(H5Dopen(file, datasetName.c_str(), H5P_DEFAULT), H5Dclose);
-    if (!axisDataset.Valid()) {
-      return Hdf5LoadStatus::AxisDatasetOpenFailed;
-    }
-
-    std::string scaleAttr;
-    AxisScale scale = AxisScale::Linear;
-    if (ReadStringAttribute(axisDataset.Get(), cfg.axisScaleAttribute, scaleAttr)) {
-      if (!ParseAxisScale(scaleAttr, scale)) {
-        return Hdf5LoadStatus::AxisInvalidScale;
-      }
-    }
-
-    const Hdf5LoadStatus axisStatus = ReadAxisDataset1D(
-        axisDataset.Get(), table.layout.n[dim], scale,
-        table.axisStorage[dim], table.axes[dim]);
-    if (axisStatus != Hdf5LoadStatus::Success) {
-      return axisStatus;
-    }
-  }
-
-  for (int dim = nd; dim < 5; ++dim) {
-    table.axisStorage[dim].clear();
-    table.axes[dim] = Axis{};
-  }
-
   return Hdf5LoadStatus::Success;
 }
 

@@ -5,7 +5,6 @@
 #include "hdf5/WeakLibReader_Hdf5LoaderDetail.hpp"
 
 // Serial loaders
-#include "hdf5/WeakLibReader_Hdf5LoaderTable.hpp"
 #include "hdf5/WeakLibReader_Hdf5LoaderEos.hpp"
 #include "hdf5/WeakLibReader_Hdf5LoaderOpacityEmAb.hpp"
 #include "hdf5/WeakLibReader_Hdf5LoaderOpacityScat.hpp"

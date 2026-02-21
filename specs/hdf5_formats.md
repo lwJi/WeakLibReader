@@ -1,20 +1,5 @@
 # HDF5 Table Formats
 
-## Simple Format (Generic Tables)
-
-Used by `LoadHdf5Table()` and `LoadHdf5TableParallel()`.
-
-```
-/values              # N-D array (1-5D)
-/axis0               # 1D array with "scale" attribute ("linear" or "log10")
-/axis1               # ...
-...
-```
-
-- Configurable via `Hdf5LoadConfig` (dataset name, axis prefix, scale attribute name)
-- Validation: monotonic ascending, positive values for Log10 axes
-- Axis length must match corresponding dimension extent
-
 ## Native WeakLib EOS Format
 
 Used by `LoadWeakLibEosTableFull()` and `LoadWeakLibEosTableFullParallel()`.
@@ -125,8 +110,6 @@ Used by `LoadWeakLibOpacityTableFull()` and `LoadWeakLibOpacityTableFullParallel
 
 | Function | Purpose |
 |----------|---------|
-| `LoadHdf5Table()` | Load simple-format generic table |
-| `LoadHdf5TableParallel()` | Parallel broadcast version of above |
 | `LoadWeakLibEosTableFull()` | Load complete EOS table (ThermoState + DependentVariables) |
 | `LoadWeakLibEosTableFullParallel()` | Parallel broadcast version of above |
 | `LoadWeakLibOpacityTableFull()` | Master loader for all opacity subtables |
