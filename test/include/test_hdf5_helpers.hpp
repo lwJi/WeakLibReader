@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace TestHelpers {
+namespace test_helpers {
 
 inline void WriteStringAttribute(hid_t parent, const std::string& name, const char* value)
 {
@@ -134,4 +134,4 @@ inline void CreateAxisDataset(hid_t file,
   H5Sclose(space);
 }
 
-} // namespace TestHelpers
+} // namespace test_helpers

@@ -48,13 +48,13 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
   {
     detail::ScopedH5ErrorSuppressor suppress;
 
-    detail::ReadScalarInt(group.Get(), "weak_magnetism_corr", scatIso.weak_magnetism_corrections);
-    detail::ReadScalarInt(group.Get(), "ion_ion_corr", scatIso.ion_ion_corrections);
-    detail::ReadScalarInt(group.Get(), "many_body_corr", scatIso.many_body_corrections);
+    detail::ReadScalarInt(group.Get(), "weak_magnetism_corr", scatIso.weakMagnetismCorrections);
+    detail::ReadScalarInt(group.Get(), "ion_ion_corr", scatIso.ionIonCorrections);
+    detail::ReadScalarInt(group.Get(), "many_body_corr", scatIso.manyBodyCorrections);
 
     detail::ScopedHandle ds(H5Dopen(group.Get(), "ga_strange", H5P_DEFAULT), H5Dclose);
     if (ds.Valid()) {
-      H5Dread(ds.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &scatIso.ga_strange);
+      H5Dread(ds.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &scatIso.gaStrange);
     }
   }
 
@@ -188,7 +188,7 @@ inline Hdf5LoadStatus LoadWeakLibScatNESTable(hid_t file,
     detail::ScopedH5ErrorSuppressor suppress;
     detail::ScopedHandle group(H5Gopen(file, "Scat_NES_Kernels", H5P_DEFAULT), H5Gclose);
     if (group.Valid()) {
-      detail::ReadScalarInt(group.Get(), "NPS", scatNES.NPS);
+      detail::ReadScalarInt(group.Get(), "NPS", scatNES.nps);
     }
   }
 

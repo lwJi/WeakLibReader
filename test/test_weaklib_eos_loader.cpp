@@ -15,7 +15,7 @@
 
 namespace {
 
-using namespace TestHelpers;
+using namespace test_helpers;
 
 // Write the EOS variable index datasets shared by all test EOS files.
 void WriteEosVariableIndices(hid_t dvGroup)

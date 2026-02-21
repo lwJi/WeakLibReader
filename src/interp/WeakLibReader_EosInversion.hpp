@@ -134,7 +134,7 @@ double EvalAtFixedTIndex(
 } // namespace detail
 
 // Core bisection with initial guess.
-// Matches Fortran ComputeTemperatureWith_DXY_Guess
+// Matches Fortran ComputeTemperatureWithDxyGuess
 // (wlEOSInversionModule.F90:270-440).
 // Returns error code: 0=success, 13=no root found.
 //
@@ -148,7 +148,7 @@ double EvalAtFixedTIndex(
 //   Fortran i_a=1, i_b=SizeTs -> C++ i_a=0, i_b=nT-1
 //   Fortran DO i=2,SizeTs-1   -> C++ for(i=1; i<=nT-2; ++i)
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int ComputeTemperatureWith_DXY_Guess(
+int ComputeTemperatureWithDxyGuess(
     double D, double X, double Y,
     const Axis axes[3],
     const double* xData,
@@ -290,7 +290,7 @@ int ComputeTemperatureWith_DXY_Guess(
 }
 
 // Core bisection without initial guess.
-// Matches Fortran ComputeTemperatureWith_DXY_NoGuess
+// Matches Fortran ComputeTemperatureWithDxyNoGuess
 // (wlEOSInversionModule.F90:443-573).
 // Returns error code: 0=success, 13=no root found.
 //
@@ -303,7 +303,7 @@ int ComputeTemperatureWith_DXY_Guess(
 //   Fortran i_a=1, i_b=SizeTs     -> C++ i_a=0, i_b=nT-1
 //   Fortran DO i=SizeTs-1,2,-1    -> C++ for(i=nT-2; i>=1; --i)
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int ComputeTemperatureWith_DXY_NoGuess(
+int ComputeTemperatureWithDxyNoGuess(
     double D, double X, double Y,
     const Axis axes[3],
     const double* xData,
@@ -422,7 +422,7 @@ int ComputeTemperatureFromVariable(
   T = 0.0;
   const int error = CheckInversionInputError(D, X, Y, bounds, minX, maxX);
   if (error != 0) return error;
-  return ComputeTemperatureWith_DXY_NoGuess(
+  return ComputeTemperatureWithDxyNoGuess(
       D, X, Y, axes, xData, layout, xOffset, T);
 }
 
@@ -442,7 +442,7 @@ int ComputeTemperatureFromVariable(
   T = 0.0;
   const int error = CheckInversionInputError(D, X, Y, bounds, minX, maxX);
   if (error != 0) return error;
-  return ComputeTemperatureWith_DXY_Guess(
+  return ComputeTemperatureWithDxyGuess(
       D, X, Y, axes, xData, layout, xOffset, tGuess, T);
 }
 
