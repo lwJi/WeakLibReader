@@ -18,13 +18,13 @@ inline bool LoadEmAbParameters(hid_t file, WeakLibEmAbParameters& params)
     return false;
   }
 
-  ReadScalarInt(group.Get(), "np_FK", params.np_FK);
-  ReadScalarInt(group.Get(), "np_FK_inv_n_decay", params.np_FK_inv_n_decay);
-  ReadScalarInt(group.Get(), "np_isoenergetic", params.np_isoenergetic);
-  ReadScalarInt(group.Get(), "np_non_isoenergetic", params.np_non_isoenergetic);
-  ReadScalarInt(group.Get(), "np_weak_magnetism", params.np_weak_magnetism);
-  ReadScalarInt(group.Get(), "nuclei_EC_FFN", params.nuclei_EC_FFN);
-  ReadScalarInt(group.Get(), "nuclei_EC_table", params.nuclei_EC_table);
+  ReadScalarInt(group.Get(), "np_FK", params.npFK);
+  ReadScalarInt(group.Get(), "np_FK_inv_n_decay", params.npFKInvNDecay);
+  ReadScalarInt(group.Get(), "np_isoenergetic", params.npIsoenergetic);
+  ReadScalarInt(group.Get(), "np_non_isoenergetic", params.npNonIsoenergetic);
+  ReadScalarInt(group.Get(), "np_weak_magnetism", params.npWeakMagnetism);
+  ReadScalarInt(group.Get(), "nuclei_EC_FFN", params.nucleiEcFfn);
+  ReadScalarInt(group.Get(), "nuclei_EC_table", params.nucleiEcTable);
 
   return true;
 }
@@ -165,7 +165,7 @@ inline Hdf5LoadStatus LoadWeakLibEmAbTable(hid_t file,
                                 emAb.dimensions[2], emAb.dimensions[3], 1}};
   emAb.layout = MakeLayout(extents5.data(), 4);
 
-  if (emAb.parameters.nuclei_EC_table > 0) {
+  if (emAb.parameters.nucleiEcTable > 0) {
     const Hdf5LoadStatus ecStatus = detail::LoadECTable(file, emAb.ecTable);
     if (ecStatus != Hdf5LoadStatus::Success) {
       return ecStatus;

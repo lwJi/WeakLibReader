@@ -215,15 +215,15 @@ struct WeakLibECTableDevice {
 
 // EmAb physics parameters (new format only, -1 for legacy)
 struct WeakLibEmAbParameters {
-  int np_FK = -1;
-  int np_FK_inv_n_decay = -1;
-  int np_isoenergetic = -1;
-  int np_non_isoenergetic = -1;
-  int np_weak_magnetism = -1;
-  int nuclei_EC_FFN = -1;
-  int nuclei_EC_table = -1;
+  int npFK = -1;
+  int npFKInvNDecay = -1;
+  int npIsoenergetic = -1;
+  int npNonIsoenergetic = -1;
+  int npWeakMagnetism = -1;
+  int nucleiEcFfn = -1;
+  int nucleiEcTable = -1;
 
-  [[nodiscard]] bool IsLegacy() const noexcept { return nuclei_EC_table == -1; }
+  [[nodiscard]] bool IsLegacy() const noexcept { return nucleiEcTable == -1; }
 };
 
 // EmAb opacity table (4D: nE x nRho x nT x nYe)
@@ -297,10 +297,10 @@ struct WeakLibScatIsoTable {
   std::array<amrex::Gpu::PinnedVector<double>, NumSpecies> kernels;
 
   // Correction flags
-  int weak_magnetism_corrections = -1;
-  int ion_ion_corrections = -1;
-  int many_body_corrections = -1;
-  double ga_strange = 0.0;
+  int weakMagnetismCorrections = -1;
+  int ionIonCorrections = -1;
+  int manyBodyCorrections = -1;
+  double gaStrange = 0.0;
 
   Layout layout{};
 
@@ -329,10 +329,10 @@ struct WeakLibScatIsoTableDevice {
   std::vector<double> offsets;
   std::array<amrex::Gpu::DeviceVector<double>, NumSpecies> kernels;
 
-  int weak_magnetism_corrections = -1;
-  int ion_ion_corrections = -1;
-  int many_body_corrections = -1;
-  double ga_strange = 0.0;
+  int weakMagnetismCorrections = -1;
+  int ionIonCorrections = -1;
+  int manyBodyCorrections = -1;
+  double gaStrange = 0.0;
 
   Layout layout{};
 
@@ -367,7 +367,7 @@ struct WeakLibScatKernelTable {
   std::vector<double> offsets;
   amrex::Gpu::PinnedVector<double> kernel;  // Stored as flat array
 
-  int NPS = -1;  // Neutrino-positron scattering flag (NES only; -1 = not set)
+  int nps = -1;  // Neutrino-positron scattering flag (NES only; -1 = not set)
 
   Layout layout{};
 
@@ -391,7 +391,7 @@ struct WeakLibScatKernelTableDevice {
   std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
   std::vector<double> offsets;
   amrex::Gpu::DeviceVector<double> kernel;
-  int NPS = -1;
+  int nps = -1;
   Layout layout{};
 
   WeakLibScatKernelTableDevice() = default;

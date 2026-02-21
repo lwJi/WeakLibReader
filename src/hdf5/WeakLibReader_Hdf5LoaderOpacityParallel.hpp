@@ -228,23 +228,23 @@ inline void BcastScatIsoTable(WeakLibScatIsoTable& tab, int root)
 
   int corrections[3] = {0, 0, 0};
   if (myRank == root) {
-    corrections[0] = tab.weak_magnetism_corrections;
-    corrections[1] = tab.ion_ion_corrections;
-    corrections[2] = tab.many_body_corrections;
+    corrections[0] = tab.weakMagnetismCorrections;
+    corrections[1] = tab.ionIonCorrections;
+    corrections[2] = tab.manyBodyCorrections;
   }
   amrex::ParallelDescriptor::Bcast(corrections, 3, root);
 
-  double gaStrange = (myRank == root) ? tab.ga_strange : 0.0;
-  amrex::ParallelDescriptor::Bcast(&gaStrange, 1, root);
+  double gaStrangeVal = (myRank == root) ? tab.gaStrange : 0.0;
+  amrex::ParallelDescriptor::Bcast(&gaStrangeVal, 1, root);
 
   if (myRank != root) {
     tab.nOpacities = nOpacities;
     tab.nMoments = nMoments;
     tab.dimensions = dims;
-    tab.weak_magnetism_corrections = corrections[0];
-    tab.ion_ion_corrections = corrections[1];
-    tab.many_body_corrections = corrections[2];
-    tab.ga_strange = gaStrange;
+    tab.weakMagnetismCorrections = corrections[0];
+    tab.ionIonCorrections = corrections[1];
+    tab.manyBodyCorrections = corrections[2];
+    tab.gaStrange = gaStrangeVal;
     tab.offsets.resize(offsetSize);
     for (int s = 0; s < nOpacities; ++s) { tab.kernels[s].resize(dataSize); }
     tab.layout = MakeLayout(dims.data(), 5);
@@ -275,7 +275,7 @@ inline void BcastScatKernelTable(WeakLibScatKernelTable& tab, int root)
     header[0] = tab.nOpacities;
     header[1] = tab.nMoments;
     for (int i = 0; i < 5; ++i) { header[2 + i] = tab.dimensions[i]; }
-    header[7] = tab.NPS;
+    header[7] = tab.nps;
   }
   amrex::ParallelDescriptor::Bcast(header, 8, root);
 
@@ -291,7 +291,7 @@ inline void BcastScatKernelTable(WeakLibScatKernelTable& tab, int root)
     tab.nOpacities = nOpacities;
     tab.nMoments = nMoments;
     tab.dimensions = dims;
-    tab.NPS = header[7];
+    tab.nps = header[7];
     tab.offsets.resize(offsetSize);
     tab.kernel.resize(dataSize);
     tab.layout = MakeLayout(dims.data(), 5);

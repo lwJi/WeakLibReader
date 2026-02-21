@@ -70,10 +70,10 @@ inline void CopyScatIsoToDevice(const WeakLibScatIsoTable& host,
   device.nOpacities = host.nOpacities;
   device.nMoments = host.nMoments;
   device.dimensions = host.dimensions;
-  device.weak_magnetism_corrections = host.weak_magnetism_corrections;
-  device.ion_ion_corrections = host.ion_ion_corrections;
-  device.many_body_corrections = host.many_body_corrections;
-  device.ga_strange = host.ga_strange;
+  device.weakMagnetismCorrections = host.weakMagnetismCorrections;
+  device.ionIonCorrections = host.ionIonCorrections;
+  device.manyBodyCorrections = host.manyBodyCorrections;
+  device.gaStrange = host.gaStrange;
   device.layout = host.layout;
 
   device.offsets = host.offsets;
@@ -89,7 +89,7 @@ inline void CopyScatKernelToDevice(
   device.nOpacities = host.nOpacities;
   device.nMoments = host.nMoments;
   device.dimensions = host.dimensions;
-  device.NPS = host.NPS;
+  device.nps = host.nps;
   device.layout = host.layout;
 
   device.offsets = host.offsets;

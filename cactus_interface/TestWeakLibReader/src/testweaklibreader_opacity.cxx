@@ -15,7 +15,7 @@ namespace TestWeakLibReader {
 WeakLibReader::WeakLibOpacityTableDevice opacity_table_device;
 
 // Fixed energy value at midpoint of energy grid (set during load)
-double fixedEnergyMidpoint = 0.0;
+double fixed_energy_midpoint = 0.0;
 
 // Iso moment=0 slice, species=0, copied to device
 amrex::Gpu::DeviceVector<double> iso_slice_device;
@@ -59,7 +59,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
   }
 
   // Store midpoint energy from host-side table before device copy
-  fixedEnergyMidpoint =
+  fixed_energy_midpoint =
       opacity_table.energyGrid.values[opacity_table.energyGrid.nPoints / 2];
 
   opacity_table_device = WeakLibReader::MakeDeviceCopy(opacity_table);
@@ -211,7 +211,7 @@ extern "C" void TestWeakLibReader_InitEmAb(CCTK_ARGUMENTS) {
   };
 
   // Fixed energy at midpoint of energy grid (set during load from host data)
-  const double fixedE = fixedEnergyMidpoint;
+  const double fixedE = fixed_energy_midpoint;
 
   // Species 0 = electron neutrino
   const double offset = opacity_table_device.emAb.offsets[0];
@@ -247,7 +247,7 @@ extern "C" void TestWeakLibReader_InitEmAbAnue(CCTK_ARGUMENTS) {
     opacity_table_device.thermoState.axes[2],
   };
 
-  const double fixedE = fixedEnergyMidpoint;
+  const double fixedE = fixed_energy_midpoint;
 
   // Species 1 = electron antineutrino
   const double offset = opacity_table_device.emAb.offsets[1];
@@ -285,7 +285,7 @@ extern "C" void TestWeakLibReader_InitIso(CCTK_ARGUMENTS) {
   };
 
   // Fixed energy at midpoint of energy grid (set during load from host data)
-  const double fixedE = fixedEnergyMidpoint;
+  const double fixedE = fixed_energy_midpoint;
 
   // Offset for species=0, moment=0 from the 2D offset table
   const double offset = opacity_table_device.scatIso.OffsetValue(0, 0);

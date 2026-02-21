@@ -16,7 +16,7 @@
 
 namespace {
 
-using namespace TestHelpers;
+using namespace test_helpers;
 
 constexpr int TestNE = 4;
 constexpr int TestNRho = 2;
@@ -682,13 +682,13 @@ TEST_CASE("LoadWeakLibOpacityTableFullParallel loads EmAb and Iso",
   CHECK(parTable.scatIso.nOpacities == seqTable.scatIso.nOpacities);
   CHECK(parTable.scatIso.nMoments == seqTable.scatIso.nMoments);
   CHECK(parTable.scatIso.dimensions == seqTable.scatIso.dimensions);
-  CHECK(parTable.scatIso.weak_magnetism_corrections ==
-        seqTable.scatIso.weak_magnetism_corrections);
-  CHECK(parTable.scatIso.ion_ion_corrections ==
-        seqTable.scatIso.ion_ion_corrections);
-  CHECK(parTable.scatIso.many_body_corrections ==
-        seqTable.scatIso.many_body_corrections);
-  CHECK(parTable.scatIso.ga_strange == seqTable.scatIso.ga_strange);
+  CHECK(parTable.scatIso.weakMagnetismCorrections ==
+        seqTable.scatIso.weakMagnetismCorrections);
+  CHECK(parTable.scatIso.ionIonCorrections ==
+        seqTable.scatIso.ionIonCorrections);
+  CHECK(parTable.scatIso.manyBodyCorrections ==
+        seqTable.scatIso.manyBodyCorrections);
+  CHECK(parTable.scatIso.gaStrange == seqTable.scatIso.gaStrange);
   const auto isoOffsetSize = static_cast<std::size_t>(
       seqTable.scatIso.nOpacities) * seqTable.scatIso.nMoments;
   REQUIRE(parTable.scatIso.offsets.size() == isoOffsetSize);
