@@ -44,7 +44,6 @@ struct TableDevice {
   TableDevice& operator=(TableDevice&&) = default;
   TableDevice(const TableDevice&) = delete;
   TableDevice& operator=(const TableDevice&) = delete;
-
 };
 
 struct Hdf5Table {
