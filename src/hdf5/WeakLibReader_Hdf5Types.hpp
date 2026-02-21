@@ -97,7 +97,7 @@ struct WeakLibEosTable {
   // DependentVariables data
   std::vector<std::string> variableNames;
   std::vector<std::string> variableUnits;
-  amrex::Gpu::PinnedVector<double> offsets;
+  std::vector<double> offsets;
   std::vector<amrex::Gpu::PinnedVector<double>> variables;
   amrex::Gpu::PinnedVector<int> repaired;
   WeakLibEosIndices indices;
@@ -328,7 +328,7 @@ struct WeakLibScatIsoTable {
   std::array<std::string, NumSpecies> names;
   std::array<std::string, NumSpecies> units;
   // Offsets: 2D [nOpacities, nMoments] — column-major (species stride=1)
-  amrex::Gpu::PinnedVector<double> offsets;
+  std::vector<double> offsets;
 
   // Kernel data: 5D per species (stored as flat arrays)
   std::array<amrex::Gpu::PinnedVector<double>, NumSpecies> kernels;
@@ -401,7 +401,7 @@ struct WeakLibScatKernelTable {
   std::string name;
   std::string unit;
   // Offsets: 2D [nOpacities, nMoments] — column-major (species stride=1)
-  amrex::Gpu::PinnedVector<double> offsets;
+  std::vector<double> offsets;
   amrex::Gpu::PinnedVector<double> kernel;  // Stored as flat array
 
   int NPS = -1;  // Neutrino-positron scattering flag (NES only; -1 = not set)
