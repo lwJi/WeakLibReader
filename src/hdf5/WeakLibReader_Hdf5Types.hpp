@@ -26,43 +26,6 @@ enum class Hdf5LoadStatus : std::uint8_t {
   IncompatibleDatasetExtent
 };
 
-struct Hdf5LoadConfig {
-  std::string valueDataset = "values";
-  std::string axisPrefix = "axis";
-  std::string axisScaleAttribute = "scale";
-};
-
-struct TableDevice {
-  int nd = 0;
-  Layout layout{};
-  Axis axes[5]{};
-  amrex::Gpu::DeviceVector<double> values;
-  std::array<amrex::Gpu::DeviceVector<double>, 5> axisStorage{};
-
-  TableDevice() = default;
-  TableDevice(TableDevice&&) = default;
-  TableDevice& operator=(TableDevice&&) = default;
-  TableDevice(const TableDevice&) = delete;
-  TableDevice& operator=(const TableDevice&) = delete;
-};
-
-struct Hdf5Table {
-  int nd = 0;
-  Layout layout{};
-  Axis axes[5]{};
-  amrex::Gpu::PinnedVector<double> values;
-  std::array<std::vector<double>, 5> axisStorage{};
-
-  Hdf5Table() = default;
-  Hdf5Table(Hdf5Table&&) = default;
-  Hdf5Table& operator=(Hdf5Table&&) = default;
-  Hdf5Table(const Hdf5Table&) = delete;
-  Hdf5Table& operator=(const Hdf5Table&) = delete;
-
-  [[nodiscard]] double* DataPtr() noexcept { return values.data(); }
-  [[nodiscard]] const double* DataPtr() const noexcept { return values.data(); }
-};
-
 // Index mappings for dependent variables (matches Fortran DV % Indices)
 struct WeakLibEosIndices {
   int iPressure = -1;

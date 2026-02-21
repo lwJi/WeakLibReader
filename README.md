@@ -55,17 +55,13 @@ The suite exercises 2D-5D interpolation, derivatives, symmetric plane helpers, H
 
 using namespace WeakLibReader;
 
-// Load table from HDF5
-Hdf5Table table;
-auto status = LoadHdf5Table("opacity.h5", table);
+// Load EOS table from HDF5
+WeakLibEosTable eosTable;
+auto status = LoadWeakLibEosTableFull("eos.h5", eosTable);
 if (status != Hdf5LoadStatus::Success) { /* handle error */ }
 
-// 3D interpolation at a single point
-double d = 1.0e10, t = 0.5, y = 300.0;
-double result = LogInterpolateSingleVariable3DCustomPoint(
-    d, t, y,
-    table.axes,
-    table.DataPtr(), 0.0);
+// Copy to device for GPU kernels
+auto eosDevice = MakeDeviceCopy(eosTable);
 ```
 
 ## API Overview
@@ -76,8 +72,6 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 |------|-------------|
 | `Axis` | Grid metadata: pointer, size, scale (Linear/Log10) |
 | `Layout` | Column-major strides for N-D data |
-| `Hdf5Table` | Host-side table storage (owns data + axes) |
-| `TableDevice` | Device-side table copy |
 | `WeakLibEosTable` | Full EOS table storage with all variables and metadata |
 | `WeakLibEosTableDevice` | Device copy of full EOS table |
 | `WeakLibEosIndices` | Index mappings for EOS dependent variables |
@@ -89,8 +83,6 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 
 | Function | Description |
 |----------|-------------|
-| `LoadHdf5Table()` | Load HDF5 into `amrex::TableData` |
-| `LoadHdf5TableParallel()` | MPI-aware loader (rank 0 reads, broadcasts) |
 | `LoadWeakLibEosTableFull()` | Load complete EOS table with all metadata |
 | `MakeDeviceCopy()` | Copy host table to GPU device |
 | `LogInterpolateSingleVariable{2,3,4}DCustomPoint()` | Single-point N-D interpolation (GPU) |
@@ -111,14 +103,6 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 | `ComputeTemperatureFromEntropy()` | Temperature root-finding from entropy |
 
 ### HDF5 File Format
-
-#### Simple Format (Generic Tables)
-
-```
-/values              # N-D array (row-major layout)
-/axis0               # 1D array with "scale" attribute ("linear" or "log10")
-/axis1               # ...
-```
 
 #### Native WeakLib EOS Format
 

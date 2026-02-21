@@ -8,7 +8,6 @@ set(TEST_SOURCES
   test_log_interpolate_deriv.cpp
   test_log_interpolate_basis.cpp
   test_log_interpolate_kernel.cpp
-  test_hdf5_loader.cpp
   test_weaklib_eos_loader.cpp
   test_weaklib_opacity_loader.cpp
   test_eos_inversion.cpp
