@@ -32,13 +32,6 @@ struct Hdf5LoadConfig {
   std::string axisScaleAttribute = "scale";
 };
 
-struct TableView {
-  int nd = 0;
-  Layout layout{};
-  Axis axes[5]{};
-  const double* data = nullptr;
-};
-
 struct TableDevice {
   int nd = 0;
   Layout layout{};
@@ -51,18 +44,6 @@ struct TableDevice {
   TableDevice& operator=(TableDevice&&) = default;
   TableDevice(const TableDevice&) = delete;
   TableDevice& operator=(const TableDevice&) = delete;
-
-  [[nodiscard]] TableView View() const noexcept
-  {
-    TableView view{};
-    view.nd = nd;
-    view.layout = layout;
-    view.data = values.data();
-    for (int dim = 0; dim < 5; ++dim) {
-      view.axes[dim] = axes[dim];
-    }
-    return view;
-  }
 };
 
 struct Hdf5Table {
@@ -80,18 +61,6 @@ struct Hdf5Table {
 
   [[nodiscard]] double* DataPtr() noexcept { return values.data(); }
   [[nodiscard]] const double* DataPtr() const noexcept { return values.data(); }
-
-  [[nodiscard]] TableView View() const noexcept
-  {
-    TableView view{};
-    view.nd = nd;
-    view.layout = layout;
-    view.data = values.data();
-    for (int dim = 0; dim < 5; ++dim) {
-      view.axes[dim] = axes[dim];
-    }
-    return view;
-  }
 };
 
 // Index mappings for dependent variables (matches Fortran DV % Indices)
@@ -128,7 +97,7 @@ struct WeakLibEosTable {
   // DependentVariables data
   std::vector<std::string> variableNames;
   std::vector<std::string> variableUnits;
-  amrex::Gpu::PinnedVector<double> offsets;
+  std::vector<double> offsets;
   std::vector<amrex::Gpu::PinnedVector<double>> variables;
   amrex::Gpu::PinnedVector<int> repaired;
   WeakLibEosIndices indices;
@@ -156,7 +125,7 @@ struct WeakLibEosTableDevice {
   Axis axes[3]{};
   Layout layout{};
 
-  amrex::Gpu::DeviceVector<double> offsets;
+  std::vector<double> offsets;
   std::vector<amrex::Gpu::DeviceVector<double>> variables;
   amrex::Gpu::DeviceVector<int> repaired;
   WeakLibEosIndices indices;
@@ -359,7 +328,7 @@ struct WeakLibScatIsoTable {
   std::array<std::string, NumSpecies> names;
   std::array<std::string, NumSpecies> units;
   // Offsets: 2D [nOpacities, nMoments] — column-major (species stride=1)
-  amrex::Gpu::PinnedVector<double> offsets;
+  std::vector<double> offsets;
 
   // Kernel data: 5D per species (stored as flat arrays)
   std::array<amrex::Gpu::PinnedVector<double>, NumSpecies> kernels;
@@ -394,7 +363,7 @@ struct WeakLibScatIsoTableDevice {
   int nOpacities = 0;
   int nMoments = 0;
   std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
-  amrex::Gpu::DeviceVector<double> offsets;
+  std::vector<double> offsets;
   std::array<amrex::Gpu::DeviceVector<double>, NumSpecies> kernels;
 
   int weak_magnetism_corrections = -1;
@@ -432,7 +401,7 @@ struct WeakLibScatKernelTable {
   std::string name;
   std::string unit;
   // Offsets: 2D [nOpacities, nMoments] — column-major (species stride=1)
-  amrex::Gpu::PinnedVector<double> offsets;
+  std::vector<double> offsets;
   amrex::Gpu::PinnedVector<double> kernel;  // Stored as flat array
 
   int NPS = -1;  // Neutrino-positron scattering flag (NES only; -1 = not set)
@@ -457,7 +426,7 @@ struct WeakLibScatKernelTableDevice {
   int nOpacities = 0;
   int nMoments = 0;
   std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
-  amrex::Gpu::DeviceVector<double> offsets;
+  std::vector<double> offsets;
   amrex::Gpu::DeviceVector<double> kernel;
   int NPS = -1;
   Layout layout{};

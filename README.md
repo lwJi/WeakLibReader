@@ -60,15 +60,12 @@ Hdf5Table table;
 auto status = LoadHdf5Table("opacity.h5", table);
 if (status != Hdf5LoadStatus::Success) { /* handle error */ }
 
-// Get table view
-TableView view = table.View();
-
 // 3D interpolation at a single point
 double d = 1.0e10, t = 0.5, y = 300.0;
 double result = LogInterpolateSingleVariable3DCustomPoint(
     d, t, y,
-    view.axes,
-    view.data, 0.0);
+    table.axes,
+    table.DataPtr(), 0.0);
 ```
 
 ## API Overview
@@ -80,7 +77,6 @@ double result = LogInterpolateSingleVariable3DCustomPoint(
 | `Axis` | Grid metadata: pointer, size, scale (Linear/Log10) |
 | `Layout` | Column-major strides for N-D data |
 | `Hdf5Table` | Host-side table storage (owns data + axes) |
-| `TableView` | Read-only view into loaded table |
 | `TableDevice` | Device-side table copy |
 | `WeakLibEosTable` | Full EOS table storage with all variables and metadata |
 | `WeakLibEosTableDevice` | Device copy of full EOS table |

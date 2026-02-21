@@ -119,7 +119,7 @@ inline WeakLibEosTableDevice MakeDeviceCopy(const WeakLibEosTable& host)
   device.layout = host.layout;
   device.indices = host.indices;
 
-  detail::CopyVectorToDevice(host.offsets, device.offsets);
+  device.offsets = host.offsets;
 
   for (int dim = 0; dim < 3; ++dim) {
     detail::CopyVectorToDevice(host.axisStorage[dim], device.axisStorage[dim]);
