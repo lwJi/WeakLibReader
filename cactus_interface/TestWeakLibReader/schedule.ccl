@@ -1,6 +1,6 @@
 # Schedule definitions for thorn TestWeakLibReader
 
-STORAGE: energy
+STORAGE: pressure
 STORAGE: opacity_emab
 STORAGE: opacity_iso
 STORAGE: eos_log_eta eos_dxp eos_dxn eos_dxpn
@@ -23,8 +23,8 @@ SCHEDULE TestWeakLibReader_LoadTable AT INITIAL
 SCHEDULE TestWeakLibReader_Init AT INITIAL AFTER TestWeakLibReader_LoadTable
 {
   LANG: C
-  WRITES: energy(interior)
-  SYNC: energy
+  WRITES: pressure(interior)
+  SYNC: pressure
 } "Initialize grid function"
 
 SCHEDULE TestWeakLibReader_InvertEos AT INITIAL AFTER TestWeakLibReader_Init

@@ -4,7 +4,7 @@ IMPLEMENTS: TestWeakLibReader
 
 USES INCLUDE HEADER: loop_device.hxx
 
-CCTK_REAL energy TYPE=GF CENTERING={VVV} TAGS="checkpoint='yes'" "weaklibreader test"
+CCTK_REAL pressure TYPE=GF CENTERING={VVV} TAGS="checkpoint='yes'" "pressure test"
 CCTK_REAL opacity_emab TYPE=GF CENTERING={VVV} TAGS="checkpoint='yes'" "EmAb opacity test"
 CCTK_REAL opacity_iso TYPE=GF CENTERING={VVV} TAGS="checkpoint='yes'" "Iso opacity test"
 CCTK_REAL eos_log_eta TYPE=GF CENTERING={VVV} TAGS="checkpoint='yes'" "log10(mu_e/(kB*T))"

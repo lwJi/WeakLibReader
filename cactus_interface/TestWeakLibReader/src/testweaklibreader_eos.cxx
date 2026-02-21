@@ -73,7 +73,7 @@ extern "C" void TestWeakLibReader_Init(CCTK_ARGUMENTS) {
       const double rho = RescaleToAxis(p.x, axes[0]);
       const double T   = RescaleToAxis(p.y, axes[1]);
       const double Ye  = RescaleToAxis(p.z, axes[2]);
-      energy(p.I) = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
+      pressure(p.I) = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
           rho, T, Ye,
           axes,
           pressureData, pressureOffset);
