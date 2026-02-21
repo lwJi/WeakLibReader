@@ -76,7 +76,7 @@ inline void CopyScatIsoToDevice(const WeakLibScatIsoTable& host,
   device.ga_strange = host.ga_strange;
   device.layout = host.layout;
 
-  CopyVectorToDevice(host.offsets, device.offsets);
+  device.offsets.assign(host.offsets.begin(), host.offsets.end());
   for (int i = 0; i < WeakLibScatIsoTable::NumSpecies; ++i) {
     CopyVectorToDevice(host.kernels[i], device.kernels[i]);
   }
@@ -92,7 +92,7 @@ inline void CopyScatKernelToDevice(
   device.NPS = host.NPS;
   device.layout = host.layout;
 
-  CopyVectorToDevice(host.offsets, device.offsets);
+  device.offsets.assign(host.offsets.begin(), host.offsets.end());
   CopyVectorToDevice(host.kernel, device.kernel);
 }
 

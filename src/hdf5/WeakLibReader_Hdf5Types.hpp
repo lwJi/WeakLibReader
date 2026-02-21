@@ -32,13 +32,6 @@ struct Hdf5LoadConfig {
   std::string axisScaleAttribute = "scale";
 };
 
-struct TableView {
-  int nd = 0;
-  Layout layout{};
-  Axis axes[5]{};
-  const double* data = nullptr;
-};
-
 struct TableDevice {
   int nd = 0;
   Layout layout{};
@@ -52,17 +45,6 @@ struct TableDevice {
   TableDevice(const TableDevice&) = delete;
   TableDevice& operator=(const TableDevice&) = delete;
 
-  [[nodiscard]] TableView View() const noexcept
-  {
-    TableView view{};
-    view.nd = nd;
-    view.layout = layout;
-    view.data = values.data();
-    for (int dim = 0; dim < 5; ++dim) {
-      view.axes[dim] = axes[dim];
-    }
-    return view;
-  }
 };
 
 struct Hdf5Table {
@@ -80,18 +62,6 @@ struct Hdf5Table {
 
   [[nodiscard]] double* DataPtr() noexcept { return values.data(); }
   [[nodiscard]] const double* DataPtr() const noexcept { return values.data(); }
-
-  [[nodiscard]] TableView View() const noexcept
-  {
-    TableView view{};
-    view.nd = nd;
-    view.layout = layout;
-    view.data = values.data();
-    for (int dim = 0; dim < 5; ++dim) {
-      view.axes[dim] = axes[dim];
-    }
-    return view;
-  }
 };
 
 // Index mappings for dependent variables (matches Fortran DV % Indices)
@@ -156,7 +126,7 @@ struct WeakLibEosTableDevice {
   Axis axes[3]{};
   Layout layout{};
 
-  amrex::Gpu::DeviceVector<double> offsets;
+  std::vector<double> offsets;
   std::vector<amrex::Gpu::DeviceVector<double>> variables;
   amrex::Gpu::DeviceVector<int> repaired;
   WeakLibEosIndices indices;
@@ -394,7 +364,7 @@ struct WeakLibScatIsoTableDevice {
   int nOpacities = 0;
   int nMoments = 0;
   std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
-  amrex::Gpu::DeviceVector<double> offsets;
+  std::vector<double> offsets;
   std::array<amrex::Gpu::DeviceVector<double>, NumSpecies> kernels;
 
   int weak_magnetism_corrections = -1;
@@ -457,7 +427,7 @@ struct WeakLibScatKernelTableDevice {
   int nOpacities = 0;
   int nMoments = 0;
   std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};
-  amrex::Gpu::DeviceVector<double> offsets;
+  std::vector<double> offsets;
   amrex::Gpu::DeviceVector<double> kernel;
   int NPS = -1;
   Layout layout{};
