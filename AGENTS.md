@@ -1,8 +1,6 @@
 # AGENTS.md
 
-## Project Goal
-
-Translate WeakLib's EOS & opacity **interpolators** from Fortran into **GPU-friendly C++** that integrates with **AMReX**. Target: numerical parity with Fortran (≤1e-12 relative error), CUDA first (HIP later).
+WeakLibReader translates WeakLib's EOS & opacity interpolators from Fortran into GPU-friendly C++ integrated with AMReX. Target: numerical parity with Fortran (≤1e-12 relative error), CUDA first (HIP later).
 
 ## Tech Stack
 
@@ -17,7 +15,7 @@ Translate WeakLib's EOS & opacity **interpolators** from Fortran into **GPU-frie
 ```
 src/
   base/             # Core types: Axis, Layout, IndexDelta, InterpBasis, Math
-  interp/           # Interpolation: LogInterpolate*, InterpLogTable* (2D–5D)
+  interp/           # Interpolation: LogInterpolate*, InterpLogTable* (2D–5D), EosInversion
   hdf5/             # HDF5 loaders: tables, EOS, opacity, device copies, MPI broadcast
 test/               # Catch2 regression tests (EOS, opacity, interpolation, HDF5)
 ref/weaklib/        # Fortran reference (consult before new interp logic)
@@ -25,6 +23,13 @@ cactus_interface/   # Cactus thorns: WeakLibReader (library) + TestWeakLibReader
 scripts/            # build.sh, test.sh, check.sh
 specs/              # Detailed subsystem docs (see below)
 ```
+
+## Public API
+
+Three umbrella headers cover the full API:
+- `WeakLibReader_Hdf5Loader.hpp` — All HDF5 loaders, device copy, MPI broadcast
+- `WeakLibReader_LogInterpolate.hpp` — All interpolation functions (point, sweep, deriv)
+- `WeakLibReader_EosInversion.hpp` — EOS temperature inversion (bisection)
 
 ## Build & Test
 
@@ -53,6 +58,7 @@ Set `VERBOSE=1` for full test output (e.g., `VERBOSE=1 scripts/test.sh`).
 - Add tests for new features; verify against `ref/weaklib/` for interpolation changes
 - Preserve numerical behavior at boundaries and mixed Linear/Log10 axes
 - Use `Layout::Offset` for bounds-safe data access
+- Use imperative present-tense commit messages (e.g., "Add feature", "Fix bug")
 
 **Don't**
 - Add I/O formats beyond HDF5
@@ -60,14 +66,12 @@ Set `VERBOSE=1` for full test output (e.g., `VERBOSE=1 scripts/test.sh`).
 - Add OpenACC or non-AMReX GPU pragmas
 - Skip host-side validation (monotonicity, Log10 positivity)
 
-## Fortran Reference
+## Specs
 
-Located in `ref/weaklib/`. Key modules: `wlInterpolationModule.F90`, `wlInterpolationUtilitiesModule.F90`. Always consult before implementing new interpolation logic.
+Detailed reference material — consult when working on specific subsystems:
 
-## Agent Docs
-
-Detailed reference material in `specs/` — consult when working on specific subsystems:
-
-- **`hdf5_formats.md`** — HDF5 table schemas (simple, EOS, opacity) and loader function reference
-- **`opacity_tables.md`** — Opacity table types, dimensions, interpolation API, device patterns
-- **`cactus_integration.md`** — Cactus thorn CCL patterns, device loops, parameter sharing
+- **`specs/interpolation.md`** — Interpolation subsystem: log-space math, ND dispatch, sweep/deriv variants, EOS inversion
+- **`specs/testing.md`** — Test structure, helpers, how to add new tests
+- **`specs/hdf5_formats.md`** — HDF5 table schemas (simple, EOS, opacity) and loader function reference
+- **`specs/opacity_tables.md`** — Opacity table types, dimensions, interpolation API, device patterns
+- **`specs/cactus_integration.md`** — Cactus thorn CCL patterns, device loops, parameter sharing
