@@ -21,6 +21,19 @@ struct EosInversionBounds {
   double minS = 0.0, maxS = 0.0;
 };
 
+// Error codes returned by EOS inversion functions.
+// Underlying values match Fortran wlEOSInversionModule.F90:188-227.
+// Fortran error 10 (not initialized) is omitted — EosInversionBounds
+// is always valid if constructed (see InitializeEosInversionBounds).
+enum class EosInversionError : int {
+  Success                    = 0,
+  DensityOutOfRange          = 1,
+  VariableOutOfRange         = 2,
+  ElectronFractionOutOfRange = 3,
+  NaNInput                   = 11,
+  NoRootFound                = 13,
+};
+
 // Host-only: scan axis grids and variable data to compute inversion bounds.
 // Takes raw Axis + data pointers (no dependency on hdf5/ types).
 // Variable data is in log-space: log10(value + offset).
@@ -70,21 +83,20 @@ inline EosInversionBounds InitializeEosInversionBounds(
 }
 
 // Device input validation.
-// Error codes: 0=OK, 1=D outside bounds, 2=X outside bounds,
-//              3=Y outside bounds, 11=NaN in argument(s).
+// Returns EosInversionError; see enum for individual codes.
 // Matches Fortran CheckInputError (wlEOSInversionModule.F90:188-227).
 // Note: Fortran error 10 (not initialized) omitted — struct is always valid.
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int CheckInversionInputError(
+EosInversionError CheckInversionInputError(
     double D, double X, double Y,
     const EosInversionBounds& bounds,
     double minX, double maxX) noexcept
 {
-  if (D != D || X != X || Y != Y) return 11;
-  if (D < bounds.minD || D > bounds.maxD) return 1;
-  if (X < minX || X > maxX) return 2;
-  if (Y < bounds.minY || Y > bounds.maxY) return 3;
-  return 0;
+  if (D != D || X != X || Y != Y) return EosInversionError::NaNInput;
+  if (D < bounds.minD || D > bounds.maxD) return EosInversionError::DensityOutOfRange;
+  if (X < minX || X > maxX) return EosInversionError::VariableOutOfRange;
+  if (Y < bounds.minY || Y > bounds.maxY) return EosInversionError::ElectronFractionOutOfRange;
+  return EosInversionError::Success;
 }
 
 namespace detail {
@@ -136,7 +148,7 @@ double EvalAtFixedTIndex(
 // Core bisection with initial guess.
 // Matches Fortran ComputeTemperatureWithDxyGuess
 // (wlEOSInversionModule.F90:270-440).
-// Returns error code: 0=success, 13=no root found.
+// Returns EosInversionError::Success or EosInversionError::NoRootFound.
 //
 // Algorithm:
 //   Phase 1: Check guess vicinity [iT, iT+1]
@@ -148,7 +160,7 @@ double EvalAtFixedTIndex(
 //   Fortran i_a=1, i_b=SizeTs -> C++ i_a=0, i_b=nT-1
 //   Fortran DO i=2,SizeTs-1   -> C++ for(i=1; i<=nT-2; ++i)
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int ComputeTemperatureWithDxyGuess(
+EosInversionError ComputeTemperatureWithDxyGuess(
     double D, double X, double Y,
     const Axis axes[3],
     const double* xData,
@@ -158,7 +170,7 @@ int ComputeTemperatureWithDxyGuess(
     double& T) noexcept
 {
   T = 0.0;
-  int error = 0;
+  EosInversionError error = EosInversionError::Success;
 
   const int nT = axes[1].n;
 
@@ -187,7 +199,7 @@ int ComputeTemperatureWithDxyGuess(
 
   if (f_a * f_b <= 0.0) {
     T = detail::InverseLogInterp(T_a, T_b, X_a, X_b, X, xOffset);
-    return 0;
+    return EosInversionError::Success;
   }
 
   // --- Phase 2: Evaluate at full T range endpoints ---
@@ -277,10 +289,10 @@ int ComputeTemperatureWithDxyGuess(
       }
     }
 
-    if (d_i >= nT) error = 13;
+    if (d_i >= nT) error = EosInversionError::NoRootFound;
   }
 
-  if (error != 0) {
+  if (error != EosInversionError::Success) {
     T = 0.0;
   } else {
     T = detail::InverseLogInterp(T_a, T_b, X_a, X_b, X, xOffset);
@@ -292,7 +304,7 @@ int ComputeTemperatureWithDxyGuess(
 // Core bisection without initial guess.
 // Matches Fortran ComputeTemperatureWithDxyNoGuess
 // (wlEOSInversionModule.F90:443-573).
-// Returns error code: 0=success, 13=no root found.
+// Returns EosInversionError::Success or EosInversionError::NoRootFound.
 //
 // Algorithm:
 //   Phase 1: Evaluate at full T range endpoints [0, nT-1]
@@ -303,7 +315,7 @@ int ComputeTemperatureWithDxyGuess(
 //   Fortran i_a=1, i_b=SizeTs     -> C++ i_a=0, i_b=nT-1
 //   Fortran DO i=SizeTs-1,2,-1    -> C++ for(i=nT-2; i>=1; --i)
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int ComputeTemperatureWithDxyNoGuess(
+EosInversionError ComputeTemperatureWithDxyNoGuess(
     double D, double X, double Y,
     const Axis axes[3],
     const double* xData,
@@ -311,7 +323,7 @@ int ComputeTemperatureWithDxyNoGuess(
     double xOffset,
     double& T) noexcept
 {
-  int error = 0;
+  EosInversionError error = EosInversionError::Success;
 
   const int nT = axes[1].n;
 
@@ -393,10 +405,10 @@ int ComputeTemperatureWithDxyNoGuess(
     // Check if root was found (Fortran lines 560-563)
     f_a = X - X_a;
     f_b = X - X_b;
-    if (f_a * f_b > 0.0) error = 13;
+    if (f_a * f_b > 0.0) error = EosInversionError::NoRootFound;
   }
 
-  if (error != 0) {
+  if (error != EosInversionError::Success) {
     T = 0.0;
   } else {
     T = detail::InverseLogInterp(T_a, T_b, X_a, X_b, X, xOffset);
@@ -409,7 +421,7 @@ namespace detail {
 
 // Shared check-and-dispatch for all ComputeTemperatureFrom* wrappers (no guess).
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int ComputeTemperatureFromVariable(
+EosInversionError ComputeTemperatureFromVariable(
     double D, double X, double Y,
     const Axis axes[3],
     const double* xData,
@@ -420,15 +432,15 @@ int ComputeTemperatureFromVariable(
     double& T) noexcept
 {
   T = 0.0;
-  const int error = CheckInversionInputError(D, X, Y, bounds, minX, maxX);
-  if (error != 0) return error;
+  const auto error = CheckInversionInputError(D, X, Y, bounds, minX, maxX);
+  if (error != EosInversionError::Success) return error;
   return ComputeTemperatureWithDxyNoGuess(
       D, X, Y, axes, xData, layout, xOffset, T);
 }
 
 // Shared check-and-dispatch for all ComputeTemperatureFrom* wrappers (with guess).
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int ComputeTemperatureFromVariable(
+EosInversionError ComputeTemperatureFromVariable(
     double D, double X, double Y,
     const Axis axes[3],
     const double* xData,
@@ -440,8 +452,8 @@ int ComputeTemperatureFromVariable(
     double& T) noexcept
 {
   T = 0.0;
-  const int error = CheckInversionInputError(D, X, Y, bounds, minX, maxX);
-  if (error != 0) return error;
+  const auto error = CheckInversionInputError(D, X, Y, bounds, minX, maxX);
+  if (error != EosInversionError::Success) return error;
   return ComputeTemperatureWithDxyGuess(
       D, X, Y, axes, xData, layout, xOffset, tGuess, T);
 }
@@ -451,7 +463,7 @@ int ComputeTemperatureFromVariable(
 // Convenience wrappers for temperature inversion from different EOS variables.
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int ComputeTemperatureFromEnergy(
+EosInversionError ComputeTemperatureFromEnergy(
     double D, double E, double Y,
     const Axis axes[3],
     const double* energyData,
@@ -466,7 +478,7 @@ int ComputeTemperatureFromEnergy(
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int ComputeTemperatureFromEnergy(
+EosInversionError ComputeTemperatureFromEnergy(
     double D, double E, double Y,
     const Axis axes[3],
     const double* energyData,
@@ -482,7 +494,7 @@ int ComputeTemperatureFromEnergy(
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int ComputeTemperatureFromPressure(
+EosInversionError ComputeTemperatureFromPressure(
     double D, double P, double Y,
     const Axis axes[3],
     const double* pressureData,
@@ -497,7 +509,7 @@ int ComputeTemperatureFromPressure(
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int ComputeTemperatureFromPressure(
+EosInversionError ComputeTemperatureFromPressure(
     double D, double P, double Y,
     const Axis axes[3],
     const double* pressureData,
@@ -513,7 +525,7 @@ int ComputeTemperatureFromPressure(
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int ComputeTemperatureFromEntropy(
+EosInversionError ComputeTemperatureFromEntropy(
     double D, double S, double Y,
     const Axis axes[3],
     const double* entropyData,
@@ -528,7 +540,7 @@ int ComputeTemperatureFromEntropy(
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int ComputeTemperatureFromEntropy(
+EosInversionError ComputeTemperatureFromEntropy(
     double D, double S, double Y,
     const Axis axes[3],
     const double* entropyData,

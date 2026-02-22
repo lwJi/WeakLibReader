@@ -181,37 +181,37 @@ TEST_CASE("CheckInversionInputError returns correct codes", "[eosinversion]")
 
   // Valid input
   CHECK(CheckInversionInputError(1e8, 1e10, 0.3, bounds,
-                                  bounds.minE, bounds.maxE) == 0);
+                                  bounds.minE, bounds.maxE) == EosInversionError::Success);
 
   // D out of range (below)
   CHECK(CheckInversionInputError(1e5, 1e10, 0.3, bounds,
-                                  bounds.minE, bounds.maxE) == 1);
+                                  bounds.minE, bounds.maxE) == EosInversionError::DensityOutOfRange);
   // D out of range (above)
   CHECK(CheckInversionInputError(1e11, 1e10, 0.3, bounds,
-                                  bounds.minE, bounds.maxE) == 1);
+                                  bounds.minE, bounds.maxE) == EosInversionError::DensityOutOfRange);
 
   // X out of range (below)
   CHECK(CheckInversionInputError(1e8, 1.0, 0.3, bounds,
-                                  bounds.minE, bounds.maxE) == 2);
+                                  bounds.minE, bounds.maxE) == EosInversionError::VariableOutOfRange);
   // X out of range (above)
   CHECK(CheckInversionInputError(1e8, 1e21, 0.3, bounds,
-                                  bounds.minE, bounds.maxE) == 2);
+                                  bounds.minE, bounds.maxE) == EosInversionError::VariableOutOfRange);
 
   // Y out of range (below)
   CHECK(CheckInversionInputError(1e8, 1e10, 0.05, bounds,
-                                  bounds.minE, bounds.maxE) == 3);
+                                  bounds.minE, bounds.maxE) == EosInversionError::ElectronFractionOutOfRange);
   // Y out of range (above)
   CHECK(CheckInversionInputError(1e8, 1e10, 0.6, bounds,
-                                  bounds.minE, bounds.maxE) == 3);
+                                  bounds.minE, bounds.maxE) == EosInversionError::ElectronFractionOutOfRange);
 
   // NaN inputs
   const double nan = std::numeric_limits<double>::quiet_NaN();
   CHECK(CheckInversionInputError(nan, 1e10, 0.3, bounds,
-                                  bounds.minE, bounds.maxE) == 11);
+                                  bounds.minE, bounds.maxE) == EosInversionError::NaNInput);
   CHECK(CheckInversionInputError(1e8, nan, 0.3, bounds,
-                                  bounds.minE, bounds.maxE) == 11);
+                                  bounds.minE, bounds.maxE) == EosInversionError::NaNInput);
   CHECK(CheckInversionInputError(1e8, 1e10, nan, bounds,
-                                  bounds.minE, bounds.maxE) == 11);
+                                  bounds.minE, bounds.maxE) == EosInversionError::NaNInput);
 }
 
 TEST_CASE("EvalAtFixedTIndex matches full 3D interp at grid T", "[eosinversion]")
@@ -279,11 +279,11 @@ TEST_CASE("Round-trip inversion recovers T without guess", "[eosinversion]")
 
         // Invert
         double T_recovered = 0.0;
-        const int error = ComputeTemperatureFromEnergy(
+        const auto error = ComputeTemperatureFromEnergy(
             D, E, Y, axes, data.data(), layout, Offset, bounds,
             T_recovered);
 
-        CHECK(error == 0);
+        CHECK(error == EosInversionError::Success);
         const double relErr = std::abs(T_recovered - T_known) / T_known;
         CHECK(relErr < Tol);
       }
@@ -314,11 +314,11 @@ TEST_CASE("Round-trip inversion recovers T with good guess", "[eosinversion]")
 
   const double tGuess = 1.2e10; // close to T_known
   double T_recovered = 0.0;
-  const int error = ComputeTemperatureFromEnergy(
+  const auto error = ComputeTemperatureFromEnergy(
       D, E, Y, axes, data.data(), layout, Offset, bounds,
       tGuess, T_recovered);
 
-  CHECK(error == 0);
+  CHECK(error == EosInversionError::Success);
   const double relErr = std::abs(T_recovered - T_known) / T_known;
   CHECK(relErr < Tol);
 }
@@ -346,11 +346,11 @@ TEST_CASE("Round-trip inversion recovers T with bad guess", "[eosinversion]")
 
   const double tGuess = 1e9; // far from T_known=1.5e10
   double T_recovered = 0.0;
-  const int error = ComputeTemperatureFromEnergy(
+  const auto error = ComputeTemperatureFromEnergy(
       D, E, Y, axes, data.data(), layout, Offset, bounds,
       tGuess, T_recovered);
 
-  CHECK(error == 0);
+  CHECK(error == EosInversionError::Success);
   const double relErr = std::abs(T_recovered - T_known) / T_known;
   CHECK(relErr < Tol);
 }
@@ -378,11 +378,11 @@ TEST_CASE("Round-trip inversion recovers T with upper boundary guess", "[eosinve
 
   const double tGuess = 9e10; // near upper T boundary
   double T_recovered = 0.0;
-  const int error = ComputeTemperatureFromEnergy(
+  const auto error = ComputeTemperatureFromEnergy(
       D, E, Y, axes, data.data(), layout, Offset, bounds,
       tGuess, T_recovered);
 
-  CHECK(error == 0);
+  CHECK(error == EosInversionError::Success);
   const double relErr = std::abs(T_recovered - T_known) / T_known;
   CHECK(relErr < Tol);
 }
@@ -425,11 +425,11 @@ TEST_CASE("Inversion at grid boundary points", "[eosinversion]")
 
     // Invert (no guess)
     double T_recovered = 0.0;
-    const int error = ComputeTemperatureFromEnergy(
+    const auto error = ComputeTemperatureFromEnergy(
         pt.D, E, pt.Y, axes, data.data(), layout, Offset, bounds,
         T_recovered);
 
-    CHECK(error == 0);
+    CHECK(error == EosInversionError::Success);
     const double relErr = std::abs(T_recovered - pt.T) / pt.T;
     CHECK(relErr < Tol);
   }
@@ -544,11 +544,11 @@ TEST_CASE("Round-trip pressure inversion without guess",
             D, T_known, Y, d.axes, d.pressure.data(), Offset);
 
         double T_recovered = 0.0;
-        const int error = ComputeTemperatureFromPressure(
+        const auto error = ComputeTemperatureFromPressure(
             D, P, Y, d.axes, d.pressure.data(), d.layout, Offset,
             d.bounds, T_recovered);
 
-        CHECK(error == 0);
+        CHECK(error == EosInversionError::Success);
         const double relErr = std::abs(T_recovered - T_known) / T_known;
         CHECK(relErr < Tol);
       }
@@ -572,11 +572,11 @@ TEST_CASE("Round-trip pressure inversion with good guess",
 
   const double tGuess = 1.2e10; // close to T_known
   double T_recovered = 0.0;
-  const int error = ComputeTemperatureFromPressure(
+  const auto error = ComputeTemperatureFromPressure(
       D, P, Y, d.axes, d.pressure.data(), d.layout, Offset,
       d.bounds, tGuess, T_recovered);
 
-  CHECK(error == 0);
+  CHECK(error == EosInversionError::Success);
   const double relErr = std::abs(T_recovered - T_known) / T_known;
   CHECK(relErr < Tol);
 }
@@ -597,11 +597,11 @@ TEST_CASE("Round-trip pressure inversion with bad guess",
 
   const double tGuess = 1e9; // far from T_known=1.5e10
   double T_recovered = 0.0;
-  const int error = ComputeTemperatureFromPressure(
+  const auto error = ComputeTemperatureFromPressure(
       D, P, Y, d.axes, d.pressure.data(), d.layout, Offset,
       d.bounds, tGuess, T_recovered);
 
-  CHECK(error == 0);
+  CHECK(error == EosInversionError::Success);
   const double relErr = std::abs(T_recovered - T_known) / T_known;
   CHECK(relErr < Tol);
 }
@@ -624,11 +624,11 @@ TEST_CASE("Round-trip entropy inversion without guess",
             D, T_known, Y, d.axes, d.entropy.data(), Offset);
 
         double T_recovered = 0.0;
-        const int error = ComputeTemperatureFromEntropy(
+        const auto error = ComputeTemperatureFromEntropy(
             D, S, Y, d.axes, d.entropy.data(), d.layout, Offset,
             d.bounds, T_recovered);
 
-        CHECK(error == 0);
+        CHECK(error == EosInversionError::Success);
         const double relErr = std::abs(T_recovered - T_known) / T_known;
         CHECK(relErr < Tol);
       }
@@ -652,11 +652,11 @@ TEST_CASE("Round-trip entropy inversion with good guess",
 
   const double tGuess = 1.2e10; // close to T_known
   double T_recovered = 0.0;
-  const int error = ComputeTemperatureFromEntropy(
+  const auto error = ComputeTemperatureFromEntropy(
       D, S, Y, d.axes, d.entropy.data(), d.layout, Offset,
       d.bounds, tGuess, T_recovered);
 
-  CHECK(error == 0);
+  CHECK(error == EosInversionError::Success);
   const double relErr = std::abs(T_recovered - T_known) / T_known;
   CHECK(relErr < Tol);
 }
@@ -677,11 +677,11 @@ TEST_CASE("Round-trip entropy inversion with bad guess",
 
   const double tGuess = 1e9; // far from T_known=1.5e10
   double T_recovered = 0.0;
-  const int error = ComputeTemperatureFromEntropy(
+  const auto error = ComputeTemperatureFromEntropy(
       D, S, Y, d.axes, d.entropy.data(), d.layout, Offset,
       d.bounds, tGuess, T_recovered);
 
-  CHECK(error == 0);
+  CHECK(error == EosInversionError::Success);
   const double relErr = std::abs(T_recovered - T_known) / T_known;
   CHECK(relErr < Tol);
 }

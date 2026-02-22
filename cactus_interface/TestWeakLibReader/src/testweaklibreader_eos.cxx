@@ -173,11 +173,11 @@ extern "C" void TestWeakLibReader_InvertEos(CCTK_ARGUMENTS) {
 
       // Invert to recover T
       double T_recovered = 0.0;
-      const int error = WeakLibReader::ComputeTemperatureFromEnergy(
+      const auto error = WeakLibReader::ComputeTemperatureFromEnergy(
           rho, E, Ye, axes, eData, layout, eOffset, bounds, T_recovered);
 
       eos_inv_temp(p.I)  = T_recovered;
-      eos_inv_error(p.I) = static_cast<double>(error);
+      eos_inv_error(p.I) = static_cast<double>(static_cast<int>(error));
       });
 }
 
@@ -212,11 +212,11 @@ extern "C" void TestWeakLibReader_InvertEosPressure(CCTK_ARGUMENTS) {
 
       // Invert to recover T
       double T_recovered = 0.0;
-      const int error = WeakLibReader::ComputeTemperatureFromPressure(
+      const auto error = WeakLibReader::ComputeTemperatureFromPressure(
           rho, P, Ye, axes, pData, layout, pOffset, bounds, T_recovered);
 
       eos_inv_temp_press(p.I)  = T_recovered;
-      eos_inv_error_press(p.I) = static_cast<double>(error);
+      eos_inv_error_press(p.I) = static_cast<double>(static_cast<int>(error));
       });
 }
 
@@ -249,11 +249,11 @@ extern "C" void TestWeakLibReader_InvertEosEntropy(CCTK_ARGUMENTS) {
           rho, T, Ye, axes, sData, sOffset);
 
       double T_recovered = 0.0;
-      const int error = WeakLibReader::ComputeTemperatureFromEntropy(
+      const auto error = WeakLibReader::ComputeTemperatureFromEntropy(
           rho, S, Ye, axes, sData, layout, sOffset, bounds, T_recovered);
 
       eos_inv_temp_entropy(p.I)  = T_recovered;
-      eos_inv_error_entropy(p.I) = static_cast<double>(error);
+      eos_inv_error_entropy(p.I) = static_cast<double>(static_cast<int>(error));
       });
 }
 
@@ -287,11 +287,11 @@ extern "C" void TestWeakLibReader_InvertEosGuess(CCTK_ARGUMENTS) {
 
       // Use the known T as initial guess (simulates a good guess scenario)
       double T_recovered = 0.0;
-      const int error = WeakLibReader::ComputeTemperatureFromEnergy(
+      const auto error = WeakLibReader::ComputeTemperatureFromEnergy(
           rho, E, Ye, axes, eData, layout, eOffset, bounds, T, T_recovered);
 
       eos_inv_temp_guess(p.I)  = T_recovered;
-      eos_inv_error_guess(p.I) = static_cast<double>(error);
+      eos_inv_error_guess(p.I) = static_cast<double>(static_cast<int>(error));
       });
 }
 
