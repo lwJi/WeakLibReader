@@ -598,6 +598,33 @@ TEST_CASE("MakeDeviceCopy creates device copy of opacity table", "[hdf5][weaklib
   CHECK(deviceTable.emAb.nOpacities == hostTable.emAb.nOpacities);
   CHECK(deviceTable.emAb.dimensions == hostTable.emAb.dimensions);
   CHECK(deviceTable.energyGrid.nPoints == hostTable.energyGrid.nPoints);
+
+  // Verify energy grid values round-trip
+  {
+    auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.energyGrid.values);
+    REQUIRE(hostCopy.size() == hostTable.energyGrid.values.size());
+    for (std::size_t i = 0; i < hostCopy.size(); ++i) {
+      CHECK(hostCopy[i] == hostTable.energyGrid.values[i]);
+    }
+  }
+
+  // Verify thermoState axis data round-trips
+  for (int dim = 0; dim < 3; ++dim) {
+    auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.thermoState.axisStorage[dim]);
+    REQUIRE(hostCopy.size() == hostTable.thermoState.axisStorage[dim].size());
+    for (std::size_t i = 0; i < hostCopy.size(); ++i) {
+      CHECK(hostCopy[i] == hostTable.thermoState.axisStorage[dim][i]);
+    }
+  }
+
+  // Verify EmAb opacity data round-trips
+  for (int s = 0; s < hostTable.emAb.nOpacities; ++s) {
+    auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.emAb.opacities[s]);
+    REQUIRE(hostCopy.size() == hostTable.emAb.opacities[s].size());
+    for (std::size_t i = 0; i < hostCopy.size(); ++i) {
+      CHECK(hostCopy[i] == hostTable.emAb.opacities[s][i]);
+    }
+  }
 }
 
 TEST_CASE("LoadWeakLibOpacityTableFullParallel loads EmAb and Iso",
@@ -720,4 +747,134 @@ TEST_CASE("LoadWeakLibOpacityTableFullParallel fails for nonexistent file",
   WeakLibOpacityTable table;
   auto status = LoadWeakLibOpacityTableFullParallel(table, "nonexistent.h5");
   CHECK(status == Hdf5LoadStatus::FileOpenFailed);
+}
+
+TEST_CASE("MakeDeviceCopy creates device copy of Iso table", "[hdf5][weaklib][opacity][gpu]")
+{
+  using namespace WeakLibReader;
+  AmrexGuard amrex{};
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_iso_device.h5";
+  CreateWeakLibIsoTestFile(filePath);
+
+  WeakLibOpacityTable hostTable;
+  auto status = LoadWeakLibOpacityTableFull(hostTable, "", filePath.string());
+  REQUIRE(status == Hdf5LoadStatus::Success);
+  std::filesystem::remove(filePath);
+
+  auto deviceTable = MakeDeviceCopy(hostTable);
+  REQUIRE(deviceTable.HasScatIso());
+  CHECK(deviceTable.scatIso.nOpacities == hostTable.scatIso.nOpacities);
+  CHECK(deviceTable.scatIso.nMoments == hostTable.scatIso.nMoments);
+  CHECK(deviceTable.scatIso.dimensions == hostTable.scatIso.dimensions);
+
+  for (int s = 0; s < hostTable.scatIso.nOpacities; ++s) {
+    auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.scatIso.kernels[s]);
+    REQUIRE(hostCopy.size() == hostTable.scatIso.kernels[s].size());
+    for (std::size_t i = 0; i < hostCopy.size(); ++i) {
+      CHECK(hostCopy[i] == hostTable.scatIso.kernels[s][i]);
+    }
+  }
+}
+
+TEST_CASE("MakeDeviceCopy creates device copy of NES table", "[hdf5][weaklib][opacity][gpu]")
+{
+  using namespace WeakLibReader;
+  AmrexGuard amrex{};
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_nes_device.h5";
+  CreateWeakLibNESTestFile(filePath);
+
+  WeakLibOpacityTable hostTable;
+  auto status = LoadWeakLibOpacityTableFull(hostTable, "", "", filePath.string());
+  REQUIRE(status == Hdf5LoadStatus::Success);
+  std::filesystem::remove(filePath);
+
+  auto deviceTable = MakeDeviceCopy(hostTable);
+  REQUIRE(deviceTable.HasScatNES());
+
+  auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.scatNES.kernel);
+  REQUIRE(hostCopy.size() == hostTable.scatNES.kernel.size());
+  for (std::size_t i = 0; i < hostCopy.size(); ++i) {
+    CHECK(hostCopy[i] == hostTable.scatNES.kernel[i]);
+  }
+
+  // Verify etaGrid was also copied
+  auto etaCopy = test_helpers::CopyDeviceToHost(deviceTable.etaGrid.values);
+  REQUIRE(etaCopy.size() == hostTable.etaGrid.values.size());
+  for (std::size_t i = 0; i < etaCopy.size(); ++i) {
+    CHECK(etaCopy[i] == hostTable.etaGrid.values[i]);
+  }
+}
+
+TEST_CASE("MakeDeviceCopy creates device copy of Pair table", "[hdf5][weaklib][opacity][gpu]")
+{
+  using namespace WeakLibReader;
+  AmrexGuard amrex{};
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_pair_device.h5";
+  CreateWeakLibPairTestFile(filePath);
+
+  WeakLibOpacityTable hostTable;
+  auto status = LoadWeakLibOpacityTableFull(hostTable, "", "", "", filePath.string());
+  REQUIRE(status == Hdf5LoadStatus::Success);
+  std::filesystem::remove(filePath);
+
+  auto deviceTable = MakeDeviceCopy(hostTable);
+  REQUIRE(deviceTable.HasScatPair());
+
+  auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.scatPair.kernel);
+  REQUIRE(hostCopy.size() == hostTable.scatPair.kernel.size());
+  for (std::size_t i = 0; i < hostCopy.size(); ++i) {
+    CHECK(hostCopy[i] == hostTable.scatPair.kernel[i]);
+  }
+}
+
+TEST_CASE("MakeDeviceCopy creates device copy of Brem table", "[hdf5][weaklib][opacity][gpu]")
+{
+  using namespace WeakLibReader;
+  AmrexGuard amrex{};
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_brem_device.h5";
+  CreateWeakLibBremTestFile(filePath);
+
+  WeakLibOpacityTable hostTable;
+  auto status = LoadWeakLibOpacityTableFull(hostTable, "", "", "", "", filePath.string());
+  REQUIRE(status == Hdf5LoadStatus::Success);
+  std::filesystem::remove(filePath);
+
+  auto deviceTable = MakeDeviceCopy(hostTable);
+  REQUIRE(deviceTable.HasScatBrem());
+
+  auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.scatBrem.kernel);
+  REQUIRE(hostCopy.size() == hostTable.scatBrem.kernel.size());
+  for (std::size_t i = 0; i < hostCopy.size(); ++i) {
+    CHECK(hostCopy[i] == hostTable.scatBrem.kernel[i]);
+  }
+}
+
+TEST_CASE("ReleaseDeviceData frees scattering kernel device memory", "[hdf5][weaklib][opacity][gpu]")
+{
+  using namespace WeakLibReader;
+  AmrexGuard amrex{};
+  const std::filesystem::path filePath =
+      std::filesystem::temp_directory_path() / "weaklibreader_opacity_iso_release.h5";
+  CreateWeakLibIsoTestFile(filePath);
+
+  WeakLibOpacityTable hostTable;
+  auto status = LoadWeakLibOpacityTableFull(hostTable, "", filePath.string());
+  REQUIRE(status == Hdf5LoadStatus::Success);
+  std::filesystem::remove(filePath);
+
+  auto deviceTable = MakeDeviceCopy(hostTable);
+  REQUIRE(deviceTable.HasScatIso());
+  CHECK(deviceTable.scatIso.kernels[0].size() > 0);
+  CHECK(deviceTable.scatIso.kernels[1].size() > 0);
+
+  deviceTable.scatIso.ReleaseDeviceData();
+
+  CHECK(deviceTable.scatIso.kernels[0].empty());
+  CHECK(deviceTable.scatIso.kernels[1].empty());
+  // Scalar metadata remains valid
+  CHECK(deviceTable.scatIso.nOpacities == hostTable.scatIso.nOpacities);
 }

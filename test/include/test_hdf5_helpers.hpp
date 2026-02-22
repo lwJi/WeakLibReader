@@ -4,6 +4,8 @@
 
 #include <hdf5.h>
 
+#include <AMReX_GpuContainers.H>
+
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -132,6 +134,18 @@ inline void CreateAxisDataset(hid_t file,
   WriteStringAttribute(dataset, "scale", scale);
   H5Dclose(dataset);
   H5Sclose(space);
+}
+
+template <typename T>
+std::vector<T> CopyDeviceToHost(const amrex::Gpu::DeviceVector<T>& device)
+{
+  std::vector<T> host(device.size());
+  if (!device.empty()) {
+    amrex::Gpu::copy(amrex::Gpu::deviceToHost,
+                     device.begin(), device.end(),
+                     host.begin());
+  }
+  return host;
 }
 
 } // namespace test_helpers

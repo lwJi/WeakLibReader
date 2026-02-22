@@ -52,7 +52,7 @@ struct WeakLibEosTable {
   std::array<int, 3> dimensions{{0, 0, 0}};  // [nRho, nT, nYe] after reversal
 
   // ThermoState data
-  std::array<std::vector<double>, 3> axisStorage;  // Density, Temperature, Ye
+  std::array<amrex::Gpu::PinnedVector<double>, 3> axisStorage;  // Density, Temperature, Ye
   Axis axes[3]{};
   std::array<std::string, 3> axisNames;
   std::array<std::string, 3> axisUnits;
@@ -115,7 +115,7 @@ struct WeakLibOpacityGrid {
   std::string unit;
   int nPoints = 0;
   AxisScale scale = AxisScale::Linear;
-  std::vector<double> values;
+  amrex::Gpu::PinnedVector<double> values;
 
   // For geometric grids (optional)
   double zoom = 0.0;
@@ -156,10 +156,10 @@ struct WeakLibECTable {
   int nT = 0;
   int nYe = 0;
 
-  std::vector<double> energyValues;
-  std::vector<double> rhoValues;
-  std::vector<double> tempValues;
-  std::vector<double> yeValues;
+  amrex::Gpu::PinnedVector<double> energyValues;
+  amrex::Gpu::PinnedVector<double> rhoValues;
+  amrex::Gpu::PinnedVector<double> tempValues;
+  amrex::Gpu::PinnedVector<double> yeValues;
 
   double rhoMin = 0.0, rhoMax = 0.0;
   double tempMin = 0.0, tempMax = 0.0;
@@ -350,6 +350,12 @@ struct WeakLibScatIsoTableDevice {
     return offsets[static_cast<std::size_t>(species)
                    + static_cast<std::size_t>(moment) * nOpacities];
   }
+
+  void ReleaseDeviceData() noexcept {
+    for (auto& k : kernels) {
+      k = amrex::Gpu::DeviceVector<double>{};
+    }
+  }
 };
 
 // Unified scattering kernel table (NES, Pair, Brem)
@@ -406,6 +412,10 @@ struct WeakLibScatKernelTableDevice {
     return offsets[static_cast<std::size_t>(species)
                    + static_cast<std::size_t>(moment) * nOpacities];
   }
+
+  void ReleaseDeviceData() noexcept {
+    kernel = amrex::Gpu::DeviceVector<double>{};
+  }
 };
 
 using WeakLibScatNESTable = WeakLibScatKernelTable;
@@ -418,7 +428,7 @@ using WeakLibScatBremTableDevice = WeakLibScatKernelTableDevice;
 // ThermoState for opacity tables (shared across types)
 struct WeakLibThermoState {
   std::array<int, 3> dimensions{{0, 0, 0}};  // [nRho, nT, nYe]
-  std::array<std::vector<double>, 3> axisStorage;  // Density, Temperature, Ye
+  std::array<amrex::Gpu::PinnedVector<double>, 3> axisStorage;  // Density, Temperature, Ye
   Axis axes[3]{};
   std::array<std::string, 3> names;
   std::array<std::string, 3> units;

@@ -74,6 +74,9 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
                      slice.begin(), slice.end(),
                      iso_slice_device.begin());
     CCTK_VINFO("Iso slice extracted: %zu elements", slice.size());
+    // Release raw 5D Iso kernels from device — only the 4D moment slice is
+    // needed for interpolation from this point forward.
+    opacity_table_device.scatIso.ReleaseDeviceData();
   }
 
   // Pre-align NES
@@ -91,7 +94,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
       const double nesOffset = nes.OffsetValue(0, iMom);
       const std::size_t alignedSize =
           static_cast<std::size_t>(nE) * nE * nT * nEta;
-      std::vector<double> hostBuf(alignedSize);
+      amrex::Gpu::PinnedVector<double> hostBuf(alignedSize);
 
       WeakLibReader::PreAlignScatteringKernelMoment(
           nes.KernelData(), nesLayout, energyAxis,
@@ -127,7 +130,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
       const double pairOffset = pair.OffsetValue(0, iMom);
       const std::size_t alignedSize =
           static_cast<std::size_t>(nE) * nE * nT * nEta;
-      std::vector<double> hostBuf(alignedSize);
+      amrex::Gpu::PinnedVector<double> hostBuf(alignedSize);
 
       WeakLibReader::PreAlignScatteringKernelMoment(
           pair.KernelData(), pairLayout, energyAxis,
@@ -163,7 +166,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
       const double bremOffset = brem.OffsetValue(0, iMom);
       const std::size_t alignedSize =
           static_cast<std::size_t>(nE) * nE * nRho * nT;
-      std::vector<double> hostBuf(alignedSize);
+      amrex::Gpu::PinnedVector<double> hostBuf(alignedSize);
 
       WeakLibReader::PreAlignScatteringKernelMoment(
           brem.KernelData(), bremLayout, energyAxis,
@@ -183,6 +186,15 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
     }
     CCTK_VINFO("Brem pre-aligned: %d moments, %d energy points", nMom, nE);
   }
+
+  // Release raw 5D scattering kernels from device — only pre-aligned 4D data
+  // is needed for interpolation from this point forward.
+  if (opacity_table_device.HasScatNES())
+    opacity_table_device.scatNES.ReleaseDeviceData();
+  if (opacity_table_device.HasScatPair())
+    opacity_table_device.scatPair.ReleaseDeviceData();
+  if (opacity_table_device.HasScatBrem())
+    opacity_table_device.scatBrem.ReleaseDeviceData();
 
   CCTK_VINFO("Opacity tables loaded: EmAb=%s Iso=%s NES=%s Pair=%s Brem=%s",
              opacity_table_device.HasEmAb() ? "yes" : "no",
@@ -602,7 +614,7 @@ extern "C" void TestWeakLibReader_TestEmAbSweep(CCTK_ARGUMENTS) {
 extern "C" void TestWeakLibReader_CleanupOpacity(CCTK_ARGUMENTS) {
   CCTK_INFO("Cleaning up opacity tables");
   opacity_table_device = WeakLibReader::WeakLibOpacityTableDevice{};
-  iso_slice_device.clear();
+  iso_slice_device = amrex::Gpu::DeviceVector<double>{};
   nes_aligned.clear();
   pair_aligned.clear();
   brem_aligned.clear();
