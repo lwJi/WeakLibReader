@@ -209,6 +209,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
 
 extern "C" void TestWeakLibReader_InitEmAb(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InitEmAb;
+  DECLARE_CCTK_PARAMETERS;
 
   if (!opacity_table_device.HasEmAb()) {
     CCTK_INFO("No EmAb table loaded, skipping");
@@ -225,21 +226,20 @@ extern "C" void TestWeakLibReader_InitEmAb(CCTK_ARGUMENTS) {
     opacity_table_device.thermoState.axes[2],      // Ye (linear)
   };
 
-  // Fixed energy at midpoint of energy grid (set during load from host data)
-  const double fixedE = fixed_energy_midpoint;
-
   // Species 0 = electron neutrino
   const double offset = opacity_table_device.emAb.offsets[0];
   const double* opacityData = opacity_table_device.emAb.OpacityData(0);
 
+  const double rho = density;
+  const double T   = temperature;
+  const double Ye  = ye;
+
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double rho = RescaleToAxis(p.x, axes[1]);
-      const double T   = RescaleToAxis(p.y, axes[2]);
-      const double Ye  = RescaleToAxis(p.z, axes[3]);
+      const double interpE = RescaleToAxis(p.x, axes[0]);
       opacity_emab(p.I) = WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
-          fixedE, rho, T, Ye,
+          interpE, rho, T, Ye,
           axes,
           opacityData, offset);
       });
@@ -247,6 +247,7 @@ extern "C" void TestWeakLibReader_InitEmAb(CCTK_ARGUMENTS) {
 
 extern "C" void TestWeakLibReader_InitEmAbAnue(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InitEmAbAnue;
+  DECLARE_CCTK_PARAMETERS;
 
   if (!opacity_table_device.HasEmAb()) {
     CCTK_INFO("No EmAb table loaded, skipping antineutrino test");
@@ -262,20 +263,19 @@ extern "C" void TestWeakLibReader_InitEmAbAnue(CCTK_ARGUMENTS) {
     opacity_table_device.thermoState.axes[2],
   };
 
-  const double fixedE = fixed_energy_midpoint;
-
   // Species 1 = electron antineutrino
   const double offset = opacity_table_device.emAb.offsets[1];
   const double* opacityData = opacity_table_device.emAb.OpacityData(1);
+  const double rho = density;
+  const double T   = temperature;
+  const double Ye  = ye;
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double rho = RescaleToAxis(p.x, axes[1]);
-      const double T   = RescaleToAxis(p.y, axes[2]);
-      const double Ye  = RescaleToAxis(p.z, axes[3]);
+      const double interpE = RescaleToAxis(p.x, axes[0]);
       opacity_emab_anue(p.I) = WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
-          fixedE, rho, T, Ye,
+          interpE, rho, T, Ye,
           axes,
           opacityData, offset);
       });
@@ -283,6 +283,7 @@ extern "C" void TestWeakLibReader_InitEmAbAnue(CCTK_ARGUMENTS) {
 
 extern "C" void TestWeakLibReader_InitIso(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InitIso;
+  DECLARE_CCTK_PARAMETERS;
 
   if (!opacity_table_device.HasScatIso() || iso_slice_device.empty()) {
     CCTK_INFO("No Iso table loaded, skipping");
@@ -299,21 +300,19 @@ extern "C" void TestWeakLibReader_InitIso(CCTK_ARGUMENTS) {
     opacity_table_device.thermoState.axes[2],
   };
 
-  // Fixed energy at midpoint of energy grid (set during load from host data)
-  const double fixedE = fixed_energy_midpoint;
-
   // Offset for species=0, moment=0 from the 2D offset table
   const double offset = opacity_table_device.scatIso.OffsetValue(0, 0);
   const double* sliceData = iso_slice_device.data();
+  const double rho = density;
+  const double T   = temperature;
+  const double Ye  = ye;
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double rho = RescaleToAxis(p.x, axes[1]);
-      const double T   = RescaleToAxis(p.y, axes[2]);
-      const double Ye  = RescaleToAxis(p.z, axes[3]);
+      const double interpE = RescaleToAxis(p.x, axes[0]);
       opacity_iso(p.I) = WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
-          fixedE, rho, T, Ye,
+          interpE, rho, T, Ye,
           axes,
           sliceData, offset);
       });

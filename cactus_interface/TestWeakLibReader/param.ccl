@@ -8,3 +8,18 @@ USES STRING opacity_iso_file
 USES STRING opacity_nes_file
 USES STRING opacity_pair_file
 USES STRING opacity_brem_file
+
+CCTK_REAL density "Density"
+{
+  *:* :: ""
+} 1.0e+11
+
+CCTK_REAL temperature "Temperature"
+{
+  *:* :: ""
+} 1.6e+10
+
+CCTK_REAL ye "Electon Fraction"
+{
+  *:* :: ""
+} 4.0e-01
