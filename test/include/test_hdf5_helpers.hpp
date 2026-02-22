@@ -4,6 +4,8 @@
 
 #include <hdf5.h>
 
+#include <AMReX_GpuContainers.H>
+
 #include <algorithm>
 #include <array>
 #include <cstring>
@@ -132,6 +134,31 @@ inline void CreateAxisDataset(hid_t file,
   WriteStringAttribute(dataset, "scale", scale);
   H5Dclose(dataset);
   H5Sclose(space);
+}
+
+template <typename T>
+std::vector<T> CopyDeviceToHost(const amrex::Gpu::DeviceVector<T>& device)
+{
+  std::vector<T> host(device.size());
+  if (!device.empty()) {
+    amrex::Gpu::copy(amrex::Gpu::deviceToHost,
+                     device.begin(), device.end(),
+                     host.begin());
+  }
+  return host;
+}
+
+// Verify that device vector data matches the expected host-side container.
+// Copies data back from device and checks element-by-element equality.
+template <typename T, typename HostContainer>
+void VerifyDeviceRoundTrip(const amrex::Gpu::DeviceVector<T>& deviceVec,
+                           const HostContainer& expected)
+{
+  auto hostCopy = CopyDeviceToHost(deviceVec);
+  REQUIRE(hostCopy.size() == expected.size());
+  for (std::size_t i = 0; i < hostCopy.size(); ++i) {
+    CHECK(hostCopy[i] == expected[i]);
+  }
 }
 
 } // namespace test_helpers

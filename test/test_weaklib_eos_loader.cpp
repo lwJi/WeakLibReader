@@ -201,6 +201,22 @@ TEST_CASE("MakeDeviceCopy works for WeakLibEosTable", "[hdf5][weaklib][gpu]")
   CHECK(deviceTable.dimensions == hostTable.dimensions);
   CHECK(deviceTable.indices.iPressure == hostTable.indices.iPressure);
 
+  // Verify axis data round-trips correctly
+  for (int dim = 0; dim < 3; ++dim) {
+    test_helpers::VerifyDeviceRoundTrip(deviceTable.axisStorage[dim],
+                                        hostTable.axisStorage[dim]);
+  }
+
+  // Verify variable data round-trips correctly
+  for (int iVar = 0; iVar < hostTable.nVariables; ++iVar) {
+    test_helpers::VerifyDeviceRoundTrip(deviceTable.variables[iVar],
+                                        hostTable.variables[iVar]);
+  }
+
+  // Verify repaired mask round-trips correctly
+  test_helpers::VerifyDeviceRoundTrip(deviceTable.repaired,
+                                      hostTable.repaired);
+
   std::filesystem::remove(eosPath);
 }
 

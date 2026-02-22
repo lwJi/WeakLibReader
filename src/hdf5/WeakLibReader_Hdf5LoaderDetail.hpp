@@ -131,7 +131,8 @@ inline bool ReadIntArray(hid_t parent, const char* name, int* out, std::size_t c
   return H5Dread(dataset.Get(), H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, out) >= 0;
 }
 
-inline bool ValidateAxis(const std::vector<double>& values, AxisScale scale)
+template <typename Container>
+inline bool ValidateAxis(const Container& values, AxisScale scale)
 {
   if (values.size() < 2) {
     return false;
@@ -426,10 +427,11 @@ inline std::size_t ComputeTotalSize(int nd, const std::array<int, 5>& extents)
   return size;
 }
 
+template <typename Container>
 inline Hdf5LoadStatus ReadAxisDataset1D(hid_t datasetId,
                                         int expectedExtent,
                                         AxisScale scale,
-                                        std::vector<double>& storage,
+                                        Container& storage,
                                         Axis& outAxis)
 {
   ScopedHandle space(H5Dget_space(datasetId), H5Sclose);
@@ -464,11 +466,12 @@ inline Hdf5LoadStatus ReadAxisDataset1D(hid_t datasetId,
   return Hdf5LoadStatus::Success;
 }
 
+template <typename Container>
 inline Hdf5LoadStatus LoadWeakLibAxis(hid_t thermoGroup,
                                       const char* datasetName,
                                       int expectedExtent,
                                       AxisScale scale,
-                                      std::vector<double>& storage,
+                                      Container& storage,
                                       Axis& outAxis)
 {
   ScopedHandle dataset(H5Dopen(thermoGroup, datasetName, H5P_DEFAULT), H5Dclose);
