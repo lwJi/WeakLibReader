@@ -618,9 +618,9 @@ extern "C" void TestWeakLibReader_CleanupOpacity(CCTK_ARGUMENTS) {
   CCTK_INFO("Cleaning up opacity tables");
   opacity_table_device = WeakLibReader::WeakLibOpacityTableDevice{};
   iso_slice_device = amrex::Gpu::DeviceVector<double>{};
-  nes_aligned.clear();
-  pair_aligned.clear();
-  brem_aligned.clear();
+  nes_aligned = {};
+  pair_aligned = {};
+  brem_aligned = {};
 }
 
 } // namespace TestWeakLibReader
