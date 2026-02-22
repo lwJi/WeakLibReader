@@ -14,11 +14,10 @@ namespace TestWeakLibReader {
 
 WeakLibReader::WeakLibOpacityTableDevice opacity_table_device;
 
-// Fixed energy value at midpoint of energy grid (set during load)
-double fixed_energy_midpoint = 0.0;
-
 // Iso moment=0 slice, species=0, copied to device
 amrex::Gpu::DeviceVector<double> iso_slice_device;
+// Iso moment=0 slice, species=1 (anue), copied to device
+amrex::Gpu::DeviceVector<double> iso_anue_slice_device;
 
 // Pre-aligned scattering kernel tables (host-computed, device-stored)
 struct AlignedKernel {
@@ -58,13 +57,9 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
     CCTK_ERROR("Failed to load opacity tables");
   }
 
-  // Store midpoint energy from host-side table before device copy
-  fixed_energy_midpoint =
-      opacity_table.energyGrid.values[opacity_table.energyGrid.nPoints / 2];
-
   opacity_table_device = WeakLibReader::MakeDeviceCopy(opacity_table);
 
-  // Extract Iso moment=0 slice as contiguous 4D and copy to device
+  // Extract Iso moment=0 slices as contiguous 4D and copy to device
   if (opacity_table.scatIso.IsLoaded()) {
     auto slice = WeakLibReader::ExtractIsoMomentSlice4D(
         opacity_table.scatIso.KernelData(0),
@@ -73,7 +68,16 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
     amrex::Gpu::copy(amrex::Gpu::hostToDevice,
                      slice.begin(), slice.end(),
                      iso_slice_device.begin());
-    CCTK_VINFO("Iso slice extracted: %zu elements", slice.size());
+    CCTK_VINFO("Iso nue slice extracted: %zu elements", slice.size());
+
+    auto anue_slice = WeakLibReader::ExtractIsoMomentSlice4D(
+        opacity_table.scatIso.KernelData(1),
+        opacity_table.scatIso.dimensions, /*iMom=*/0);
+    iso_anue_slice_device.resize(anue_slice.size());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
+                     anue_slice.begin(), anue_slice.end(),
+                     iso_anue_slice_device.begin());
+    CCTK_VINFO("Iso anue slice extracted: %zu elements", anue_slice.size());
     // Release raw 5D Iso kernels from device — only the 4D moment slice is
     // needed for interpolation from this point forward.
     opacity_table_device.scatIso.ReleaseDeviceData();
@@ -209,6 +213,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
 
 extern "C" void TestWeakLibReader_InitEmAb(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InitEmAb;
+  DECLARE_CCTK_PARAMETERS;
 
   if (!opacity_table_device.HasEmAb()) {
     CCTK_INFO("No EmAb table loaded, skipping");
@@ -225,21 +230,20 @@ extern "C" void TestWeakLibReader_InitEmAb(CCTK_ARGUMENTS) {
     opacity_table_device.thermoState.axes[2],      // Ye (linear)
   };
 
-  // Fixed energy at midpoint of energy grid (set during load from host data)
-  const double fixedE = fixed_energy_midpoint;
-
   // Species 0 = electron neutrino
   const double offset = opacity_table_device.emAb.offsets[0];
   const double* opacityData = opacity_table_device.emAb.OpacityData(0);
 
+  const double rho = density;
+  const double T   = temperature;
+  const double Ye  = ye;
+
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double rho = RescaleToAxis(p.x, axes[1]);
-      const double T   = RescaleToAxis(p.y, axes[2]);
-      const double Ye  = RescaleToAxis(p.z, axes[3]);
+      const double interpE = RescaleToAxis(p.x, axes[0]);
       opacity_emab(p.I) = WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
-          fixedE, rho, T, Ye,
+          interpE, rho, T, Ye,
           axes,
           opacityData, offset);
       });
@@ -247,6 +251,7 @@ extern "C" void TestWeakLibReader_InitEmAb(CCTK_ARGUMENTS) {
 
 extern "C" void TestWeakLibReader_InitEmAbAnue(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InitEmAbAnue;
+  DECLARE_CCTK_PARAMETERS;
 
   if (!opacity_table_device.HasEmAb()) {
     CCTK_INFO("No EmAb table loaded, skipping antineutrino test");
@@ -262,20 +267,19 @@ extern "C" void TestWeakLibReader_InitEmAbAnue(CCTK_ARGUMENTS) {
     opacity_table_device.thermoState.axes[2],
   };
 
-  const double fixedE = fixed_energy_midpoint;
-
   // Species 1 = electron antineutrino
   const double offset = opacity_table_device.emAb.offsets[1];
   const double* opacityData = opacity_table_device.emAb.OpacityData(1);
+  const double rho = density;
+  const double T   = temperature;
+  const double Ye  = ye;
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double rho = RescaleToAxis(p.x, axes[1]);
-      const double T   = RescaleToAxis(p.y, axes[2]);
-      const double Ye  = RescaleToAxis(p.z, axes[3]);
+      const double interpE = RescaleToAxis(p.x, axes[0]);
       opacity_emab_anue(p.I) = WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
-          fixedE, rho, T, Ye,
+          interpE, rho, T, Ye,
           axes,
           opacityData, offset);
       });
@@ -283,6 +287,7 @@ extern "C" void TestWeakLibReader_InitEmAbAnue(CCTK_ARGUMENTS) {
 
 extern "C" void TestWeakLibReader_InitIso(CCTK_ARGUMENTS) {
   DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InitIso;
+  DECLARE_CCTK_PARAMETERS;
 
   if (!opacity_table_device.HasScatIso() || iso_slice_device.empty()) {
     CCTK_INFO("No Iso table loaded, skipping");
@@ -299,21 +304,54 @@ extern "C" void TestWeakLibReader_InitIso(CCTK_ARGUMENTS) {
     opacity_table_device.thermoState.axes[2],
   };
 
-  // Fixed energy at midpoint of energy grid (set during load from host data)
-  const double fixedE = fixed_energy_midpoint;
-
   // Offset for species=0, moment=0 from the 2D offset table
   const double offset = opacity_table_device.scatIso.OffsetValue(0, 0);
   const double* sliceData = iso_slice_device.data();
+  const double rho = density;
+  const double T   = temperature;
+  const double Ye  = ye;
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double rho = RescaleToAxis(p.x, axes[1]);
-      const double T   = RescaleToAxis(p.y, axes[2]);
-      const double Ye  = RescaleToAxis(p.z, axes[3]);
+      const double interpE = RescaleToAxis(p.x, axes[0]);
       opacity_iso(p.I) = WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
-          fixedE, rho, T, Ye,
+          interpE, rho, T, Ye,
+          axes,
+          sliceData, offset);
+      });
+}
+
+extern "C" void TestWeakLibReader_InitIsoAnue(CCTK_ARGUMENTS) {
+  DECLARE_CCTK_ARGUMENTSX_TestWeakLibReader_InitIsoAnue;
+  DECLARE_CCTK_PARAMETERS;
+
+  if (!opacity_table_device.HasScatIso() || iso_anue_slice_device.empty()) {
+    CCTK_INFO("No Iso table loaded, skipping antineutrino test");
+    return;
+  }
+
+  CCTK_INFO("Testing Iso 4D interpolation (moment=0, species=1, antineutrino)");
+
+  const WeakLibReader::Axis axes[4] = {
+    opacity_table_device.energyGrid.MakeAxis(),
+    opacity_table_device.thermoState.axes[0],
+    opacity_table_device.thermoState.axes[1],
+    opacity_table_device.thermoState.axes[2],
+  };
+
+  const double offset = opacity_table_device.scatIso.OffsetValue(1, 0);
+  const double* sliceData = iso_anue_slice_device.data();
+  const double rho = density;
+  const double T   = temperature;
+  const double Ye  = ye;
+
+  grid.loop_int_device<0, 0, 0>(
+      grid.nghostzones,
+      [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
+      const double interpE = RescaleToAxis(p.x, axes[0]);
+      opacity_iso_anue(p.I) = WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
+          interpE, rho, T, Ye,
           axes,
           sliceData, offset);
       });
@@ -618,6 +656,7 @@ extern "C" void TestWeakLibReader_CleanupOpacity(CCTK_ARGUMENTS) {
   CCTK_INFO("Cleaning up opacity tables");
   opacity_table_device = WeakLibReader::WeakLibOpacityTableDevice{};
   iso_slice_device = amrex::Gpu::DeviceVector<double>{};
+  iso_anue_slice_device = amrex::Gpu::DeviceVector<double>{};
   nes_aligned = {};
   pair_aligned = {};
   brem_aligned = {};

@@ -8,6 +8,7 @@ STORAGE: opacity_nes opacity_pair opacity_brem
 STORAGE: eos_inv_temp eos_inv_error
 
 STORAGE: opacity_emab_anue
+STORAGE: opacity_iso_anue
 STORAGE: eos_inv_temp_press eos_inv_error_press
 STORAGE: eos_inv_temp_entropy eos_inv_error_entropy
 STORAGE: eos_inv_temp_guess eos_inv_error_guess
@@ -53,6 +54,13 @@ SCHEDULE TestWeakLibReader_InitIso AT INITIAL AFTER TestWeakLibReader_LoadOpacit
   WRITES: opacity_iso(interior)
   SYNC: opacity_iso
 } "Test Iso 4D interpolation"
+
+SCHEDULE TestWeakLibReader_InitIsoAnue AT INITIAL AFTER TestWeakLibReader_LoadOpacityTable
+{
+  LANG: C
+  WRITES: opacity_iso_anue(interior)
+  SYNC: opacity_iso_anue
+} "Test Iso 4D interpolation (species=1, antineutrino)"
 
 SCHEDULE TestWeakLibReader_ComputeEosDerived AT INITIAL AFTER TestWeakLibReader_LoadTable AFTER TestWeakLibReader_LoadOpacityTable
 {
