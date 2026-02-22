@@ -14,9 +14,6 @@ namespace TestWeakLibReader {
 
 WeakLibReader::WeakLibOpacityTableDevice opacity_table_device;
 
-// Fixed energy value at midpoint of energy grid (set during load)
-double fixed_energy_midpoint = 0.0;
-
 // Iso moment=0 slice, species=0, copied to device
 amrex::Gpu::DeviceVector<double> iso_slice_device;
 // Iso moment=0 slice, species=1 (anue), copied to device
@@ -59,10 +56,6 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
   if (status != WeakLibReader::Hdf5LoadStatus::Success) {
     CCTK_ERROR("Failed to load opacity tables");
   }
-
-  // Store midpoint energy from host-side table before device copy
-  fixed_energy_midpoint =
-      opacity_table.energyGrid.values[opacity_table.energyGrid.nPoints / 2];
 
   opacity_table_device = WeakLibReader::MakeDeviceCopy(opacity_table);
 

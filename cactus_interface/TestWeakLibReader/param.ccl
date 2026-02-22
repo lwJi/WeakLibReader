@@ -19,7 +19,7 @@ CCTK_REAL temperature "Temperature"
   *:* :: ""
 } 1.6e+10
 
-CCTK_REAL ye "Electon Fraction"
+CCTK_REAL ye "Electron Fraction"
 {
   *:* :: ""
 } 4.0e-01
