@@ -148,4 +148,17 @@ std::vector<T> CopyDeviceToHost(const amrex::Gpu::DeviceVector<T>& device)
   return host;
 }
 
+// Verify that device vector data matches the expected host-side container.
+// Copies data back from device and checks element-by-element equality.
+template <typename T, typename HostContainer>
+void VerifyDeviceRoundTrip(const amrex::Gpu::DeviceVector<T>& deviceVec,
+                           const HostContainer& expected)
+{
+  auto hostCopy = CopyDeviceToHost(deviceVec);
+  REQUIRE(hostCopy.size() == expected.size());
+  for (std::size_t i = 0; i < hostCopy.size(); ++i) {
+    CHECK(hostCopy[i] == expected[i]);
+  }
+}
+
 } // namespace test_helpers

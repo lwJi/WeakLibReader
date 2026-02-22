@@ -203,30 +203,19 @@ TEST_CASE("MakeDeviceCopy works for WeakLibEosTable", "[hdf5][weaklib][gpu]")
 
   // Verify axis data round-trips correctly
   for (int dim = 0; dim < 3; ++dim) {
-    auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.axisStorage[dim]);
-    REQUIRE(hostCopy.size() == hostTable.axisStorage[dim].size());
-    for (std::size_t i = 0; i < hostCopy.size(); ++i) {
-      CHECK(hostCopy[i] == hostTable.axisStorage[dim][i]);
-    }
+    test_helpers::VerifyDeviceRoundTrip(deviceTable.axisStorage[dim],
+                                        hostTable.axisStorage[dim]);
   }
 
   // Verify variable data round-trips correctly
   for (int iVar = 0; iVar < hostTable.nVariables; ++iVar) {
-    auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.variables[iVar]);
-    REQUIRE(hostCopy.size() == hostTable.variables[iVar].size());
-    for (std::size_t i = 0; i < hostCopy.size(); ++i) {
-      CHECK(hostCopy[i] == hostTable.variables[iVar][i]);
-    }
+    test_helpers::VerifyDeviceRoundTrip(deviceTable.variables[iVar],
+                                        hostTable.variables[iVar]);
   }
 
   // Verify repaired mask round-trips correctly
-  {
-    auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.repaired);
-    REQUIRE(hostCopy.size() == hostTable.repaired.size());
-    for (std::size_t i = 0; i < hostCopy.size(); ++i) {
-      CHECK(hostCopy[i] == hostTable.repaired[i]);
-    }
-  }
+  test_helpers::VerifyDeviceRoundTrip(deviceTable.repaired,
+                                      hostTable.repaired);
 
   std::filesystem::remove(eosPath);
 }

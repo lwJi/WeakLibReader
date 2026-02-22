@@ -600,30 +600,19 @@ TEST_CASE("MakeDeviceCopy creates device copy of opacity table", "[hdf5][weaklib
   CHECK(deviceTable.energyGrid.nPoints == hostTable.energyGrid.nPoints);
 
   // Verify energy grid values round-trip
-  {
-    auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.energyGrid.values);
-    REQUIRE(hostCopy.size() == hostTable.energyGrid.values.size());
-    for (std::size_t i = 0; i < hostCopy.size(); ++i) {
-      CHECK(hostCopy[i] == hostTable.energyGrid.values[i]);
-    }
-  }
+  test_helpers::VerifyDeviceRoundTrip(deviceTable.energyGrid.values,
+                                      hostTable.energyGrid.values);
 
   // Verify thermoState axis data round-trips
   for (int dim = 0; dim < 3; ++dim) {
-    auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.thermoState.axisStorage[dim]);
-    REQUIRE(hostCopy.size() == hostTable.thermoState.axisStorage[dim].size());
-    for (std::size_t i = 0; i < hostCopy.size(); ++i) {
-      CHECK(hostCopy[i] == hostTable.thermoState.axisStorage[dim][i]);
-    }
+    test_helpers::VerifyDeviceRoundTrip(deviceTable.thermoState.axisStorage[dim],
+                                        hostTable.thermoState.axisStorage[dim]);
   }
 
   // Verify EmAb opacity data round-trips
   for (int s = 0; s < hostTable.emAb.nOpacities; ++s) {
-    auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.emAb.opacities[s]);
-    REQUIRE(hostCopy.size() == hostTable.emAb.opacities[s].size());
-    for (std::size_t i = 0; i < hostCopy.size(); ++i) {
-      CHECK(hostCopy[i] == hostTable.emAb.opacities[s][i]);
-    }
+    test_helpers::VerifyDeviceRoundTrip(deviceTable.emAb.opacities[s],
+                                        hostTable.emAb.opacities[s]);
   }
 }
 
@@ -769,11 +758,8 @@ TEST_CASE("MakeDeviceCopy creates device copy of Iso table", "[hdf5][weaklib][op
   CHECK(deviceTable.scatIso.dimensions == hostTable.scatIso.dimensions);
 
   for (int s = 0; s < hostTable.scatIso.nOpacities; ++s) {
-    auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.scatIso.kernels[s]);
-    REQUIRE(hostCopy.size() == hostTable.scatIso.kernels[s].size());
-    for (std::size_t i = 0; i < hostCopy.size(); ++i) {
-      CHECK(hostCopy[i] == hostTable.scatIso.kernels[s][i]);
-    }
+    test_helpers::VerifyDeviceRoundTrip(deviceTable.scatIso.kernels[s],
+                                        hostTable.scatIso.kernels[s]);
   }
 }
 
@@ -793,18 +779,12 @@ TEST_CASE("MakeDeviceCopy creates device copy of NES table", "[hdf5][weaklib][op
   auto deviceTable = MakeDeviceCopy(hostTable);
   REQUIRE(deviceTable.HasScatNES());
 
-  auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.scatNES.kernel);
-  REQUIRE(hostCopy.size() == hostTable.scatNES.kernel.size());
-  for (std::size_t i = 0; i < hostCopy.size(); ++i) {
-    CHECK(hostCopy[i] == hostTable.scatNES.kernel[i]);
-  }
+  test_helpers::VerifyDeviceRoundTrip(deviceTable.scatNES.kernel,
+                                      hostTable.scatNES.kernel);
 
   // Verify etaGrid was also copied
-  auto etaCopy = test_helpers::CopyDeviceToHost(deviceTable.etaGrid.values);
-  REQUIRE(etaCopy.size() == hostTable.etaGrid.values.size());
-  for (std::size_t i = 0; i < etaCopy.size(); ++i) {
-    CHECK(etaCopy[i] == hostTable.etaGrid.values[i]);
-  }
+  test_helpers::VerifyDeviceRoundTrip(deviceTable.etaGrid.values,
+                                      hostTable.etaGrid.values);
 }
 
 TEST_CASE("MakeDeviceCopy creates device copy of Pair table", "[hdf5][weaklib][opacity][gpu]")
@@ -823,11 +803,8 @@ TEST_CASE("MakeDeviceCopy creates device copy of Pair table", "[hdf5][weaklib][o
   auto deviceTable = MakeDeviceCopy(hostTable);
   REQUIRE(deviceTable.HasScatPair());
 
-  auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.scatPair.kernel);
-  REQUIRE(hostCopy.size() == hostTable.scatPair.kernel.size());
-  for (std::size_t i = 0; i < hostCopy.size(); ++i) {
-    CHECK(hostCopy[i] == hostTable.scatPair.kernel[i]);
-  }
+  test_helpers::VerifyDeviceRoundTrip(deviceTable.scatPair.kernel,
+                                      hostTable.scatPair.kernel);
 }
 
 TEST_CASE("MakeDeviceCopy creates device copy of Brem table", "[hdf5][weaklib][opacity][gpu]")
@@ -846,11 +823,8 @@ TEST_CASE("MakeDeviceCopy creates device copy of Brem table", "[hdf5][weaklib][o
   auto deviceTable = MakeDeviceCopy(hostTable);
   REQUIRE(deviceTable.HasScatBrem());
 
-  auto hostCopy = test_helpers::CopyDeviceToHost(deviceTable.scatBrem.kernel);
-  REQUIRE(hostCopy.size() == hostTable.scatBrem.kernel.size());
-  for (std::size_t i = 0; i < hostCopy.size(); ++i) {
-    CHECK(hostCopy[i] == hostTable.scatBrem.kernel[i]);
-  }
+  test_helpers::VerifyDeviceRoundTrip(deviceTable.scatBrem.kernel,
+                                      hostTable.scatBrem.kernel);
 }
 
 TEST_CASE("ReleaseDeviceData frees scattering kernel device memory", "[hdf5][weaklib][opacity][gpu]")

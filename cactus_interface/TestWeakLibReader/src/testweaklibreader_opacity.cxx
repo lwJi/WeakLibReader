@@ -189,12 +189,15 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
 
   // Release raw 5D scattering kernels from device — only pre-aligned 4D data
   // is needed for interpolation from this point forward.
-  if (opacity_table_device.HasScatNES())
+  if (opacity_table_device.HasScatNES()) {
     opacity_table_device.scatNES.ReleaseDeviceData();
-  if (opacity_table_device.HasScatPair())
+  }
+  if (opacity_table_device.HasScatPair()) {
     opacity_table_device.scatPair.ReleaseDeviceData();
-  if (opacity_table_device.HasScatBrem())
+  }
+  if (opacity_table_device.HasScatBrem()) {
     opacity_table_device.scatBrem.ReleaseDeviceData();
+  }
 
   CCTK_VINFO("Opacity tables loaded: EmAb=%s Iso=%s NES=%s Pair=%s Brem=%s",
              opacity_table_device.HasEmAb() ? "yes" : "no",
