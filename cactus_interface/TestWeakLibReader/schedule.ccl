@@ -9,8 +9,8 @@ STORAGE: eos_inv_temp eos_inv_error
 
 STORAGE: opacity_emab_anue
 STORAGE: eos_inv_temp_press eos_inv_error_press
-STORAGE: eos_inv_temp_s eos_inv_error_s
-STORAGE: eos_inv_temp_g eos_inv_error_g
+STORAGE: eos_inv_temp_entropy eos_inv_error_entropy
+STORAGE: eos_inv_temp_guess eos_inv_error_guess
 STORAGE: opacity_nes_offdiag opacity_pair_offdiag
 STORAGE: opacity_emab_sweep
 
@@ -95,15 +95,15 @@ SCHEDULE TestWeakLibReader_InvertEosPressure AT INITIAL AFTER TestWeakLibReader_
 SCHEDULE TestWeakLibReader_InvertEosEntropy AT INITIAL AFTER TestWeakLibReader_InvertEos
 {
   LANG: C
-  WRITES: eos_inv_temp_s(interior) eos_inv_error_s(interior)
-  SYNC: eos_inv_temp_s eos_inv_error_s
+  WRITES: eos_inv_temp_entropy(interior) eos_inv_error_entropy(interior)
+  SYNC: eos_inv_temp_entropy eos_inv_error_entropy
 } "Test EOS inversion: recover T from (rho, S, Ye)"
 
 SCHEDULE TestWeakLibReader_InvertEosGuess AT INITIAL AFTER TestWeakLibReader_InvertEos
 {
   LANG: C
-  WRITES: eos_inv_temp_g(interior) eos_inv_error_g(interior)
-  SYNC: eos_inv_temp_g eos_inv_error_g
+  WRITES: eos_inv_temp_guess(interior) eos_inv_error_guess(interior)
+  SYNC: eos_inv_temp_guess eos_inv_error_guess
 } "Test EOS inversion: recover T from (rho, E, Ye) with T guess"
 
 SCHEDULE TestWeakLibReader_InitEmAbAnue AT INITIAL AFTER TestWeakLibReader_LoadOpacityTable

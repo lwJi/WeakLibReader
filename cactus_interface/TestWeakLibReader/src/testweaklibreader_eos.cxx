@@ -252,8 +252,8 @@ extern "C" void TestWeakLibReader_InvertEosEntropy(CCTK_ARGUMENTS) {
       const int error = WeakLibReader::ComputeTemperatureFromEntropy(
           rho, S, Ye, axes, sData, layout, sOffset, bounds, T_recovered);
 
-      eos_inv_temp_s(p.I)  = T_recovered;
-      eos_inv_error_s(p.I) = static_cast<double>(error);
+      eos_inv_temp_entropy(p.I)  = T_recovered;
+      eos_inv_error_entropy(p.I) = static_cast<double>(error);
       });
 }
 
@@ -290,8 +290,8 @@ extern "C" void TestWeakLibReader_InvertEosGuess(CCTK_ARGUMENTS) {
       const int error = WeakLibReader::ComputeTemperatureFromEnergy(
           rho, E, Ye, axes, eData, layout, eOffset, bounds, T, T_recovered);
 
-      eos_inv_temp_g(p.I)  = T_recovered;
-      eos_inv_error_g(p.I) = static_cast<double>(error);
+      eos_inv_temp_guess(p.I)  = T_recovered;
+      eos_inv_error_guess(p.I) = static_cast<double>(error);
       });
 }
 
