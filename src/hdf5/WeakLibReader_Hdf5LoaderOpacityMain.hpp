@@ -1,7 +1,5 @@
 #pragma once
 
-#include "hdf5/WeakLibReader_Hdf5Types.hpp"
-#include "hdf5/WeakLibReader_Hdf5LoaderDetail.hpp"
 #include "hdf5/WeakLibReader_Hdf5LoaderOpacityEmAb.hpp"
 #include "hdf5/WeakLibReader_Hdf5LoaderOpacityScat.hpp"
 
@@ -29,11 +27,12 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFull(
   }
 
   // Use the first available file for reading shared grids (EnergyGrid, ThermoState).
-  const std::string& firstFile = hasEmAb ? fileEmAb
-                                : hasIso  ? fileIso
-                                : hasNES  ? fileNES
-                                : hasPair ? filePair
-                                          : fileBrem;
+  const std::string* firstFilePtr = &fileBrem;
+  if (hasEmAb)      { firstFilePtr = &fileEmAb; }
+  else if (hasIso)  { firstFilePtr = &fileIso; }
+  else if (hasNES)  { firstFilePtr = &fileNES; }
+  else if (hasPair) { firstFilePtr = &filePair; }
+  const std::string& firstFile = *firstFilePtr;
 
   // Helper: open an HDF5 file and invoke a loader callback.
   auto openAndLoad = [](const std::string& path, auto&& loader) -> Hdf5LoadStatus {

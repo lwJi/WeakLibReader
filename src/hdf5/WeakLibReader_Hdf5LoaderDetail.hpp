@@ -3,7 +3,6 @@
 #include <AMReX_ParallelDescriptor.H>
 
 #include <array>
-#include <cctype>
 #include <cstring>
 #include <limits>
 #include <string>
@@ -305,10 +304,10 @@ inline bool ValidateFortranDims(const std::array<hsize_t, ND>& fileDims,
   return true;
 }
 
-template <typename Container, typename T, int ND>
-bool ReadWeakLibArrayNdImpl(hid_t parent, const char* name,
-                             Container& output,
-                             const std::array<int, ND>& expectedDims)
+template <typename T, int ND, typename Container>
+bool ReadWeakLibArrayNd(hid_t parent, const char* name,
+                        Container& output,
+                        const std::array<int, ND>& expectedDims)
 {
   ScopedHandle dataset;
   std::array<hsize_t, ND> fileDims{};
@@ -328,15 +327,6 @@ bool ReadWeakLibArrayNdImpl(hid_t parent, const char* name,
 
   const hid_t memType = std::is_same_v<T, double> ? H5T_NATIVE_DOUBLE : H5T_NATIVE_INT;
   return H5Dread(dataset.Get(), memType, H5S_ALL, H5S_ALL, H5P_DEFAULT, output.data()) >= 0;
-}
-
-template <typename T, int ND, typename Container>
-bool ReadWeakLibArrayNd(hid_t parent, const char* name,
-                        Container& output,
-                        const std::array<int, ND>& expectedDims)
-{
-  return ReadWeakLibArrayNdImpl<Container, T, ND>(
-      parent, name, output, expectedDims);
 }
 
 inline bool GroupExists(hid_t loc, const char* name)
