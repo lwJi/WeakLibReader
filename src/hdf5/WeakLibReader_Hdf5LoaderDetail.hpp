@@ -482,6 +482,22 @@ inline Hdf5LoadStatus LoadWeakLibAxis(hid_t thermoGroup,
   return ReadAxisDataset1D(dataset.Get(), expectedExtent, scale, storage, outAxis);
 }
 
+/// Broadcast a single std::string from root to all ranks.
+inline void BcastString(std::string& s, int root)
+{
+  const int myRank = amrex::ParallelDescriptor::MyProc();
+  int len = (myRank == root) ? static_cast<int>(s.size()) : 0;
+  amrex::ParallelDescriptor::Bcast(&len, 1, root);
+  if (len == 0) {
+    if (myRank != root) { s.clear(); }
+    return;
+  }
+  std::vector<char> buf(len);
+  if (myRank == root) { std::memcpy(buf.data(), s.data(), len); }
+  amrex::ParallelDescriptor::Bcast(buf.data(), len, root);
+  if (myRank != root) { s.assign(buf.data(), len); }
+}
+
 /// Broadcast a vector of strings from root to all ranks.
 /// Format: [count][len0][len1]...[lenN-1][chars...]
 inline void BcastStringVector(std::vector<std::string>& strings, int root)

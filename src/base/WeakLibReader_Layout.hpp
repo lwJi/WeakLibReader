@@ -1,5 +1,6 @@
 #pragma once
 
+#include <AMReX_BLassert.H>
 #include <AMReX_Extension.H>
 #include <AMReX_GpuQualifiers.H>
 
@@ -61,10 +62,14 @@ struct Layout {
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Layout MakeLayout(const int* extents, int nd) noexcept
 {
+  AMREX_ASSERT(extents != nullptr);
+  AMREX_ASSERT(nd >= 1 && nd <= 5);
+
   Layout layout{};
   layout.nd = nd;
   std::size_t stride = 1;
   for (int dim = 0; dim < nd; ++dim) {
+    AMREX_ASSERT(extents[dim] >= 1);
     layout.n[dim] = extents[dim];
     layout.stride[dim] = stride;
     stride *= static_cast<std::size_t>(extents[dim]);
@@ -75,6 +80,8 @@ Layout MakeLayout(const int* extents, int nd) noexcept
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 Layout SliceLeading(const Layout& layout, int drop) noexcept
 {
+  AMREX_ASSERT(drop >= 0 && drop < layout.nd);
+
   Layout result{};
   result.nd = layout.nd - drop;
   std::size_t stride = 1;

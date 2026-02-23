@@ -25,7 +25,7 @@ int ClampIndex(int raw, int maxIndex) noexcept
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void IndexAndDeltaLin(double x, const double* grid, int n,
-                      int& i, double& t) noexcept
+                      int& idx, double& frac) noexcept
 {
   AMREX_ASSERT(grid != nullptr);
   AMREX_ASSERT(n >= 2);
@@ -42,18 +42,18 @@ void IndexAndDeltaLin(double x, const double* grid, int n,
   const int rawIndex = static_cast<int>(math::Floor(scaledIndex));
 
   const int maxIndex = n - 2;
-  i = detail::ClampIndex(rawIndex, maxIndex);
+  idx = detail::ClampIndex(rawIndex, maxIndex);
 
-  const double cellSpan = grid[i + 1] - grid[i];
+  const double cellSpan = grid[idx + 1] - grid[idx];
 
   AMREX_ASSERT(cellSpan > 0.0);
 
-  t = (x - grid[i]) / cellSpan;
+  frac = (x - grid[idx]) / cellSpan;
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void IndexAndDeltaLog10(double x, const double* grid, int n,
-                        int& i, double& t) noexcept
+                        int& idx, double& frac) noexcept
 {
   AMREX_ASSERT(grid != nullptr);
   AMREX_ASSERT(n >= 2);
@@ -71,13 +71,13 @@ void IndexAndDeltaLog10(double x, const double* grid, int n,
   const int rawIndex = static_cast<int>(math::Floor(scaledIndex));
 
   const int maxIndex = n - 2;
-  i = detail::ClampIndex(rawIndex, maxIndex);
+  idx = detail::ClampIndex(rawIndex, maxIndex);
 
-  const double logCellRatio = math::Log10(grid[i + 1] / grid[i]);
+  const double logCellRatio = math::Log10(grid[idx + 1] / grid[idx]);
 
   AMREX_ASSERT(logCellRatio > 0.0);
 
-  t = math::Log10(x / grid[i]) / logCellRatio;
+  frac = math::Log10(x / grid[idx]) / logCellRatio;
 }
 
 } // namespace WeakLibReader

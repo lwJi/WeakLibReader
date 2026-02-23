@@ -7,7 +7,7 @@ USES INCLUDE HEADER: loop_device.hxx
 CCTK_REAL pressure TYPE=GF CENTERING={VVV} TAGS="checkpoint='yes'" "pressure test"
 CCTK_REAL opacity_emab TYPE=GF CENTERING={VVV} TAGS="checkpoint='yes'" "EmAb opacity test"
 CCTK_REAL opacity_iso TYPE=GF CENTERING={VVV} TAGS="checkpoint='yes'" "Iso opacity test"
-CCTK_REAL eos_log_eta TYPE=GF CENTERING={VVV} TAGS="checkpoint='yes'" "log10(mu_e/(kB*T))"
+CCTK_REAL eos_log_eta TYPE=GF CENTERING={VVV} TAGS="checkpoint='yes'" "mu_e/(kB*T)"
 CCTK_REAL eos_dxp TYPE=GF CENTERING={VVV} TAGS="checkpoint='yes'" "D*Xp for Brem"
 CCTK_REAL eos_dxn TYPE=GF CENTERING={VVV} TAGS="checkpoint='yes'" "D*Xn for Brem"
 CCTK_REAL eos_dxpn TYPE=GF CENTERING={VVV} TAGS="checkpoint='yes'" "D*sqrt(Xp*Xn) for Brem"
