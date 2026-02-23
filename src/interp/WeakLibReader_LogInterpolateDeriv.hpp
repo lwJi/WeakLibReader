@@ -10,7 +10,7 @@ namespace WeakLibReader {
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 int LogInterpolateDifferentiateSingleVariable3DCustomPoint(
-    double d, double t, double y,
+    double x0, double x1, double x2,
     const Axis axes[3],
     const double* data,
     double offset,
@@ -25,7 +25,7 @@ int LogInterpolateDifferentiateSingleVariable3DCustomPoint(
   constexpr int ND = 3;
   int extents[ND] = {axes[0].n, axes[1].n, axes[2].n};
   const Layout layout = MakeLayout(extents, ND);
-  const double coords[ND] = {d, t, y};
+  const double coords[ND] = {x0, x1, x2};
 
   detail::LogInterpolatedDerivativeDirect<ND>(
       data, layout, axes, coords, offset, interpolant, derivatives);
@@ -33,14 +33,14 @@ int LogInterpolateDifferentiateSingleVariable3DCustomPoint(
 }
 
 inline int LogInterpolateDifferentiateSingleVariable3DCustom(
-    const double* d, const double* t, const double* y, std::size_t count,
+    const double* x0, const double* x1, const double* x2, std::size_t count,
     const Axis axes[3],
     const double* data,
     double offset,
     double* interpolants,
     double* derivatives) noexcept
 {
-  if (d == nullptr || t == nullptr || y == nullptr ||
+  if (x0 == nullptr || x1 == nullptr || x2 == nullptr ||
       data == nullptr || interpolants == nullptr || derivatives == nullptr ||
       axes[0].grid == nullptr || axes[1].grid == nullptr || axes[2].grid == nullptr) {
     return 1;
@@ -53,7 +53,7 @@ inline int LogInterpolateDifferentiateSingleVariable3DCustom(
   for (std::size_t i = 0; i < count; ++i) {
     double deriv[ND] = {0.0, 0.0, 0.0};
     double interp = 0.0;
-    const double coords[ND] = {d[i], t[i], y[i]};
+    const double coords[ND] = {x0[i], x1[i], x2[i]};
     detail::LogInterpolatedDerivativeDirect<ND>(
         data, layout, axes, coords, offset, interp, deriv);
     interpolants[i] = interp;

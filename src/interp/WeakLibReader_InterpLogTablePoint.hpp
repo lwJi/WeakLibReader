@@ -9,19 +9,19 @@
 namespace WeakLibReader {
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double LinearInterp1DPoint(int i0, double d0, double os,
+double LinearInterp1DPoint(int i0, double d0, double offset,
                            const double* data,
                            const Layout& layout) noexcept
 {
   const std::size_t base = layout.Offset(i0);
   const double p0 = data[base];
   const double p1 = data[base + layout.stride[0]];
-  return math::Pow10(Linear(p0, p1, d0)) - os;
+  return math::Pow10(Linear(p0, p1, d0)) - offset;
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LinearInterp2DPoint(int i0, int i1,
-                           double d0, double d1, double os,
+                           double d0, double d1, double offset,
                            const double* data,
                            const Layout& layout) noexcept
 {
@@ -34,12 +34,12 @@ double LinearInterp2DPoint(int i0, int i1,
   const double p01 = data[base + s1];
   const double p11 = data[base + s0 + s1];
 
-  return math::Pow10(BiLinear(p00, p10, p01, p11, d0, d1)) - os;
+  return math::Pow10(BiLinear(p00, p10, p01, p11, d0, d1)) - offset;
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LinearInterp3DPoint(int i0, int i1, int i2,
-                           double d0, double d1, double d2, double os,
+                           double d0, double d1, double d2, double offset,
                            const double* data,
                            const Layout& layout) noexcept
 {
@@ -59,13 +59,13 @@ double LinearInterp3DPoint(int i0, int i1, int i2,
 
   return math::Pow10(TriLinear(p000, p100, p010, p110,
                                p001, p101, p011, p111,
-                               d0, d1, d2)) - os;
+                               d0, d1, d2)) - offset;
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LinearInterp4DPoint(int i0, int i1, int i2, int i3,
                            double d0, double d1, double d2, double d3,
-                           double os,
+                           double offset,
                            const double* data,
                            const Layout& layout) noexcept
 {
@@ -96,13 +96,13 @@ double LinearInterp4DPoint(int i0, int i1, int i2, int i3,
                                  p0010, p1010, p0110, p1110,
                                  p0001, p1001, p0101, p1101,
                                  p0011, p1011, p0111, p1111,
-                                 d0, d1, d2, d3)) - os;
+                                 d0, d1, d2, d3)) - offset;
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 double LinearInterp5DPoint(int i0, int i1, int i2, int i3, int i4,
                            double d0, double d1, double d2, double d3, double d4,
-                           double os,
+                           double offset,
                            const double* data,
                            const Layout& layout) noexcept
 {
@@ -154,7 +154,7 @@ double LinearInterp5DPoint(int i0, int i1, int i2, int i3, int i4,
                                  p00101, p10101, p01101, p11101,
                                  p00011, p10011, p01011, p11011,
                                  p00111, p10111, p01111, p11111,
-                                 d0, d1, d2, d3, d4)) - os;
+                                 d0, d1, d2, d3, d4)) - offset;
 }
 
 template<int ND>
