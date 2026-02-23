@@ -74,11 +74,11 @@ for (int l = 0; l < 3; ++l) {
 
 | Function | Location | Purpose |
 |----------|----------|---------|
-| `LogInterpolateSingleVariable4DCustomPoint()` | `detail/LogInterpolatePoint.hpp` | Full 4D log-interpolation (EmAb, Iso slice) |
-| `LinearInterp2D4DArray2DAlignedPoint()` | `detail/InterpLogTableSlice.hpp` | 2D interp in 4D array with fixed leading dims (NES/Pair/Brem) |
-| `detail::IndexAndDelta()` | `WeakLibReader_IndexDelta.hpp` | Convert raw coordinate to grid index + fraction |
-| `PreAlignScatteringKernelMoment()` | `detail/LogInterpolateSweep.hpp` | Host-side: interpolate 5D kernel to aligned 4D energy grid |
-| `ExtractIsoMomentSlice4D()` | `WeakLibReader_Hdf5Loader.hpp` | Host-side: extract contiguous 4D slice from 5D Iso kernel |
+| `LogInterpolateSingleVariable4DCustomPoint()` | `src/interp/WeakLibReader_LogInterpolatePoint.hpp` | Full 4D log-interpolation (EmAb, Iso slice) |
+| `LinearInterp2D4DArray2DAlignedPoint()` | `src/interp/WeakLibReader_InterpLogTableSlice.hpp` | 2D interp in 4D array with fixed leading dims (NES/Pair/Brem) |
+| `detail::IndexAndDelta()` | `src/base/WeakLibReader_AxisTypes.hpp` | Convert raw coordinate to grid index + fraction |
+| `PreAlignScatteringKernelMoment()` | `src/interp/WeakLibReader_LogInterpolateSweep.hpp` | Host-side: interpolate 5D kernel to aligned 4D energy grid |
+| `ExtractIsoMomentSlice4D()` | `src/hdf5/WeakLibReader_Hdf5LoaderOpacityScat.hpp` | Host-side: extract contiguous 4D slice from 5D Iso kernel |
 
 ## Device Copy and Pre-alignment Patterns
 

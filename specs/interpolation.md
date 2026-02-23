@@ -9,25 +9,25 @@ functions live in the `WeakLibReader` namespace. Device-callable functions are
 
 ## Core Types
 
-### `Axis` — `src/base/WeakLibReader_AxisTypes.hpp:14`
+### `Axis` — `src/base/WeakLibReader_AxisTypes.hpp`
 
 ```cpp
 struct Axis { const double* grid; int n; AxisScale scale; };
 ```
 
-Passed by value. `detail::IndexAndDelta(axis, x, idx, frac)` (line 29)
-dispatches to `IndexAndDeltaLin` or `IndexAndDeltaLog10` based on `axis.scale`.
+Passed by value. `detail::IndexAndDelta(axis, x, idx, frac)` dispatches to
+`IndexAndDeltaLin` or `IndexAndDeltaLog10` based on `axis.scale`.
 
-### `Layout` — `src/base/WeakLibReader_Layout.hpp:10`
+### `Layout` — `src/base/WeakLibReader_Layout.hpp`
 
 Column-major descriptor for up to 5 dimensions. `stride[0]=1` always.
-`Offset()` has 1-D through 5-D overloads. `SliceLeading(layout, drop)` (line 76)
-strips leading dimensions for aligned-slice access.
+`Offset()` has 1-D through 5-D overloads. `SliceLeading(layout, drop)` strips
+leading dimensions for aligned-slice access.
 
 ### `IndexDelta` — `src/base/WeakLibReader_IndexDelta.hpp`
 
-- `IndexAndDeltaLin` (line 27): linear axis coordinate → `(index, fraction)`
-- `IndexAndDeltaLog10` (line 54): log10 axis coordinate → `(index, fraction)`
+- `IndexAndDeltaLin`: linear axis coordinate → `(index, fraction)`
+- `IndexAndDeltaLog10`: log10 axis coordinate → `(index, fraction)`
 
 Both clamp out-of-range to `[0, n-2]` for natural extrapolation.
 
@@ -35,34 +35,34 @@ Both clamp out-of-range to `[0, n-2]` for natural extrapolation.
 
 All operate in log-space on pre-transformed corner values.
 
-| Function | Dims | Corners | Line |
-|----------|------|---------|------|
-| `Linear` | 1-D | 2 | 9 |
-| `BiLinear` | 2-D | 4 | 16 |
-| `TriLinear` | 3-D | 8 | 41 |
-| `TetraLinear` | 4-D | 16 | 78 |
-| `PentaLinear` | 5-D | 32 | 153 |
+| Function | Dims | Corners |
+|----------|------|---------|
+| `Linear` | 1-D | 2 |
+| `BiLinear` | 2-D | 4 |
+| `TriLinear` | 3-D | 8 |
+| `TetraLinear` | 4-D | 16 |
+| `PentaLinear` | 5-D | 32 |
 
 Each has derivative variants (e.g., `BiLinearDerivativeX1/X2`) returning
 the log-space per-fraction derivative.
 
 ## ND Dispatch
 
-### `LinearInterpPointDirect<ND>` — `src/interp/WeakLibReader_InterpLogTablePoint.hpp:160`
+### `LinearInterpPointDirect<ND>` — `src/interp/WeakLibReader_InterpLogTablePoint.hpp`
 
 Uses `if constexpr` to call `LinearInterp{1..5}DPoint`. Each variant reads
 2^ND corners via `Layout::Offset`, calls the matching basis function, returns
 `Pow10(result) - offset`.
 
-### `LogInterpolatedValueDirect<ND>` — `src/interp/WeakLibReader_LogInterpolateCore.hpp:16`
+### `LogInterpolatedValueDirect<ND>` — `src/interp/WeakLibReader_LogInterpolateCore.hpp`
 
 Central dispatch: computes index/fraction for each axis, then calls
 `LinearInterpPointDirect<ND>`.
 
-### `LogInterpolatedDerivativeDirect<ND>` — `src/interp/WeakLibReader_LogInterpolateCore.hpp:64`
+### `LogInterpolatedDerivativeDirect<ND>` — `src/interp/WeakLibReader_LogInterpolateCore.hpp`
 
-Same structure plus axis scale factors via `ComputeAxisScale()` (line 46) for
-chain-rule conversion from log-space to physical-space derivatives.
+Same structure plus axis scale factors via `ComputeAxisScale()` for chain-rule
+conversion from log-space to physical-space derivatives.
 
 ## Public API
 
@@ -70,40 +70,40 @@ chain-rule conversion from log-space to physical-space derivatives.
 
 GPU-callable. Return `NaN` if any pointer is null.
 
-| Function | Line | Dims |
-|----------|------|------|
-| `LogInterpolateSingleVariable2DCustomPoint` | 12 | 2-D |
-| `LogInterpolateSingleVariable3DCustomPoint` | 49 | 3-D |
-| `LogInterpolateSingleVariable4DCustomPoint` | 89 | 4-D |
+| Function | Dims |
+|----------|------|
+| `LogInterpolateSingleVariable2DCustomPoint` | 2-D |
+| `LogInterpolateSingleVariable3DCustomPoint` | 3-D |
+| `LogInterpolateSingleVariable4DCustomPoint` | 4-D |
 
 Batch (host-only) variants: `LogInterpolateSingleVariable{2,3,4}DCustom`.
 
 ### Energy Sweep — `src/interp/WeakLibReader_LogInterpolateSweep.hpp`
 
-| Function | Line | Pattern |
-|----------|------|---------|
-| `LogInterpolateSingleVariable1D3DCustomPoint` | 12 | Sweep E over fixed (D,T,Ye) in 4D table |
-| `LogInterpolateSingleVariable2D2DCustomPoint` | 77 | Symmetric E×E sweep in 4D table (NES/Pair) |
-| `LogInterpolateSingleVariable2D2DCustomAlignedPoint` | 148 | Same on pre-aligned 4D layout |
-| `PreAlignScatteringKernelMoment` | 227 | Host: 5D raw kernel → 4D aligned table for one moment |
+| Function | Pattern |
+|----------|---------|
+| `LogInterpolateSingleVariable1D3DCustomPoint` | Sweep E over fixed (D,T,Ye) in 4D table |
+| `LogInterpolateSingleVariable2D2DCustomPoint` | Symmetric E×E sweep in 4D table (NES/Pair) |
+| `LogInterpolateSingleVariable2D2DCustomAlignedPoint` | Same on pre-aligned 4D layout |
+| `PreAlignScatteringKernelMoment` | Host: 5D raw kernel → 4D aligned table for one moment |
 
 ### Derivatives — `src/interp/WeakLibReader_LogInterpolateDeriv.hpp`
 
-| Function | Line | Dims |
-|----------|------|------|
-| `LogInterpolateDifferentiateSingleVariable3DCustomPoint` | 10 | 3-D value + 3 derivatives |
-| `LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint` | 173 | Aligned 2D-in-4D value + T/X derivatives |
+| Function | Dims |
+|----------|------|
+| `LogInterpolateDifferentiateSingleVariable3DCustomPoint` | 3-D value + 3 derivatives |
+| `LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint` | Aligned 2D-in-4D value + T/X derivatives |
 
 ### Aligned Slice Helpers — `src/interp/WeakLibReader_InterpLogTableSlice.hpp`
 
 For tables with dense integer leading dimensions (pre-aligned energy bins):
 
-| Function | Line | Fixed dims | Remaining interp |
-|----------|------|------------|-----------------|
-| `LinearInterp2D4DArray2DAlignedPoint` | 24 | 2 | 2-D |
-| `LinearInterpDeriv2D4DArray2DAlignedPoint` | 76 | 2 | 2-D deriv |
+| Function | Fixed dims | Remaining interp |
+|----------|------------|-----------------|
+| `LinearInterp2D4DArray2DAlignedPoint` | 2 | 2-D |
+| `LinearInterpDeriv2D4DArray2DAlignedPoint` | 2 | 2-D deriv |
 
-### Sum — `src/interp/WeakLibReader_LogInterpolateSum.hpp:11`
+### Sum — `src/interp/WeakLibReader_LogInterpolateSum.hpp`
 
 `SumLogInterpolateSingleVariable2D2DCustomAligned` — density-weighted sum
 for Bremsstrahlung (`alpha[l] * interp` over quadrature nodes, symmetric
@@ -112,13 +112,13 @@ upper-triangular). Host-only.
 ## Call Chain (Standard 3D Point)
 
 ```
-LogInterpolateSingleVariable3DCustomPoint      (LogInterpolatePoint.hpp:49)
-  └─ detail::LogInterpolatedValueDirect<3>     (LogInterpolateCore.hpp:17)
-       ├─ detail::IndexAndDelta × 3            (AxisTypes.hpp:29)
-       └─ LinearInterpPointDirect<3>           (InterpLogTablePoint.hpp:160)
-            └─ LinearInterp3DPoint             (InterpLogTablePoint.hpp:41)
-                 ├─ TriLinear(8 corners)       (InterpBasis.hpp:41)
-                 └─ Pow10(result) - offset     (Math.hpp:34)
+LogInterpolateSingleVariable3DCustomPoint
+  └─ detail::LogInterpolatedValueDirect<3>
+       ├─ detail::IndexAndDelta × 3
+       └─ LinearInterpPointDirect<3>
+            └─ LinearInterp3DPoint
+                 ├─ TriLinear(8 corners)
+                 └─ Pow10(result) - offset
 ```
 
 ## EOS Inversion — `src/interp/WeakLibReader_EosInversion.hpp`
@@ -129,20 +129,20 @@ entropy) via bisection in the T-grid, matching Fortran
 
 ### Key Types
 
-- `EosInversionBounds` (line 15): 96-byte struct with axis/variable min/max
-- `EosInversionError` (line 28): enum — `Success`, `DensityOutOfRange`,
+- `EosInversionBounds`: 96-byte struct with axis/variable min/max
+- `EosInversionError`: enum — `Success`, `DensityOutOfRange`,
   `VariableOutOfRange`, `ElectronFractionOutOfRange`, `NaNInput`, `NoRootFound`
 
 ### Key Functions
 
-| Function | Line | GPU | Purpose |
-|----------|------|-----|---------|
-| `InitializeEosInversionBounds` | 42 | No | Scan table for physical-space min/max |
-| `CheckInversionInputError` | 90 | Yes | Range/NaN checks before inversion |
-| `ComputeTemperatureWithDxyGuess` | 163 | Yes | Bisection with initial T guess |
-| `ComputeTemperatureFromEnergy` | 466 | Yes | Public wrapper (two overloads: ±guess) |
-| `ComputeTemperatureFromPressure` | 497 | Yes | Public wrapper (two overloads: ±guess) |
-| `ComputeTemperatureFromEntropy` | 528 | Yes | Public wrapper (two overloads: ±guess) |
+| Function | GPU | Purpose |
+|----------|-----|---------|
+| `InitializeEosInversionBounds` | No | Scan table for physical-space min/max |
+| `CheckInversionInputError` | Yes | Range/NaN checks before inversion |
+| `ComputeTemperatureWithDxyGuess` | Yes | Bisection with initial T guess |
+| `ComputeTemperatureFromEnergy` | Yes | Public wrapper (two overloads: ±guess) |
+| `ComputeTemperatureFromPressure` | Yes | Public wrapper (two overloads: ±guess) |
+| `ComputeTemperatureFromEntropy` | Yes | Public wrapper (two overloads: ±guess) |
 
 ### Bisection Algorithm (with guess)
 
@@ -151,7 +151,7 @@ entropy) via bisection in the T-grid, matching Fortran
 3. **Phase 2**: Evaluate at full T-range endpoints `[0, nT-1]`
 4. **Phase 3**: If endpoints bracket root, bisect biased toward guess
 5. **Phase 4**: If not, scan all T indices for nearest bracket to guess
-6. Final sub-cell refinement via `InverseLogInterp` (log-space linear, line 109)
+6. Final sub-cell refinement via `InverseLogInterp` (log-space linear)
 
 ## File Index
 
