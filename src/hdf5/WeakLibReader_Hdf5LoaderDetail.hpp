@@ -3,9 +3,7 @@
 #include <AMReX_ParallelDescriptor.H>
 
 #include <array>
-#include <cctype>
 #include <cstring>
-#include <limits>
 #include <string>
 #include <vector>
 
@@ -305,10 +303,10 @@ inline bool ValidateFortranDims(const std::array<hsize_t, ND>& fileDims,
   return true;
 }
 
-template <typename Container, typename T, int ND>
-bool ReadWeakLibArrayNdImpl(hid_t parent, const char* name,
-                             Container& output,
-                             const std::array<int, ND>& expectedDims)
+template <typename T, int ND, typename Container>
+bool ReadWeakLibArrayNd(hid_t parent, const char* name,
+                        Container& output,
+                        const std::array<int, ND>& expectedDims)
 {
   ScopedHandle dataset;
   std::array<hsize_t, ND> fileDims{};
@@ -328,15 +326,6 @@ bool ReadWeakLibArrayNdImpl(hid_t parent, const char* name,
 
   const hid_t memType = std::is_same_v<T, double> ? H5T_NATIVE_DOUBLE : H5T_NATIVE_INT;
   return H5Dread(dataset.Get(), memType, H5S_ALL, H5S_ALL, H5P_DEFAULT, output.data()) >= 0;
-}
-
-template <typename T, int ND, typename Container>
-bool ReadWeakLibArrayNd(hid_t parent, const char* name,
-                        Container& output,
-                        const std::array<int, ND>& expectedDims)
-{
-  return ReadWeakLibArrayNdImpl<Container, T, ND>(
-      parent, name, output, expectedDims);
 }
 
 inline bool GroupExists(hid_t loc, const char* name)
@@ -410,31 +399,20 @@ inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char* groupName,
   return Hdf5LoadStatus::Success;
 }
 
-inline std::size_t ComputeTotalSize(int nd, const std::array<int, 5>& extents)
-{
-  std::size_t size = 1;
-  const std::size_t maxSize = std::numeric_limits<std::size_t>::max();
-  for (int dim = 0; dim < nd; ++dim) {
-    const int extent = extents[dim];
-    if (extent <= 0) {
-      return 0;
-    }
-    if (size > maxSize / static_cast<std::size_t>(extent)) {
-      return 0;
-    }
-    size *= static_cast<std::size_t>(extent);
-  }
-  return size;
-}
-
 template <typename Container>
-inline Hdf5LoadStatus ReadAxisDataset1D(hid_t datasetId,
-                                        int expectedExtent,
-                                        AxisScale scale,
-                                        Container& storage,
-                                        Axis& outAxis)
+inline Hdf5LoadStatus LoadWeakLibAxis(hid_t thermoGroup,
+                                      const char* datasetName,
+                                      int expectedExtent,
+                                      AxisScale scale,
+                                      Container& storage,
+                                      Axis& outAxis)
 {
-  ScopedHandle space(H5Dget_space(datasetId), H5Sclose);
+  ScopedHandle dataset(H5Dopen(thermoGroup, datasetName, H5P_DEFAULT), H5Dclose);
+  if (!dataset.Valid()) {
+    return Hdf5LoadStatus::AxisDatasetOpenFailed;
+  }
+
+  ScopedHandle space(H5Dget_space(dataset.Get()), H5Sclose);
   if (!space.Valid()) {
     return Hdf5LoadStatus::AxisReadFailed;
   }
@@ -453,7 +431,7 @@ inline Hdf5LoadStatus ReadAxisDataset1D(hid_t datasetId,
   }
 
   storage.resize(static_cast<std::size_t>(length));
-  if (H5Dread(datasetId, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+  if (H5Dread(dataset.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
               storage.data()) < 0) {
     return Hdf5LoadStatus::AxisReadFailed;
   }
@@ -464,22 +442,6 @@ inline Hdf5LoadStatus ReadAxisDataset1D(hid_t datasetId,
 
   outAxis = Axis{storage.data(), static_cast<int>(storage.size()), scale};
   return Hdf5LoadStatus::Success;
-}
-
-template <typename Container>
-inline Hdf5LoadStatus LoadWeakLibAxis(hid_t thermoGroup,
-                                      const char* datasetName,
-                                      int expectedExtent,
-                                      AxisScale scale,
-                                      Container& storage,
-                                      Axis& outAxis)
-{
-  ScopedHandle dataset(H5Dopen(thermoGroup, datasetName, H5P_DEFAULT), H5Dclose);
-  if (!dataset.Valid()) {
-    return Hdf5LoadStatus::AxisDatasetOpenFailed;
-  }
-
-  return ReadAxisDataset1D(dataset.Get(), expectedExtent, scale, storage, outAxis);
 }
 
 /// Broadcast a single std::string from root to all ranks.

@@ -1,7 +1,6 @@
 #pragma once
 
 // Types and internal helpers
-#include "hdf5/WeakLibReader_Hdf5Types.hpp"
 #include "hdf5/WeakLibReader_Hdf5LoaderDetail.hpp"
 
 // Serial loaders

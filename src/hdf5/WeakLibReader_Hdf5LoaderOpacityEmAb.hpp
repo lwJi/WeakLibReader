@@ -1,6 +1,5 @@
 #pragma once
 
-#include "hdf5/WeakLibReader_Hdf5Types.hpp"
 #include "hdf5/WeakLibReader_Hdf5LoaderDetail.hpp"
 
 namespace WeakLibReader {
@@ -69,12 +68,15 @@ inline Hdf5LoadStatus LoadECTable(hid_t file, WeakLibECTable& ecTable)
   }
 
   // Min/max bounds are optional best-effort reads.
-  readDoubleDataset("minRho", &ecTable.rhoMin);
-  readDoubleDataset("maxRho", &ecTable.rhoMax);
-  readDoubleDataset("minT", &ecTable.tempMin);
-  readDoubleDataset("maxT", &ecTable.tempMax);
-  readDoubleDataset("minYe", &ecTable.yeMin);
-  readDoubleDataset("maxYe", &ecTable.yeMax);
+  {
+    ScopedH5ErrorSuppressor suppress;
+    readDoubleDataset("minRho", &ecTable.rhoMin);
+    readDoubleDataset("maxRho", &ecTable.rhoMax);
+    readDoubleDataset("minT", &ecTable.tempMin);
+    readDoubleDataset("maxT", &ecTable.tempMax);
+    readDoubleDataset("minYe", &ecTable.yeMin);
+    readDoubleDataset("maxYe", &ecTable.yeMax);
+  }
 
   std::vector<std::string> unitVec;
   if (ReadStringArray(group.Get(), "Units", unitVec) && !unitVec.empty()) {
