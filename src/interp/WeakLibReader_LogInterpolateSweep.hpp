@@ -7,7 +7,6 @@
 
 namespace WeakLibReader {
 
-/// 4D log-interpolation with 1D sweep over energy (single point)
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 int LogInterpolateSingleVariable1D3DCustomPoint(
     const double* logE, std::size_t sizeE,
@@ -38,7 +37,6 @@ int LogInterpolateSingleVariable1D3DCustomPoint(
   return 0;
 }
 
-/// 4D log-interpolation with 1D sweep over energy (batch)
 inline int LogInterpolateSingleVariable1D3DCustom(
     const double* logE, std::size_t sizeE,
     const double* logD, const double* logT, const double* y, std::size_t count,
@@ -72,7 +70,6 @@ inline int LogInterpolateSingleVariable1D3DCustom(
   return 0;
 }
 
-/// 4D log-interpolation with 2D symmetric energy sweep (single point)
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 int LogInterpolateSingleVariable2D2DCustomPoint(
     const double* logE, std::size_t sizeE,
@@ -106,7 +103,6 @@ int LogInterpolateSingleVariable2D2DCustomPoint(
   return 0;
 }
 
-/// 4D log-interpolation with 2D symmetric energy sweep (batch)
 inline int LogInterpolateSingleVariable2D2DCustom(
     const double* logE, std::size_t sizeE,
     const double* logT, const double* logX, std::size_t count,

@@ -1,8 +1,5 @@
 #pragma once
 
-#include <AMReX_Extension.H>
-#include <AMReX_GpuQualifiers.H>
-
 #include "base/WeakLibReader_AxisTypes.hpp"
 #include "base/WeakLibReader_InterpBasis.hpp"
 #include "base/WeakLibReader_Layout.hpp"
@@ -170,7 +167,6 @@ EosInversionError ComputeTemperatureWithDxyGuess(
     double& T) noexcept
 {
   T = 0.0;
-  EosInversionError error = EosInversionError::Success;
 
   const int nT = axes[1].n;
 
@@ -289,16 +285,13 @@ EosInversionError ComputeTemperatureWithDxyGuess(
       }
     }
 
-    if (d_i >= nT) error = EosInversionError::NoRootFound;
+    if (d_i >= nT) {
+      return EosInversionError::NoRootFound;
+    }
   }
 
-  if (error != EosInversionError::Success) {
-    T = 0.0;
-  } else {
-    T = detail::InverseLogInterp(T_a, T_b, X_a, X_b, X, xOffset);
-  }
-
-  return error;
+  T = detail::InverseLogInterp(T_a, T_b, X_a, X_b, X, xOffset);
+  return EosInversionError::Success;
 }
 
 // Core bisection without initial guess.
@@ -323,8 +316,6 @@ EosInversionError ComputeTemperatureWithDxyNoGuess(
     double xOffset,
     double& T) noexcept
 {
-  EosInversionError error = EosInversionError::Success;
-
   const int nT = axes[1].n;
 
   // Pre-compute D and Y indices/fractions
@@ -405,16 +396,14 @@ EosInversionError ComputeTemperatureWithDxyNoGuess(
     // Check if root was found (Fortran lines 560-563)
     f_a = X - X_a;
     f_b = X - X_b;
-    if (f_a * f_b > 0.0) error = EosInversionError::NoRootFound;
+    if (f_a * f_b > 0.0) {
+      T = 0.0;
+      return EosInversionError::NoRootFound;
+    }
   }
 
-  if (error != EosInversionError::Success) {
-    T = 0.0;
-  } else {
-    T = detail::InverseLogInterp(T_a, T_b, X_a, X_b, X, xOffset);
-  }
-
-  return error;
+  T = detail::InverseLogInterp(T_a, T_b, X_a, X_b, X, xOffset);
+  return EosInversionError::Success;
 }
 
 namespace detail {
