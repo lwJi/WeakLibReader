@@ -103,6 +103,16 @@ struct WeakLibEosTableDevice {
   [[nodiscard]] const double* VariableData(int varIndex) const noexcept {
     return variables[varIndex].data();
   }
+
+  void ReleaseDeviceData() noexcept {
+    for (auto& a : axisStorage) {
+      a = amrex::Gpu::DeviceVector<double>{};
+    }
+    for (auto& v : variables) {
+      v = amrex::Gpu::DeviceVector<double>{};
+    }
+    repaired = amrex::Gpu::DeviceVector<int>{};
+  }
 };
 
 // ============================================================================
@@ -146,6 +156,10 @@ struct WeakLibOpacityGridDevice {
 
   [[nodiscard]] Axis MakeAxis() const noexcept {
     return Axis{values.data(), nPoints, scale};
+  }
+
+  void ReleaseDeviceData() noexcept {
+    values = amrex::Gpu::DeviceVector<double>{};
   }
 };
 
@@ -211,6 +225,15 @@ struct WeakLibECTableDevice {
   WeakLibECTableDevice& operator=(const WeakLibECTableDevice&) = delete;
 
   [[nodiscard]] bool IsPresent() const noexcept { return nE > 0; }
+
+  void ReleaseDeviceData() noexcept {
+    energyValues = amrex::Gpu::DeviceVector<double>{};
+    rhoValues = amrex::Gpu::DeviceVector<double>{};
+    tempValues = amrex::Gpu::DeviceVector<double>{};
+    yeValues = amrex::Gpu::DeviceVector<double>{};
+    spectrum = amrex::Gpu::DeviceVector<double>{};
+    rate = amrex::Gpu::DeviceVector<double>{};
+  }
 };
 
 // EmAb physics parameters (new format only, -1 for legacy)
@@ -277,6 +300,13 @@ struct WeakLibEmAbTableDevice {
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
   [[nodiscard]] const double* OpacityData(int species) const noexcept {
     return opacities[species].data();
+  }
+
+  void ReleaseDeviceData() noexcept {
+    for (auto& o : opacities) {
+      o = amrex::Gpu::DeviceVector<double>{};
+    }
+    ecTable.ReleaseDeviceData();
   }
 };
 
@@ -450,6 +480,12 @@ struct WeakLibThermoStateDevice {
   WeakLibThermoStateDevice& operator=(WeakLibThermoStateDevice&&) = default;
   WeakLibThermoStateDevice(const WeakLibThermoStateDevice&) = delete;
   WeakLibThermoStateDevice& operator=(const WeakLibThermoStateDevice&) = delete;
+
+  void ReleaseDeviceData() noexcept {
+    for (auto& a : axisStorage) {
+      a = amrex::Gpu::DeviceVector<double>{};
+    }
+  }
 };
 
 // Unified opacity table containing all types
@@ -501,6 +537,17 @@ struct WeakLibOpacityTableDevice {
   [[nodiscard]] bool HasScatNES() const noexcept { return scatNES.IsLoaded(); }
   [[nodiscard]] bool HasScatPair() const noexcept { return scatPair.IsLoaded(); }
   [[nodiscard]] bool HasScatBrem() const noexcept { return scatBrem.IsLoaded(); }
+
+  void ReleaseDeviceData() noexcept {
+    energyGrid.ReleaseDeviceData();
+    etaGrid.ReleaseDeviceData();
+    thermoState.ReleaseDeviceData();
+    emAb.ReleaseDeviceData();
+    scatIso.ReleaseDeviceData();
+    scatNES.ReleaseDeviceData();
+    scatPair.ReleaseDeviceData();
+    scatBrem.ReleaseDeviceData();
+  }
 };
 
 } // namespace WeakLibReader

@@ -1,13 +1,16 @@
 #pragma once
 
+#include <AMReX_Extension.H>
 #include <AMReX_GpuQualifiers.H>
+
 #include <cstddef>
 
 #include "interp/WeakLibReader_LogInterpolateCore.hpp"
 
 namespace WeakLibReader {
 
-inline int LogInterpolateDifferentiateSingleVariable3DCustomPoint(
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int LogInterpolateDifferentiateSingleVariable3DCustomPoint(
     double d, double t, double y,
     const Axis axes[3],
     const double* data,
@@ -62,7 +65,8 @@ inline int LogInterpolateDifferentiateSingleVariable3DCustom(
   return 0;
 }
 
-inline int LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
     const double* logE, std::size_t sizeE,
     double logT, double logX,
     const Axis axes[4],
@@ -170,7 +174,8 @@ inline int LogInterpolateDifferentiateSingleVariable2D2DCustom(
   return 0;
 }
 
-inline int LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
     std::size_t sizeE,
     double logT, double logX,
     const Axis axes[2],
