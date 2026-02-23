@@ -104,7 +104,7 @@ Used by `LoadWeakLibOpacityTableFull()` and `LoadWeakLibOpacityTableFullParallel
   S_sigma[nE_in, nE_out, nMom, nRho, nT]
 ```
 
-**Note:** All multi-dimensional arrays are stored in Fortran order in HDF5 files and reversed to C column-major order on load.
+**Note:** All multi-dimensional arrays are stored in Fortran order in HDF5 files and reversed to column-major (Fortran-style, stride-1 on first dimension) order on load.
 
 ## Key Loader Functions
 
@@ -114,5 +114,5 @@ Used by `LoadWeakLibOpacityTableFull()` and `LoadWeakLibOpacityTableFullParallel
 | `LoadWeakLibEosTableFullParallel()` | Parallel broadcast version of above |
 | `LoadWeakLibOpacityTableFull()` | Master loader for all opacity subtables |
 | `LoadWeakLibOpacityTableFullParallel()` | Parallel broadcast version of above |
-| `MakeDeviceCopy()` | Copy host table to GPU device memory (overloaded for all table types) |
+| `MakeDeviceCopy()` | Copy host table to GPU device memory (2 public overloads: EOS and opacity) |
 | `ExtractIsoMomentSlice4D()` | Extract contiguous 4D slice from 5D Iso kernel at fixed moment |

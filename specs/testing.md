@@ -4,7 +4,7 @@
 
 The project ships a bundled Catch2-compatible stub at
 `test/include/catch2/catch_test_macros.hpp` (not the real Catch2). It provides
-`TEST_CASE`, `CHECK`, `REQUIRE`, `Catch::Approx`, and a simple test runner.
+`TEST_CASE`, `CHECK`, `CHECK_FALSE`, `REQUIRE`, `REQUIRE_FALSE`, `Catch::Approx`, and a simple test runner.
 
 ## Test Structure
 
@@ -105,7 +105,7 @@ needed.
 
 Tests never read pre-existing table files. They create files with `H5Fcreate`,
 populate with helpers from `test_hdf5_helpers.hpp`, load through the library,
-assert, then delete. See `test_weaklib_eos_loader.cpp:45–110` for the pattern.
+assert, then delete. See `test_weaklib_eos_loader.cpp` for the pattern (helper functions define the file layout; `TEST_CASE` bodies perform load/assert/delete).
 
 ### Floating-point comparison
 
@@ -118,7 +118,7 @@ assert, then delete. See `test_weaklib_eos_loader.cpp:45–110` for the pattern.
 
 ### Device round-trip
 
-`VerifyDeviceRoundTrip(deviceVec, hostVec)` copies back from GPU and checks
+`VerifyDeviceRoundTrip<T, HostContainer>(deviceVec, hostVec)` copies back from GPU and checks
 exact element-by-element equality. Used in all `MakeDeviceCopy` tests.
 
 ### EOS inversion round-trip
