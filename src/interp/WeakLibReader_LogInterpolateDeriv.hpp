@@ -32,7 +32,8 @@ int LogInterpolateDifferentiateSingleVariable3DCustomPoint(
   return 0;
 }
 
-inline int LogInterpolateDifferentiateSingleVariable3DCustom(
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int LogInterpolateDifferentiateSingleVariable3DCustom(
     const double* d, const double* t, const double* y, std::size_t count,
     const Axis axes[3],
     const double* data,
@@ -133,7 +134,8 @@ int LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
   return 0;
 }
 
-inline int LogInterpolateDifferentiateSingleVariable2D2DCustom(
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int LogInterpolateDifferentiateSingleVariable2D2DCustom(
     const double* logE, std::size_t sizeE,
     const double* logT, const double* logX, std::size_t count,
     const Axis axes[4],
@@ -237,7 +239,8 @@ int LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
   return 0;
 }
 
-inline int LogInterpolateDifferentiateSingleVariable2D2DCustomAligned(
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int LogInterpolateDifferentiateSingleVariable2D2DCustomAligned(
     std::size_t sizeE,
     const double* logT, const double* logX, std::size_t count,
     const Axis axes[2],

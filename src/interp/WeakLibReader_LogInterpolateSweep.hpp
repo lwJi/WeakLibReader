@@ -37,7 +37,8 @@ int LogInterpolateSingleVariable1D3DCustomPoint(
   return 0;
 }
 
-inline int LogInterpolateSingleVariable1D3DCustom(
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int LogInterpolateSingleVariable1D3DCustom(
     const double* logE, std::size_t sizeE,
     const double* logD, const double* logT, const double* y, std::size_t count,
     const Axis axes[4],
@@ -103,7 +104,8 @@ int LogInterpolateSingleVariable2D2DCustomPoint(
   return 0;
 }
 
-inline int LogInterpolateSingleVariable2D2DCustom(
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int LogInterpolateSingleVariable2D2DCustom(
     const double* logE, std::size_t sizeE,
     const double* logT, const double* logX, std::size_t count,
     const Axis axes[4],
@@ -184,7 +186,8 @@ int LogInterpolateSingleVariable2D2DCustomAlignedPoint(
   return 0;
 }
 
-inline int LogInterpolateSingleVariable2D2DCustomAligned(
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int LogInterpolateSingleVariable2D2DCustomAligned(
     std::size_t sizeE,
     const double* logT, const double* logX, std::size_t count,
     const Axis axes[2],
@@ -220,7 +223,8 @@ inline int LogInterpolateSingleVariable2D2DCustomAligned(
 /// table [nAlignedE, nAlignedE, nDim3, nDim4] stored as log10(value + offset).
 /// Relies on column-major layout: the 2D energy slice at any fixed (iMom, iD3, iD4)
 /// is contiguous in memory.
-inline void PreAlignScatteringKernelMoment(
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+void PreAlignScatteringKernelMoment(
     const double* rawKernel,
     const Layout& rawLayout,
     const Axis& energyAxis,
