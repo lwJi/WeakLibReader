@@ -1,4 +1,4 @@
-# CLAUDE.md
+# WeakLibReader
 
 WeakLibReader translates WeakLib's EOS & opacity interpolators from Fortran into GPU-friendly C++ integrated with AMReX. Target: numerical parity with Fortran (≤1e-12 relative error), CUDA first (HIP later).
 
