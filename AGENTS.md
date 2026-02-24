@@ -1,4 +1,4 @@
-# AGENTS.md
+# WeakLibReader
 
 WeakLibReader translates WeakLib's EOS & opacity interpolators from Fortran into GPU-friendly C++ integrated with AMReX. Target: numerical parity with Fortran (≤1e-12 relative error), CUDA first (HIP later).
 
@@ -7,7 +7,7 @@ WeakLibReader translates WeakLib's EOS & opacity interpolators from Fortran into
 - **C++17 header-only library** (all code in `src/` headers)
 - **AMReX** for GPU portability (`AMREX_GPU_HOST_DEVICE`, `Gpu::DeviceVector`, `Gpu::PinnedVector`)
 - **HDF5** for table I/O (only supported format)
-- **Catch2** test framework (`test/`)
+- **Catch2-compatible stub** for testing (`test/` — custom lightweight implementation, not real Catch2)
 - **CMake 3.18+** build system
 
 ## Project Structure
@@ -17,7 +17,7 @@ src/
   base/             # Core types: Axis, Layout, IndexDelta, InterpBasis, Math
   interp/           # Interpolation: LogInterpolate*, InterpLogTable* (2D–5D), EosInversion
   hdf5/             # HDF5 loaders: tables, EOS, opacity, device copies, MPI broadcast
-test/               # Catch2 regression tests (EOS, opacity, interpolation, HDF5)
+test/               # Regression tests (EOS, opacity, interpolation, HDF5)
 ref/weaklib/        # Fortran reference (consult before new interp logic)
 cactus_interface/   # Cactus thorns: WeakLibReader (library) + TestWeakLibReader (example)
 scripts/            # build.sh, test.sh, check.sh
@@ -39,7 +39,7 @@ scripts/test.sh    # Run tests only
 scripts/check.sh   # Build and test together
 ```
 
-Set `VERBOSE=1` for full test output (e.g., `VERBOSE=1 scripts/test.sh`).
+Set `VERBOSE=1` for full test output (e.g., `VERBOSE=1 scripts/test.sh`). The env var is read by the test binary, not the scripts themselves.
 
 ## Architecture
 
