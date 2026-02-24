@@ -25,7 +25,8 @@ double LogInterpolateSingleVariable2DCustomPoint(
   return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
 }
 
-inline int LogInterpolateSingleVariable2DCustom(
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int LogInterpolateSingleVariable2DCustom(
     const double* x0, const double* x1, std::size_t count,
     const Axis axes[2],
     const double* data,
@@ -64,7 +65,8 @@ double LogInterpolateSingleVariable3DCustomPoint(
   return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
 }
 
-inline int LogInterpolateSingleVariable3DCustom(
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int LogInterpolateSingleVariable3DCustom(
     const double* x0, const double* x1, const double* x2, std::size_t count,
     const Axis axes[3],
     const double* data,
@@ -104,7 +106,8 @@ double LogInterpolateSingleVariable4DCustomPoint(
   return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
 }
 
-inline int LogInterpolateSingleVariable4DCustom(
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int LogInterpolateSingleVariable4DCustom(
     const double* x0, const double* x1, const double* x2, const double* x3,
     std::size_t count,
     const Axis axes[4],
