@@ -2,13 +2,16 @@
 
 #include <AMReX_GpuQualifiers.H>
 #include <cstddef>
-#include <vector>
-
 #include "interp/WeakLibReader_LogInterpolateCore.hpp"
 
 namespace WeakLibReader {
 
-inline int SumLogInterpolateSingleVariable2D2DCustomAligned(
+/// Maximum number of alpha (density) terms for GPU-compatible stack allocation.
+/// Physics: Bremsstrahlung uses 3 (pp, nn, pn). Sized with margin.
+constexpr int kMaxAlpha = 4;
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+int SumLogInterpolateSingleVariable2D2DCustomAligned(
     std::size_t sizeE,
     const double* logD, std::size_t nAlpha,
     const double* logT, std::size_t count,
@@ -35,8 +38,9 @@ inline int SumLogInterpolateSingleVariable2D2DCustomAligned(
   const Layout layout = MakeLayout(extents, 4);
 
   const std::size_t planeSize = sizeE * sizeE;
-  std::vector<int> idxD(nAlpha);
-  std::vector<double> fracD(nAlpha);
+  AMREX_ASSERT(nAlpha <= kMaxAlpha);
+  int idxD[kMaxAlpha];
+  double fracD[kMaxAlpha];
 
   for (std::size_t k = 0; k < count; ++k) {
     double* plane = out + k * planeSize;
