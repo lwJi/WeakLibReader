@@ -6,19 +6,18 @@ namespace test_detail {
 
 /// Global AMReX guard that initializes once and finalizes at program exit.
 /// This avoids the MPI re-initialization error that occurs when each test
-/// creates its own AmrexGuard (MPI cannot be re-initialized after finalization).
+/// creates its own AmrexGuard (MPI cannot be re-initialized after
+/// finalization).
 struct GlobalAmrexGuard {
-  GlobalAmrexGuard()
-  {
+  GlobalAmrexGuard() {
     int argc = 0;
-    char** argv = nullptr;
+    char **argv = nullptr;
     amrex::Initialize(argc, argv);
   }
   ~GlobalAmrexGuard() { amrex::Finalize(); }
 };
 
-inline GlobalAmrexGuard& GetGlobalAmrexGuard()
-{
+inline GlobalAmrexGuard &GetGlobalAmrexGuard() {
   static GlobalAmrexGuard guard;
   return guard;
 }
