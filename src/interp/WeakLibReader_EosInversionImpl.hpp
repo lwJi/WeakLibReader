@@ -23,12 +23,12 @@ struct EosInversionBounds {
 // Fortran error 10 (not initialized) is omitted — EosInversionBounds
 // is always valid if constructed (see InitializeEosInversionBounds).
 enum class EosInversionError : int {
-  Success                    = 0,
-  DensityOutOfRange          = 1,
-  VariableOutOfRange         = 2,
+  Success = 0,
+  DensityOutOfRange = 1,
+  VariableOutOfRange = 2,
   ElectronFractionOutOfRange = 3,
-  NaNInput                   = 11,
-  NoRootFound                = 13,
+  NaNInput = 11,
+  NoRootFound = 13,
 };
 
 // Host-only: scan axis grids and variable data to compute inversion bounds.
@@ -37,12 +37,9 @@ enum class EosInversionError : int {
 // Accepts nullptr for variables not present (sets min/max to 0).
 // Matches Fortran InitializeEOSInversion (wlEOSInversionModule.F90:139-185).
 inline EosInversionBounds InitializeEosInversionBounds(
-    const Axis axes[3],
-    int totalSize,
-    const double* energyData,   double energyOffset,
-    const double* pressureData, double pressureOffset,
-    const double* entropyData,  double entropyOffset) noexcept
-{
+    const Axis axes[3], int totalSize, const double *energyData,
+    double energyOffset, const double *pressureData, double pressureOffset,
+    const double *entropyData, double entropyOffset) noexcept {
   EosInversionBounds bounds;
 
   // Axis bounds from grid endpoints (monotonically increasing)
@@ -54,8 +51,8 @@ inline EosInversionBounds InitializeEosInversionBounds(
   bounds.maxY = axes[2].grid[axes[2].n - 1];
 
   // Scan variable data for min/max in physical space
-  auto ScanMinMax = [totalSize](const double* data, double offset,
-                                double& minVal, double& maxVal) {
+  auto ScanMinMax = [totalSize](const double *data, double offset,
+                                double &minVal, double &maxVal) {
     if (data == nullptr) {
       minVal = 0.0;
       maxVal = 0.0;
@@ -65,16 +62,18 @@ inline EosInversionBounds InitializeEosInversionBounds(
     double hi = lo;
     for (int i = 1; i < totalSize; ++i) {
       const double val = math::Pow10(data[i]) - offset;
-      if (val < lo) lo = val;
-      if (val > hi) hi = val;
+      if (val < lo)
+        lo = val;
+      if (val > hi)
+        hi = val;
     }
     minVal = lo;
     maxVal = hi;
   };
 
-  ScanMinMax(energyData,   energyOffset,   bounds.minE, bounds.maxE);
+  ScanMinMax(energyData, energyOffset, bounds.minE, bounds.maxE);
   ScanMinMax(pressureData, pressureOffset, bounds.minP, bounds.maxP);
-  ScanMinMax(entropyData,  entropyOffset,  bounds.minS, bounds.maxS);
+  ScanMinMax(entropyData, entropyOffset, bounds.minS, bounds.maxS);
 
   return bounds;
 }
@@ -83,16 +82,18 @@ inline EosInversionBounds InitializeEosInversionBounds(
 // Returns EosInversionError; see enum for individual codes.
 // Matches Fortran CheckInputError (wlEOSInversionModule.F90:188-227).
 // Note: Fortran error 10 (not initialized) omitted — struct is always valid.
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-EosInversionError CheckInversionInputError(
-    double D, double X, double Y,
-    const EosInversionBounds& bounds,
-    double minX, double maxX) noexcept
-{
-  if (D != D || X != X || Y != Y) return EosInversionError::NaNInput;
-  if (D < bounds.minD || D > bounds.maxD) return EosInversionError::DensityOutOfRange;
-  if (X < minX || X > maxX) return EosInversionError::VariableOutOfRange;
-  if (Y < bounds.minY || Y > bounds.maxY) return EosInversionError::ElectronFractionOutOfRange;
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE EosInversionError
+CheckInversionInputError(double D, double X, double Y,
+                         const EosInversionBounds &bounds, double minX,
+                         double maxX) noexcept {
+  if (D != D || X != X || Y != Y)
+    return EosInversionError::NaNInput;
+  if (D < bounds.minD || D > bounds.maxD)
+    return EosInversionError::DensityOutOfRange;
+  if (X < minX || X > maxX)
+    return EosInversionError::VariableOutOfRange;
+  if (Y < bounds.minY || Y > bounds.maxY)
+    return EosInversionError::ElectronFractionOutOfRange;
   return EosInversionError::Success;
 }
 
@@ -102,31 +103,22 @@ namespace detail {
 // T = 10^(log10(T_a) + log10(T_b/T_a) * log10((X+OS)/(X_a+OS))
 //                                       / log10((X_b+OS)/(X_a+OS)))
 // Matches Fortran InverseLogInterp (wlEOSInversionModule.F90:253-267).
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double InverseLogInterp(
-    double T_a, double T_b,
-    double X_a, double X_b,
-    double X, double offset) noexcept
-{
-  return math::Pow10(
-      math::Log10(T_a)
-      + math::Log10(T_b / T_a)
-        * math::Log10((X + offset) / (X_a + offset))
-        / math::Log10((X_b + offset) / (X_a + offset)));
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE double
+InverseLogInterp(double T_a, double T_b, double X_a, double X_b, double X,
+                 double offset) noexcept {
+  return math::Pow10(math::Log10(T_a) +
+                     math::Log10(T_b / T_a) *
+                         math::Log10((X + offset) / (X_a + offset)) /
+                         math::Log10((X_b + offset) / (X_a + offset)));
 }
 
 // 2D bilinear interpolation in (D, Y) at fixed T-index from 3D data.
 // Pre-computed iD, iY, dD, dY are reused across all T evaluations
 // during bisection (more efficient than Fortran which recomputes each call).
 // Data layout is column-major [nRho, nT, nYe].
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double EvalAtFixedTIndex(
-    int iD, int iY, double dD, double dY,
-    int iT,
-    double offset,
-    const double* data,
-    const Layout& layout) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE double
+EvalAtFixedTIndex(int iD, int iY, double dD, double dY, int iT, double offset,
+                  const double *data, const Layout &layout) noexcept {
   const auto base = layout.Offset(iD, iT, iY);
   const auto s0 = layout.stride[0];
   const auto s2 = layout.stride[2];
@@ -156,16 +148,11 @@ double EvalAtFixedTIndex(
 // Index mapping (Fortran 1-based -> C++ 0-based):
 //   Fortran i_a=1, i_b=SizeTs -> C++ i_a=0, i_b=nT-1
 //   Fortran DO i=2,SizeTs-1   -> C++ for(i=1; i<=nT-2; ++i)
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-EosInversionError ComputeTemperatureWithDxyGuess(
-    double D, double X, double Y,
-    const Axis axes[3],
-    const double* xData,
-    const Layout& layout,
-    double xOffset,
-    double tGuess,
-    double& T) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE EosInversionError
+ComputeTemperatureWithDxyGuess(double D, double X, double Y, const Axis axes[3],
+                               const double *xData, const Layout &layout,
+                               double xOffset, double tGuess,
+                               double &T) noexcept {
   T = 0.0;
 
   const int nT = axes[1].n;
@@ -183,14 +170,14 @@ EosInversionError ComputeTemperatureWithDxyGuess(
 
   int i_a = iT;
   double T_a = axes[1].grid[i_a];
-  double X_a = detail::EvalAtFixedTIndex(
-      iD, iY, dD, dY, i_a, xOffset, xData, layout);
+  double X_a =
+      detail::EvalAtFixedTIndex(iD, iY, dD, dY, i_a, xOffset, xData, layout);
   double f_a = X - X_a;
 
   int i_b = i_a + 1;
   double T_b = axes[1].grid[i_b];
-  double X_b = detail::EvalAtFixedTIndex(
-      iD, iY, dD, dY, i_b, xOffset, xData, layout);
+  double X_b =
+      detail::EvalAtFixedTIndex(iD, iY, dD, dY, i_b, xOffset, xData, layout);
   double f_b = X - X_b;
 
   if (f_a * f_b <= 0.0) {
@@ -203,14 +190,13 @@ EosInversionError ComputeTemperatureWithDxyGuess(
 
   i_a = 0;
   T_a = axes[1].grid[0];
-  X_a = detail::EvalAtFixedTIndex(
-      iD, iY, dD, dY, 0, xOffset, xData, layout);
+  X_a = detail::EvalAtFixedTIndex(iD, iY, dD, dY, 0, xOffset, xData, layout);
   f_a = X - X_a;
 
   i_b = nT - 1;
   T_b = axes[1].grid[nT - 1];
-  X_b = detail::EvalAtFixedTIndex(
-      iD, iY, dD, dY, nT - 1, xOffset, xData, layout);
+  X_b =
+      detail::EvalAtFixedTIndex(iD, iY, dD, dY, nT - 1, xOffset, xData, layout);
   f_b = X - X_b;
 
   if (f_a * f_b <= 0.0) {
@@ -220,12 +206,13 @@ EosInversionError ComputeTemperatureWithDxyGuess(
 
     // Initial midpoint biased toward guess: min(max(i_a+1, iT), i_b-1)
     int i_c = (iT > i_a + 1) ? iT : (i_a + 1);
-    if (i_c > i_b - 1) i_c = i_b - 1;
+    if (i_c > i_b - 1)
+      i_c = i_b - 1;
 
     while (i_b > i_a + 1) {
       const double T_c = axes[1].grid[i_c];
-      const double X_c = detail::EvalAtFixedTIndex(
-          iD, iY, dD, dY, i_c, xOffset, xData, layout);
+      const double X_c = detail::EvalAtFixedTIndex(iD, iY, dD, dY, i_c, xOffset,
+                                                   xData, layout);
       const double f_c = X - X_c;
 
       if (f_a * f_c <= 0.0) {
@@ -242,7 +229,8 @@ EosInversionError ComputeTemperatureWithDxyGuess(
 
       // Standard bisection midpoint: max(i_a+1, (i_a+i_b)/2)
       i_c = (i_a + i_b) / 2;
-      if (i_c < i_a + 1) i_c = i_a + 1;
+      if (i_c < i_a + 1)
+        i_c = i_a + 1;
     }
 
   } else {
@@ -254,8 +242,10 @@ EosInversionError ComputeTemperatureWithDxyGuess(
     int i_c = iT;
     // Clamp guess index to valid range [0, nT-2]
     // (IndexAndDelta already clamps, but be explicit for faithfulness)
-    if (i_c < 0) i_c = 0;
-    if (i_c > nT - 2) i_c = nT - 2;
+    if (i_c < 0)
+      i_c = 0;
+    if (i_c > nT - 2)
+      i_c = nT - 2;
 
     double T_c = T_a; // From Phase 2: axes[1].grid[0]
     double X_c = X_a; // From Phase 2: value at T-index 0
@@ -263,8 +253,8 @@ EosInversionError ComputeTemperatureWithDxyGuess(
     // Scan all interior T indices (Fortran: DO i = 2, SizeTs-1)
     for (int i = 1; i <= nT - 2; ++i) {
       const double T_i = axes[1].grid[i];
-      const double X_i = detail::EvalAtFixedTIndex(
-          iD, iY, dD, dY, i, xOffset, xData, layout);
+      const double X_i =
+          detail::EvalAtFixedTIndex(iD, iY, dD, dY, i, xOffset, xData, layout);
 
       const double f_c_val = X - X_c;
       const double f_b_val = X - X_i;
@@ -307,15 +297,11 @@ EosInversionError ComputeTemperatureWithDxyGuess(
 // Index mapping (Fortran 1-based -> C++ 0-based):
 //   Fortran i_a=1, i_b=SizeTs     -> C++ i_a=0, i_b=nT-1
 //   Fortran DO i=SizeTs-1,2,-1    -> C++ for(i=nT-2; i>=1; --i)
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-EosInversionError ComputeTemperatureWithDxyNoGuess(
-    double D, double X, double Y,
-    const Axis axes[3],
-    const double* xData,
-    const Layout& layout,
-    double xOffset,
-    double& T) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE EosInversionError
+ComputeTemperatureWithDxyNoGuess(double D, double X, double Y,
+                                 const Axis axes[3], const double *xData,
+                                 const Layout &layout, double xOffset,
+                                 double &T) noexcept {
   const int nT = axes[1].n;
 
   // Pre-compute D and Y indices/fractions
@@ -329,14 +315,14 @@ EosInversionError ComputeTemperatureWithDxyNoGuess(
 
   int i_a = 0;
   double T_a = axes[1].grid[0];
-  double X_a = detail::EvalAtFixedTIndex(
-      iD, iY, dD, dY, 0, xOffset, xData, layout);
+  double X_a =
+      detail::EvalAtFixedTIndex(iD, iY, dD, dY, 0, xOffset, xData, layout);
   double f_a = X - X_a;
 
   int i_b = nT - 1;
   double T_b = axes[1].grid[nT - 1];
-  double X_b = detail::EvalAtFixedTIndex(
-      iD, iY, dD, dY, nT - 1, xOffset, xData, layout);
+  double X_b =
+      detail::EvalAtFixedTIndex(iD, iY, dD, dY, nT - 1, xOffset, xData, layout);
   double f_b = X - X_b;
 
   if (f_a * f_b <= 0.0) {
@@ -347,11 +333,12 @@ EosInversionError ComputeTemperatureWithDxyNoGuess(
     while (i_b > i_a + 1) {
       // max(i_a + 1, (i_a + i_b) / 2)
       int i_c = (i_a + i_b) / 2;
-      if (i_c < i_a + 1) i_c = i_a + 1;
+      if (i_c < i_a + 1)
+        i_c = i_a + 1;
 
       const double T_c = axes[1].grid[i_c];
-      const double X_c = detail::EvalAtFixedTIndex(
-          iD, iY, dD, dY, i_c, xOffset, xData, layout);
+      const double X_c = detail::EvalAtFixedTIndex(iD, iY, dD, dY, i_c, xOffset,
+                                                   xData, layout);
       const double f_c = X - X_c;
 
       if (f_a * f_c <= 0.0) {
@@ -375,8 +362,8 @@ EosInversionError ComputeTemperatureWithDxyNoGuess(
 
     for (int i = nT - 2; i >= 1; --i) {
       const double T_i = axes[1].grid[i];
-      const double X_i = detail::EvalAtFixedTIndex(
-          iD, iY, dD, dY, i, xOffset, xData, layout);
+      const double X_i =
+          detail::EvalAtFixedTIndex(iD, iY, dD, dY, i, xOffset, xData, layout);
 
       const double f_a_val = X - X_i;
       const double f_b_val = X - X_b;
@@ -408,140 +395,105 @@ EosInversionError ComputeTemperatureWithDxyNoGuess(
 
 namespace detail {
 
-// Shared check-and-dispatch for all ComputeTemperatureFrom* wrappers (no guess).
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-EosInversionError ComputeTemperatureFromVariable(
-    double D, double X, double Y,
-    const Axis axes[3],
-    const double* xData,
-    const Layout& layout,
-    double xOffset,
-    const EosInversionBounds& bounds,
-    double minX, double maxX,
-    double& T) noexcept
-{
+// Shared check-and-dispatch for all ComputeTemperatureFrom* wrappers (no
+// guess).
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE EosInversionError
+ComputeTemperatureFromVariable(double D, double X, double Y, const Axis axes[3],
+                               const double *xData, const Layout &layout,
+                               double xOffset, const EosInversionBounds &bounds,
+                               double minX, double maxX, double &T) noexcept {
   T = 0.0;
   const auto error = CheckInversionInputError(D, X, Y, bounds, minX, maxX);
-  if (error != EosInversionError::Success) return error;
-  return ComputeTemperatureWithDxyNoGuess(
-      D, X, Y, axes, xData, layout, xOffset, T);
+  if (error != EosInversionError::Success)
+    return error;
+  return ComputeTemperatureWithDxyNoGuess(D, X, Y, axes, xData, layout, xOffset,
+                                          T);
 }
 
-// Shared check-and-dispatch for all ComputeTemperatureFrom* wrappers (with guess).
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-EosInversionError ComputeTemperatureFromVariable(
-    double D, double X, double Y,
-    const Axis axes[3],
-    const double* xData,
-    const Layout& layout,
-    double xOffset,
-    const EosInversionBounds& bounds,
-    double minX, double maxX,
-    double tGuess,
-    double& T) noexcept
-{
+// Shared check-and-dispatch for all ComputeTemperatureFrom* wrappers (with
+// guess).
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE EosInversionError
+ComputeTemperatureFromVariable(double D, double X, double Y, const Axis axes[3],
+                               const double *xData, const Layout &layout,
+                               double xOffset, const EosInversionBounds &bounds,
+                               double minX, double maxX, double tGuess,
+                               double &T) noexcept {
   T = 0.0;
   const auto error = CheckInversionInputError(D, X, Y, bounds, minX, maxX);
-  if (error != EosInversionError::Success) return error;
-  return ComputeTemperatureWithDxyGuess(
-      D, X, Y, axes, xData, layout, xOffset, tGuess, T);
+  if (error != EosInversionError::Success)
+    return error;
+  return ComputeTemperatureWithDxyGuess(D, X, Y, axes, xData, layout, xOffset,
+                                        tGuess, T);
 }
 
 } // namespace detail
 
 // Convenience wrappers for temperature inversion from different EOS variables.
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-EosInversionError ComputeTemperatureFromEnergy(
-    double D, double E, double Y,
-    const Axis axes[3],
-    const double* energyData,
-    const Layout& layout,
-    double energyOffset,
-    const EosInversionBounds& bounds,
-    double& T) noexcept
-{
-  return detail::ComputeTemperatureFromVariable(
-      D, E, Y, axes, energyData, layout, energyOffset,
-      bounds, bounds.minE, bounds.maxE, T);
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE EosInversionError
+ComputeTemperatureFromEnergy(double D, double E, double Y, const Axis axes[3],
+                             const double *energyData, const Layout &layout,
+                             double energyOffset,
+                             const EosInversionBounds &bounds,
+                             double &T) noexcept {
+  return detail::ComputeTemperatureFromVariable(D, E, Y, axes, energyData,
+                                                layout, energyOffset, bounds,
+                                                bounds.minE, bounds.maxE, T);
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-EosInversionError ComputeTemperatureFromEnergy(
-    double D, double E, double Y,
-    const Axis axes[3],
-    const double* energyData,
-    const Layout& layout,
-    double energyOffset,
-    const EosInversionBounds& bounds,
-    double tGuess,
-    double& T) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE EosInversionError
+ComputeTemperatureFromEnergy(double D, double E, double Y, const Axis axes[3],
+                             const double *energyData, const Layout &layout,
+                             double energyOffset,
+                             const EosInversionBounds &bounds, double tGuess,
+                             double &T) noexcept {
   return detail::ComputeTemperatureFromVariable(
-      D, E, Y, axes, energyData, layout, energyOffset,
-      bounds, bounds.minE, bounds.maxE, tGuess, T);
+      D, E, Y, axes, energyData, layout, energyOffset, bounds, bounds.minE,
+      bounds.maxE, tGuess, T);
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-EosInversionError ComputeTemperatureFromPressure(
-    double D, double P, double Y,
-    const Axis axes[3],
-    const double* pressureData,
-    const Layout& layout,
-    double pressureOffset,
-    const EosInversionBounds& bounds,
-    double& T) noexcept
-{
-  return detail::ComputeTemperatureFromVariable(
-      D, P, Y, axes, pressureData, layout, pressureOffset,
-      bounds, bounds.minP, bounds.maxP, T);
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE EosInversionError
+ComputeTemperatureFromPressure(double D, double P, double Y, const Axis axes[3],
+                               const double *pressureData, const Layout &layout,
+                               double pressureOffset,
+                               const EosInversionBounds &bounds,
+                               double &T) noexcept {
+  return detail::ComputeTemperatureFromVariable(D, P, Y, axes, pressureData,
+                                                layout, pressureOffset, bounds,
+                                                bounds.minP, bounds.maxP, T);
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-EosInversionError ComputeTemperatureFromPressure(
-    double D, double P, double Y,
-    const Axis axes[3],
-    const double* pressureData,
-    const Layout& layout,
-    double pressureOffset,
-    const EosInversionBounds& bounds,
-    double tGuess,
-    double& T) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE EosInversionError
+ComputeTemperatureFromPressure(double D, double P, double Y, const Axis axes[3],
+                               const double *pressureData, const Layout &layout,
+                               double pressureOffset,
+                               const EosInversionBounds &bounds, double tGuess,
+                               double &T) noexcept {
   return detail::ComputeTemperatureFromVariable(
-      D, P, Y, axes, pressureData, layout, pressureOffset,
-      bounds, bounds.minP, bounds.maxP, tGuess, T);
+      D, P, Y, axes, pressureData, layout, pressureOffset, bounds, bounds.minP,
+      bounds.maxP, tGuess, T);
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-EosInversionError ComputeTemperatureFromEntropy(
-    double D, double S, double Y,
-    const Axis axes[3],
-    const double* entropyData,
-    const Layout& layout,
-    double entropyOffset,
-    const EosInversionBounds& bounds,
-    double& T) noexcept
-{
-  return detail::ComputeTemperatureFromVariable(
-      D, S, Y, axes, entropyData, layout, entropyOffset,
-      bounds, bounds.minS, bounds.maxS, T);
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE EosInversionError
+ComputeTemperatureFromEntropy(double D, double S, double Y, const Axis axes[3],
+                              const double *entropyData, const Layout &layout,
+                              double entropyOffset,
+                              const EosInversionBounds &bounds,
+                              double &T) noexcept {
+  return detail::ComputeTemperatureFromVariable(D, S, Y, axes, entropyData,
+                                                layout, entropyOffset, bounds,
+                                                bounds.minS, bounds.maxS, T);
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-EosInversionError ComputeTemperatureFromEntropy(
-    double D, double S, double Y,
-    const Axis axes[3],
-    const double* entropyData,
-    const Layout& layout,
-    double entropyOffset,
-    const EosInversionBounds& bounds,
-    double tGuess,
-    double& T) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE EosInversionError
+ComputeTemperatureFromEntropy(double D, double S, double Y, const Axis axes[3],
+                              const double *entropyData, const Layout &layout,
+                              double entropyOffset,
+                              const EosInversionBounds &bounds, double tGuess,
+                              double &T) noexcept {
   return detail::ComputeTemperatureFromVariable(
-      D, S, Y, axes, entropyData, layout, entropyOffset,
-      bounds, bounds.minS, bounds.maxS, tGuess, T);
+      D, S, Y, axes, entropyData, layout, entropyOffset, bounds, bounds.minS,
+      bounds.maxS, tGuess, T);
 }
 
 } // namespace WeakLibReader

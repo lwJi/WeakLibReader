@@ -8,17 +8,12 @@
 
 namespace WeakLibReader {
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateDifferentiateSingleVariable3DCustomPoint(
-    double x0, double x1, double x2,
-    const Axis axes[3],
-    const double* data,
-    double offset,
-    double& interpolant,
-    double derivatives[3]) noexcept
-{
-  if (data == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr || axes[2].grid == nullptr) {
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateDifferentiateSingleVariable3DCustomPoint(
+    double x0, double x1, double x2, const Axis axes[3], const double *data,
+    double offset, double &interpolant, double derivatives[3]) noexcept {
+  if (data == nullptr || axes[0].grid == nullptr || axes[1].grid == nullptr ||
+      axes[2].grid == nullptr) {
     return 1;
   }
 
@@ -27,23 +22,20 @@ int LogInterpolateDifferentiateSingleVariable3DCustomPoint(
   const Layout layout = MakeLayout(extents, ND);
   const double coords[ND] = {x0, x1, x2};
 
-  detail::LogInterpolatedDerivativeDirect<ND>(
-      data, layout, axes, coords, offset, interpolant, derivatives);
+  detail::LogInterpolatedDerivativeDirect<ND>(data, layout, axes, coords,
+                                              offset, interpolant, derivatives);
   return 0;
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateDifferentiateSingleVariable3DCustom(
-    const double* x0, const double* x1, const double* x2, std::size_t count,
-    const Axis axes[3],
-    const double* data,
-    double offset,
-    double* interpolants,
-    double* derivatives) noexcept
-{
-  if (x0 == nullptr || x1 == nullptr || x2 == nullptr ||
-      data == nullptr || interpolants == nullptr || derivatives == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr || axes[2].grid == nullptr) {
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateDifferentiateSingleVariable3DCustom(
+    const double *x0, const double *x1, const double *x2, std::size_t count,
+    const Axis axes[3], const double *data, double offset, double *interpolants,
+    double *derivatives) noexcept {
+  if (x0 == nullptr || x1 == nullptr || x2 == nullptr || data == nullptr ||
+      interpolants == nullptr || derivatives == nullptr ||
+      axes[0].grid == nullptr || axes[1].grid == nullptr ||
+      axes[2].grid == nullptr) {
     return 1;
   }
 
@@ -55,8 +47,8 @@ int LogInterpolateDifferentiateSingleVariable3DCustom(
     double deriv[ND] = {0.0, 0.0, 0.0};
     double interp = 0.0;
     const double coords[ND] = {x0[i], x1[i], x2[i]};
-    detail::LogInterpolatedDerivativeDirect<ND>(
-        data, layout, axes, coords, offset, interp, deriv);
+    detail::LogInterpolatedDerivativeDirect<ND>(data, layout, axes, coords,
+                                                offset, interp, deriv);
     interpolants[i] = interp;
     derivatives[i * 3 + 0] = deriv[0];
     derivatives[i * 3 + 1] = deriv[1];
@@ -65,19 +57,14 @@ int LogInterpolateDifferentiateSingleVariable3DCustom(
   return 0;
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
-    const double* logE, std::size_t sizeE,
-    double logT, double logX,
-    const Axis axes[4],
-    const double* data,
-    double offset,
-    double* interpolantPlane,
-    double* derivativeTPlane,
-    double* derivativeXPlane) noexcept
-{
-  if (logE == nullptr || data == nullptr ||
-      interpolantPlane == nullptr || derivativeTPlane == nullptr || derivativeXPlane == nullptr ||
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
+    const double *logE, std::size_t sizeE, double logT, double logX,
+    const Axis axes[4], const double *data, double offset,
+    double *interpolantPlane, double *derivativeTPlane,
+    double *derivativeXPlane) noexcept {
+  if (logE == nullptr || data == nullptr || interpolantPlane == nullptr ||
+      derivativeTPlane == nullptr || derivativeXPlane == nullptr ||
       axes[0].grid == nullptr || axes[1].grid == nullptr ||
       axes[2].grid == nullptr || axes[3].grid == nullptr) {
     return 1;
@@ -118,12 +105,10 @@ int LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
       double derivTVal = 0.0;
       double derivXVal = 0.0;
 
-      LinearInterpDeriv4DPoint(
-          idxE1, idxE2, idxT, idxX,
-          fracE1, fracE2, fracT, fracX,
-          1.0, 1.0, aT, aX,
-          offset, data, layout,
-          interpValue, derivE1, derivE2, derivTVal, derivXVal);
+      LinearInterpDeriv4DPoint(idxE1, idxE2, idxT, idxX, fracE1, fracE2, fracT,
+                               fracX, 1.0, 1.0, aT, aX, offset, data, layout,
+                               interpValue, derivE1, derivE2, derivTVal,
+                               derivXVal);
 
       detail::StoreSymmetric(interpolantPlane, sizeE, i, j, interpValue);
       detail::StoreSymmetric(derivativeTPlane, sizeE, i, j, derivTVal);
@@ -134,22 +119,17 @@ int LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
   return 0;
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateDifferentiateSingleVariable2D2DCustom(
-    const double* logE, std::size_t sizeE,
-    const double* logT, const double* logX, std::size_t count,
-    const Axis axes[4],
-    const double* data,
-    double offset,
-    double* interpolant,
-    double* derivativeT,
-    double* derivativeX) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateDifferentiateSingleVariable2D2DCustom(
+    const double *logE, std::size_t sizeE, const double *logT,
+    const double *logX, std::size_t count, const Axis axes[4],
+    const double *data, double offset, double *interpolant, double *derivativeT,
+    double *derivativeX) noexcept {
   if (logE == nullptr || logT == nullptr || logX == nullptr ||
-      data == nullptr || interpolant == nullptr ||
-      derivativeT == nullptr || derivativeX == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr ||
-      axes[2].grid == nullptr || axes[3].grid == nullptr) {
+      data == nullptr || interpolant == nullptr || derivativeT == nullptr ||
+      derivativeX == nullptr || axes[0].grid == nullptr ||
+      axes[1].grid == nullptr || axes[2].grid == nullptr ||
+      axes[3].grid == nullptr) {
     return 1;
   }
   if (sizeE == 0 || count == 0) {
@@ -158,15 +138,12 @@ int LogInterpolateDifferentiateSingleVariable2D2DCustom(
 
   const std::size_t planeSize = sizeE * sizeE;
   for (std::size_t l = 0; l < count; ++l) {
-    double* planeInterp = interpolant + l * planeSize;
-    double* planeDerivT = derivativeT + l * planeSize;
-    double* planeDerivX = derivativeX + l * planeSize;
+    double *planeInterp = interpolant + l * planeSize;
+    double *planeDerivT = derivativeT + l * planeSize;
+    double *planeDerivX = derivativeX + l * planeSize;
     const int rc = LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
-        logE, sizeE,
-        logT[l], logX[l],
-        axes,
-        data, offset,
-        planeInterp, planeDerivT, planeDerivX);
+        logE, sizeE, logT[l], logX[l], axes, data, offset, planeInterp,
+        planeDerivT, planeDerivX);
     if (rc != 0) {
       return rc;
     }
@@ -175,17 +152,11 @@ int LogInterpolateDifferentiateSingleVariable2D2DCustom(
   return 0;
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
-    std::size_t sizeE,
-    double logT, double logX,
-    const Axis axes[2],
-    const double* data,
-    double offset,
-    double* interpolantPlane,
-    double* derivativeTPlane,
-    double* derivativeXPlane) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
+    std::size_t sizeE, double logT, double logX, const Axis axes[2],
+    const double *data, double offset, double *interpolantPlane,
+    double *derivativeTPlane, double *derivativeXPlane) noexcept {
   if (data == nullptr || interpolantPlane == nullptr ||
       derivativeTPlane == nullptr || derivativeXPlane == nullptr ||
       axes[0].grid == nullptr || axes[1].grid == nullptr) {
@@ -195,11 +166,8 @@ int LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
     return 0;
   }
 
-  int extents[4] = {
-      static_cast<int>(sizeE),
-      static_cast<int>(sizeE),
-      axes[0].n,
-      axes[1].n};
+  int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), axes[0].n,
+                    axes[1].n};
   const Layout layout = MakeLayout(extents, 4);
 
   int idxT = 0;
@@ -222,13 +190,8 @@ int LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
       double derivXVal = 0.0;
 
       LinearInterpDeriv2D4DArray2DAlignedPoint(
-          static_cast<int>(i), static_cast<int>(j),
-          idxT, idxX,
-          fracT, fracX,
-          aT, aX,
-          offset,
-          data, layout,
-          interpValue, derivTVal, derivXVal);
+          static_cast<int>(i), static_cast<int>(j), idxT, idxX, fracT, fracX,
+          aT, aX, offset, data, layout, interpValue, derivTVal, derivXVal);
 
       detail::StoreSymmetric(interpolantPlane, sizeE, i, j, interpValue);
       detail::StoreSymmetric(derivativeTPlane, sizeE, i, j, derivTVal);
@@ -239,21 +202,15 @@ int LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
   return 0;
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateDifferentiateSingleVariable2D2DCustomAligned(
-    std::size_t sizeE,
-    const double* logT, const double* logX, std::size_t count,
-    const Axis axes[2],
-    const double* data,
-    double offset,
-    double* interpolant,
-    double* derivativeT,
-    double* derivativeX) noexcept
-{
-  if (logT == nullptr || logX == nullptr ||
-      data == nullptr || interpolant == nullptr ||
-      derivativeT == nullptr || derivativeX == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr) {
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateDifferentiateSingleVariable2D2DCustomAligned(
+    std::size_t sizeE, const double *logT, const double *logX,
+    std::size_t count, const Axis axes[2], const double *data, double offset,
+    double *interpolant, double *derivativeT, double *derivativeX) noexcept {
+  if (logT == nullptr || logX == nullptr || data == nullptr ||
+      interpolant == nullptr || derivativeT == nullptr ||
+      derivativeX == nullptr || axes[0].grid == nullptr ||
+      axes[1].grid == nullptr) {
     return 1;
   }
   if (sizeE == 0 || count == 0) {
@@ -262,14 +219,13 @@ int LogInterpolateDifferentiateSingleVariable2D2DCustomAligned(
 
   const std::size_t planeSize = sizeE * sizeE;
   for (std::size_t k = 0; k < count; ++k) {
-    double* planeInterp = interpolant + k * planeSize;
-    double* planeDerivT = derivativeT + k * planeSize;
-    double* planeDerivX = derivativeX + k * planeSize;
-    const int rc = LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
-        sizeE, logT[k], logX[k],
-        axes,
-        data, offset,
-        planeInterp, planeDerivT, planeDerivX);
+    double *planeInterp = interpolant + k * planeSize;
+    double *planeDerivT = derivativeT + k * planeSize;
+    double *planeDerivX = derivativeX + k * planeSize;
+    const int rc =
+        LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
+            sizeE, logT[k], logX[k], axes, data, offset, planeInterp,
+            planeDerivT, planeDerivX);
     if (rc != 0) {
       return rc;
     }

@@ -8,13 +8,11 @@
 
 namespace WeakLibReader {
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double LogInterpolateSingleVariable2DCustomPoint(
-    double x0, double x1,
-    const Axis axes[2],
-    const double* data,
-    double offset) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE double
+LogInterpolateSingleVariable2DCustomPoint(double x0, double x1,
+                                          const Axis axes[2],
+                                          const double *data,
+                                          double offset) noexcept {
   if (data == nullptr || axes[0].grid == nullptr || axes[1].grid == nullptr) {
     return std::numeric_limits<double>::quiet_NaN();
   }
@@ -22,19 +20,17 @@ double LogInterpolateSingleVariable2DCustomPoint(
   int extents[ND] = {axes[0].n, axes[1].n};
   const Layout layout = MakeLayout(extents, ND);
   double coords[ND] = {x0, x1};
-  return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+  return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords,
+                                                offset);
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateSingleVariable2DCustom(
-    const double* x0, const double* x1, std::size_t count,
-    const Axis axes[2],
-    const double* data,
-    double offset,
-    double* out) noexcept
-{
-  if (x0 == nullptr || x1 == nullptr || out == nullptr ||
-      data == nullptr || axes[0].grid == nullptr || axes[1].grid == nullptr) {
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateSingleVariable2DCustom(const double *x0, const double *x1,
+                                     std::size_t count, const Axis axes[2],
+                                     const double *data, double offset,
+                                     double *out) noexcept {
+  if (x0 == nullptr || x1 == nullptr || out == nullptr || data == nullptr ||
+      axes[0].grid == nullptr || axes[1].grid == nullptr) {
     return 1;
   }
   constexpr int ND = 2;
@@ -42,40 +38,37 @@ int LogInterpolateSingleVariable2DCustom(
   const Layout layout = MakeLayout(extents, ND);
   for (std::size_t i = 0; i < count; ++i) {
     double coords[ND] = {x0[i], x1[i]};
-    out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+    out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords,
+                                                    offset);
   }
   return 0;
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double LogInterpolateSingleVariable3DCustomPoint(
-    double x0, double x1, double x2,
-    const Axis axes[3],
-    const double* data,
-    double offset) noexcept
-{
-  if (data == nullptr || axes[0].grid == nullptr ||
-      axes[1].grid == nullptr || axes[2].grid == nullptr) {
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE double
+LogInterpolateSingleVariable3DCustomPoint(double x0, double x1, double x2,
+                                          const Axis axes[3],
+                                          const double *data,
+                                          double offset) noexcept {
+  if (data == nullptr || axes[0].grid == nullptr || axes[1].grid == nullptr ||
+      axes[2].grid == nullptr) {
     return std::numeric_limits<double>::quiet_NaN();
   }
   constexpr int ND = 3;
   int extents[ND] = {axes[0].n, axes[1].n, axes[2].n};
   const Layout layout = MakeLayout(extents, ND);
   double coords[ND] = {x0, x1, x2};
-  return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+  return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords,
+                                                offset);
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateSingleVariable3DCustom(
-    const double* x0, const double* x1, const double* x2, std::size_t count,
-    const Axis axes[3],
-    const double* data,
-    double offset,
-    double* out) noexcept
-{
-  if (x0 == nullptr || x1 == nullptr || x2 == nullptr ||
-      out == nullptr || data == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr || axes[2].grid == nullptr) {
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateSingleVariable3DCustom(const double *x0, const double *x1,
+                                     const double *x2, std::size_t count,
+                                     const Axis axes[3], const double *data,
+                                     double offset, double *out) noexcept {
+  if (x0 == nullptr || x1 == nullptr || x2 == nullptr || out == nullptr ||
+      data == nullptr || axes[0].grid == nullptr || axes[1].grid == nullptr ||
+      axes[2].grid == nullptr) {
     return 1;
   }
   constexpr int ND = 3;
@@ -83,18 +76,17 @@ int LogInterpolateSingleVariable3DCustom(
   const Layout layout = MakeLayout(extents, ND);
   for (std::size_t i = 0; i < count; ++i) {
     double coords[ND] = {x0[i], x1[i], x2[i]};
-    out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+    out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords,
+                                                    offset);
   }
   return 0;
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double LogInterpolateSingleVariable4DCustomPoint(
-    double x0, double x1, double x2, double x3,
-    const Axis axes[4],
-    const double* data,
-    double offset) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE double
+LogInterpolateSingleVariable4DCustomPoint(double x0, double x1, double x2,
+                                          double x3, const Axis axes[4],
+                                          const double *data,
+                                          double offset) noexcept {
   if (data == nullptr || axes[0].grid == nullptr || axes[1].grid == nullptr ||
       axes[2].grid == nullptr || axes[3].grid == nullptr) {
     return std::numeric_limits<double>::quiet_NaN();
@@ -103,22 +95,20 @@ double LogInterpolateSingleVariable4DCustomPoint(
   int extents[ND] = {axes[0].n, axes[1].n, axes[2].n, axes[3].n};
   const Layout layout = MakeLayout(extents, ND);
   double coords[ND] = {x0, x1, x2, x3};
-  return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+  return detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords,
+                                                offset);
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateSingleVariable4DCustom(
-    const double* x0, const double* x1, const double* x2, const double* x3,
-    std::size_t count,
-    const Axis axes[4],
-    const double* data,
-    double offset,
-    double* out) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateSingleVariable4DCustom(const double *x0, const double *x1,
+                                     const double *x2, const double *x3,
+                                     std::size_t count, const Axis axes[4],
+                                     const double *data, double offset,
+                                     double *out) noexcept {
   if (x0 == nullptr || x1 == nullptr || x2 == nullptr || x3 == nullptr ||
-      out == nullptr || data == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr ||
-      axes[2].grid == nullptr || axes[3].grid == nullptr) {
+      out == nullptr || data == nullptr || axes[0].grid == nullptr ||
+      axes[1].grid == nullptr || axes[2].grid == nullptr ||
+      axes[3].grid == nullptr) {
     return 1;
   }
   constexpr int ND = 4;
@@ -126,7 +116,8 @@ int LogInterpolateSingleVariable4DCustom(
   const Layout layout = MakeLayout(extents, ND);
   for (std::size_t i = 0; i < count; ++i) {
     double coords[ND] = {x0[i], x1[i], x2[i], x3[i]};
-    out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+    out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords,
+                                                    offset);
   }
   return 0;
 }

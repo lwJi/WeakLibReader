@@ -9,9 +9,8 @@
 namespace WeakLibReader {
 namespace detail {
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int ClampIndex(int raw, int maxIndex) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int ClampIndex(int raw,
+                                                        int maxIndex) noexcept {
   if (raw < 0) {
     return 0;
   }
@@ -23,10 +22,9 @@ int ClampIndex(int raw, int maxIndex) noexcept
 
 } // namespace detail
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-void IndexAndDeltaLin(double x, const double* grid, int n,
-                      int& idx, double& frac) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE void
+IndexAndDeltaLin(double x, const double *grid, int n, int &idx,
+                 double &frac) noexcept {
   AMREX_ASSERT(grid != nullptr);
   AMREX_ASSERT(n >= 2);
 
@@ -51,10 +49,9 @@ void IndexAndDeltaLin(double x, const double* grid, int n,
   frac = (x - grid[idx]) / cellSpan;
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-void IndexAndDeltaLog10(double x, const double* grid, int n,
-                        int& idx, double& frac) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE void
+IndexAndDeltaLog10(double x, const double *grid, int n, int &idx,
+                   double &frac) noexcept {
   AMREX_ASSERT(grid != nullptr);
   AMREX_ASSERT(n >= 2);
 

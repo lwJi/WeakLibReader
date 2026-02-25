@@ -7,8 +7,8 @@
 #include <string>
 #include <vector>
 
-#include "base/WeakLibReader_Layout.hpp"
 #include "base/WeakLibReader_AxisTypes.hpp"
+#include "base/WeakLibReader_Layout.hpp"
 
 namespace WeakLibReader {
 
@@ -49,10 +49,11 @@ struct WeakLibEosIndices {
 struct WeakLibEosTable {
   // Dimensions
   int nVariables = 0;
-  std::array<int, 3> dimensions{{0, 0, 0}};  // [nRho, nT, nYe] after reversal
+  std::array<int, 3> dimensions{{0, 0, 0}}; // [nRho, nT, nYe] after reversal
 
   // ThermoState data
-  std::array<amrex::Gpu::PinnedVector<double>, 3> axisStorage;  // Density, Temperature, Ye
+  std::array<amrex::Gpu::PinnedVector<double>, 3>
+      axisStorage; // Density, Temperature, Ye
   Axis axes[3]{};
   std::array<std::string, 3> axisNames;
   std::array<std::string, 3> axisUnits;
@@ -69,13 +70,13 @@ struct WeakLibEosTable {
   Layout layout{};
 
   WeakLibEosTable() = default;
-  WeakLibEosTable(WeakLibEosTable&&) = default;
-  WeakLibEosTable& operator=(WeakLibEosTable&&) = default;
-  WeakLibEosTable(const WeakLibEosTable&) = delete;
-  WeakLibEosTable& operator=(const WeakLibEosTable&) = delete;
+  WeakLibEosTable(WeakLibEosTable &&) = default;
+  WeakLibEosTable &operator=(WeakLibEosTable &&) = default;
+  WeakLibEosTable(const WeakLibEosTable &) = delete;
+  WeakLibEosTable &operator=(const WeakLibEosTable &) = delete;
 
   // Get data pointer for a specific variable
-  [[nodiscard]] const double* VariableData(int varIndex) const noexcept {
+  [[nodiscard]] const double *VariableData(int varIndex) const noexcept {
     return variables[varIndex].data();
   }
 };
@@ -94,21 +95,21 @@ struct WeakLibEosTableDevice {
   WeakLibEosIndices indices;
 
   WeakLibEosTableDevice() = default;
-  WeakLibEosTableDevice(WeakLibEosTableDevice&&) = default;
-  WeakLibEosTableDevice& operator=(WeakLibEosTableDevice&&) = default;
-  WeakLibEosTableDevice(const WeakLibEosTableDevice&) = delete;
-  WeakLibEosTableDevice& operator=(const WeakLibEosTableDevice&) = delete;
+  WeakLibEosTableDevice(WeakLibEosTableDevice &&) = default;
+  WeakLibEosTableDevice &operator=(WeakLibEosTableDevice &&) = default;
+  WeakLibEosTableDevice(const WeakLibEosTableDevice &) = delete;
+  WeakLibEosTableDevice &operator=(const WeakLibEosTableDevice &) = delete;
 
   // Get device data pointer for a specific variable
-  [[nodiscard]] const double* VariableData(int varIndex) const noexcept {
+  [[nodiscard]] const double *VariableData(int varIndex) const noexcept {
     return variables[varIndex].data();
   }
 
   void ReleaseDeviceData() noexcept {
-    for (auto& a : axisStorage) {
+    for (auto &a : axisStorage) {
       a = amrex::Gpu::DeviceVector<double>{};
     }
-    for (auto& v : variables) {
+    for (auto &v : variables) {
       v = amrex::Gpu::DeviceVector<double>{};
     }
     repaired = amrex::Gpu::DeviceVector<int>{};
@@ -133,10 +134,10 @@ struct WeakLibOpacityGrid {
   double maxValue = 0.0;
 
   WeakLibOpacityGrid() = default;
-  WeakLibOpacityGrid(WeakLibOpacityGrid&&) = default;
-  WeakLibOpacityGrid& operator=(WeakLibOpacityGrid&&) = default;
-  WeakLibOpacityGrid(const WeakLibOpacityGrid&) = delete;
-  WeakLibOpacityGrid& operator=(const WeakLibOpacityGrid&) = delete;
+  WeakLibOpacityGrid(WeakLibOpacityGrid &&) = default;
+  WeakLibOpacityGrid &operator=(WeakLibOpacityGrid &&) = default;
+  WeakLibOpacityGrid(const WeakLibOpacityGrid &) = delete;
+  WeakLibOpacityGrid &operator=(const WeakLibOpacityGrid &) = delete;
 
   [[nodiscard]] Axis MakeAxis() const noexcept {
     return Axis{values.data(), nPoints, scale};
@@ -149,10 +150,11 @@ struct WeakLibOpacityGridDevice {
   amrex::Gpu::DeviceVector<double> values;
 
   WeakLibOpacityGridDevice() = default;
-  WeakLibOpacityGridDevice(WeakLibOpacityGridDevice&&) = default;
-  WeakLibOpacityGridDevice& operator=(WeakLibOpacityGridDevice&&) = default;
-  WeakLibOpacityGridDevice(const WeakLibOpacityGridDevice&) = delete;
-  WeakLibOpacityGridDevice& operator=(const WeakLibOpacityGridDevice&) = delete;
+  WeakLibOpacityGridDevice(WeakLibOpacityGridDevice &&) = default;
+  WeakLibOpacityGridDevice &operator=(WeakLibOpacityGridDevice &&) = default;
+  WeakLibOpacityGridDevice(const WeakLibOpacityGridDevice &) = delete;
+  WeakLibOpacityGridDevice &
+  operator=(const WeakLibOpacityGridDevice &) = delete;
 
   [[nodiscard]] Axis MakeAxis() const noexcept {
     return Axis{values.data(), nPoints, scale};
@@ -189,10 +191,10 @@ struct WeakLibECTable {
   amrex::Gpu::PinnedVector<double> rate;
 
   WeakLibECTable() = default;
-  WeakLibECTable(WeakLibECTable&&) = default;
-  WeakLibECTable& operator=(WeakLibECTable&&) = default;
-  WeakLibECTable(const WeakLibECTable&) = delete;
-  WeakLibECTable& operator=(const WeakLibECTable&) = delete;
+  WeakLibECTable(WeakLibECTable &&) = default;
+  WeakLibECTable &operator=(WeakLibECTable &&) = default;
+  WeakLibECTable(const WeakLibECTable &) = delete;
+  WeakLibECTable &operator=(const WeakLibECTable &) = delete;
 
   [[nodiscard]] bool IsPresent() const noexcept { return nE > 0; }
 };
@@ -219,10 +221,10 @@ struct WeakLibECTableDevice {
   amrex::Gpu::DeviceVector<double> rate;
 
   WeakLibECTableDevice() = default;
-  WeakLibECTableDevice(WeakLibECTableDevice&&) = default;
-  WeakLibECTableDevice& operator=(WeakLibECTableDevice&&) = default;
-  WeakLibECTableDevice(const WeakLibECTableDevice&) = delete;
-  WeakLibECTableDevice& operator=(const WeakLibECTableDevice&) = delete;
+  WeakLibECTableDevice(WeakLibECTableDevice &&) = default;
+  WeakLibECTableDevice &operator=(WeakLibECTableDevice &&) = default;
+  WeakLibECTableDevice(const WeakLibECTableDevice &) = delete;
+  WeakLibECTableDevice &operator=(const WeakLibECTableDevice &) = delete;
 
   [[nodiscard]] bool IsPresent() const noexcept { return nE > 0; }
 
@@ -251,10 +253,10 @@ struct WeakLibEmAbParameters {
 
 // EmAb opacity table (4D: nE x nRho x nT x nYe)
 struct WeakLibEmAbTable {
-  static constexpr int NumSpecies = 2;  // nu_e, nu_e_bar
+  static constexpr int NumSpecies = 2; // nu_e, nu_e_bar
 
   int nOpacities = 0;
-  std::array<int, 4> dimensions{{0, 0, 0, 0}};  // [nE, nRho, nT, nYe]
+  std::array<int, 4> dimensions{{0, 0, 0, 0}}; // [nE, nRho, nT, nYe]
 
   std::array<std::string, NumSpecies> names;
   std::array<std::string, NumSpecies> units;
@@ -269,13 +271,13 @@ struct WeakLibEmAbTable {
   Layout layout{};
 
   WeakLibEmAbTable() = default;
-  WeakLibEmAbTable(WeakLibEmAbTable&&) = default;
-  WeakLibEmAbTable& operator=(WeakLibEmAbTable&&) = default;
-  WeakLibEmAbTable(const WeakLibEmAbTable&) = delete;
-  WeakLibEmAbTable& operator=(const WeakLibEmAbTable&) = delete;
+  WeakLibEmAbTable(WeakLibEmAbTable &&) = default;
+  WeakLibEmAbTable &operator=(WeakLibEmAbTable &&) = default;
+  WeakLibEmAbTable(const WeakLibEmAbTable &) = delete;
+  WeakLibEmAbTable &operator=(const WeakLibEmAbTable &) = delete;
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
-  [[nodiscard]] const double* OpacityData(int species) const noexcept {
+  [[nodiscard]] const double *OpacityData(int species) const noexcept {
     return opacities[species].data();
   }
 };
@@ -292,18 +294,18 @@ struct WeakLibEmAbTableDevice {
   Layout layout{};
 
   WeakLibEmAbTableDevice() = default;
-  WeakLibEmAbTableDevice(WeakLibEmAbTableDevice&&) = default;
-  WeakLibEmAbTableDevice& operator=(WeakLibEmAbTableDevice&&) = default;
-  WeakLibEmAbTableDevice(const WeakLibEmAbTableDevice&) = delete;
-  WeakLibEmAbTableDevice& operator=(const WeakLibEmAbTableDevice&) = delete;
+  WeakLibEmAbTableDevice(WeakLibEmAbTableDevice &&) = default;
+  WeakLibEmAbTableDevice &operator=(WeakLibEmAbTableDevice &&) = default;
+  WeakLibEmAbTableDevice(const WeakLibEmAbTableDevice &) = delete;
+  WeakLibEmAbTableDevice &operator=(const WeakLibEmAbTableDevice &) = delete;
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
-  [[nodiscard]] const double* OpacityData(int species) const noexcept {
+  [[nodiscard]] const double *OpacityData(int species) const noexcept {
     return opacities[species].data();
   }
 
   void ReleaseDeviceData() noexcept {
-    for (auto& o : opacities) {
+    for (auto &o : opacities) {
       o = amrex::Gpu::DeviceVector<double>{};
     }
     ecTable.ReleaseDeviceData();
@@ -316,7 +318,7 @@ struct WeakLibScatIsoTable {
 
   int nOpacities = 0;
   int nMoments = 0;
-  std::array<int, 5> dimensions{{0, 0, 0, 0, 0}};  // [nE, nMom, nRho, nT, nYe]
+  std::array<int, 5> dimensions{{0, 0, 0, 0, 0}}; // [nE, nMom, nRho, nT, nYe]
 
   std::array<std::string, NumSpecies> names;
   std::array<std::string, NumSpecies> units;
@@ -335,18 +337,18 @@ struct WeakLibScatIsoTable {
   Layout layout{};
 
   WeakLibScatIsoTable() = default;
-  WeakLibScatIsoTable(WeakLibScatIsoTable&&) = default;
-  WeakLibScatIsoTable& operator=(WeakLibScatIsoTable&&) = default;
-  WeakLibScatIsoTable(const WeakLibScatIsoTable&) = delete;
-  WeakLibScatIsoTable& operator=(const WeakLibScatIsoTable&) = delete;
+  WeakLibScatIsoTable(WeakLibScatIsoTable &&) = default;
+  WeakLibScatIsoTable &operator=(WeakLibScatIsoTable &&) = default;
+  WeakLibScatIsoTable(const WeakLibScatIsoTable &) = delete;
+  WeakLibScatIsoTable &operator=(const WeakLibScatIsoTable &) = delete;
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
-  [[nodiscard]] const double* KernelData(int species) const noexcept {
+  [[nodiscard]] const double *KernelData(int species) const noexcept {
     return kernels[species].data();
   }
   [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
-    return offsets[static_cast<std::size_t>(species)
-                   + static_cast<std::size_t>(moment) * nOpacities];
+    return offsets[static_cast<std::size_t>(species) +
+                   static_cast<std::size_t>(moment) * nOpacities];
   }
 };
 
@@ -367,22 +369,23 @@ struct WeakLibScatIsoTableDevice {
   Layout layout{};
 
   WeakLibScatIsoTableDevice() = default;
-  WeakLibScatIsoTableDevice(WeakLibScatIsoTableDevice&&) = default;
-  WeakLibScatIsoTableDevice& operator=(WeakLibScatIsoTableDevice&&) = default;
-  WeakLibScatIsoTableDevice(const WeakLibScatIsoTableDevice&) = delete;
-  WeakLibScatIsoTableDevice& operator=(const WeakLibScatIsoTableDevice&) = delete;
+  WeakLibScatIsoTableDevice(WeakLibScatIsoTableDevice &&) = default;
+  WeakLibScatIsoTableDevice &operator=(WeakLibScatIsoTableDevice &&) = default;
+  WeakLibScatIsoTableDevice(const WeakLibScatIsoTableDevice &) = delete;
+  WeakLibScatIsoTableDevice &
+  operator=(const WeakLibScatIsoTableDevice &) = delete;
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
-  [[nodiscard]] const double* KernelData(int species) const noexcept {
+  [[nodiscard]] const double *KernelData(int species) const noexcept {
     return kernels[species].data();
   }
   [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
-    return offsets[static_cast<std::size_t>(species)
-                   + static_cast<std::size_t>(moment) * nOpacities];
+    return offsets[static_cast<std::size_t>(species) +
+                   static_cast<std::size_t>(moment) * nOpacities];
   }
 
   void ReleaseDeviceData() noexcept {
-    for (auto& k : kernels) {
+    for (auto &k : kernels) {
       k = amrex::Gpu::DeviceVector<double>{};
     }
   }
@@ -401,23 +404,25 @@ struct WeakLibScatKernelTable {
   std::string unit;
   // Offsets: 2D [nOpacities, nMoments] — column-major (species stride=1)
   std::vector<double> offsets;
-  amrex::Gpu::PinnedVector<double> kernel;  // Stored as flat array
+  amrex::Gpu::PinnedVector<double> kernel; // Stored as flat array
 
-  int nps = -1;  // Neutrino-positron scattering flag (NES only; -1 = not set)
+  int nps = -1; // Neutrino-positron scattering flag (NES only; -1 = not set)
 
   Layout layout{};
 
   WeakLibScatKernelTable() = default;
-  WeakLibScatKernelTable(WeakLibScatKernelTable&&) = default;
-  WeakLibScatKernelTable& operator=(WeakLibScatKernelTable&&) = default;
-  WeakLibScatKernelTable(const WeakLibScatKernelTable&) = delete;
-  WeakLibScatKernelTable& operator=(const WeakLibScatKernelTable&) = delete;
+  WeakLibScatKernelTable(WeakLibScatKernelTable &&) = default;
+  WeakLibScatKernelTable &operator=(WeakLibScatKernelTable &&) = default;
+  WeakLibScatKernelTable(const WeakLibScatKernelTable &) = delete;
+  WeakLibScatKernelTable &operator=(const WeakLibScatKernelTable &) = delete;
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
-  [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
+  [[nodiscard]] const double *KernelData() const noexcept {
+    return kernel.data();
+  }
   [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
-    return offsets[static_cast<std::size_t>(species)
-                   + static_cast<std::size_t>(moment) * nOpacities];
+    return offsets[static_cast<std::size_t>(species) +
+                   static_cast<std::size_t>(moment) * nOpacities];
   }
 };
 
@@ -431,16 +436,20 @@ struct WeakLibScatKernelTableDevice {
   Layout layout{};
 
   WeakLibScatKernelTableDevice() = default;
-  WeakLibScatKernelTableDevice(WeakLibScatKernelTableDevice&&) = default;
-  WeakLibScatKernelTableDevice& operator=(WeakLibScatKernelTableDevice&&) = default;
-  WeakLibScatKernelTableDevice(const WeakLibScatKernelTableDevice&) = delete;
-  WeakLibScatKernelTableDevice& operator=(const WeakLibScatKernelTableDevice&) = delete;
+  WeakLibScatKernelTableDevice(WeakLibScatKernelTableDevice &&) = default;
+  WeakLibScatKernelTableDevice &
+  operator=(WeakLibScatKernelTableDevice &&) = default;
+  WeakLibScatKernelTableDevice(const WeakLibScatKernelTableDevice &) = delete;
+  WeakLibScatKernelTableDevice &
+  operator=(const WeakLibScatKernelTableDevice &) = delete;
 
   [[nodiscard]] bool IsLoaded() const noexcept { return nOpacities > 0; }
-  [[nodiscard]] const double* KernelData() const noexcept { return kernel.data(); }
+  [[nodiscard]] const double *KernelData() const noexcept {
+    return kernel.data();
+  }
   [[nodiscard]] double OffsetValue(int species, int moment) const noexcept {
-    return offsets[static_cast<std::size_t>(species)
-                   + static_cast<std::size_t>(moment) * nOpacities];
+    return offsets[static_cast<std::size_t>(species) +
+                   static_cast<std::size_t>(moment) * nOpacities];
   }
 
   void ReleaseDeviceData() noexcept {
@@ -457,17 +466,18 @@ using WeakLibScatBremTableDevice = WeakLibScatKernelTableDevice;
 
 // ThermoState for opacity tables (shared across types)
 struct WeakLibThermoState {
-  std::array<int, 3> dimensions{{0, 0, 0}};  // [nRho, nT, nYe]
-  std::array<amrex::Gpu::PinnedVector<double>, 3> axisStorage;  // Density, Temperature, Ye
+  std::array<int, 3> dimensions{{0, 0, 0}}; // [nRho, nT, nYe]
+  std::array<amrex::Gpu::PinnedVector<double>, 3>
+      axisStorage; // Density, Temperature, Ye
   Axis axes[3]{};
   std::array<std::string, 3> names;
   std::array<std::string, 3> units;
 
   WeakLibThermoState() = default;
-  WeakLibThermoState(WeakLibThermoState&&) = default;
-  WeakLibThermoState& operator=(WeakLibThermoState&&) = default;
-  WeakLibThermoState(const WeakLibThermoState&) = delete;
-  WeakLibThermoState& operator=(const WeakLibThermoState&) = delete;
+  WeakLibThermoState(WeakLibThermoState &&) = default;
+  WeakLibThermoState &operator=(WeakLibThermoState &&) = default;
+  WeakLibThermoState(const WeakLibThermoState &) = delete;
+  WeakLibThermoState &operator=(const WeakLibThermoState &) = delete;
 };
 
 struct WeakLibThermoStateDevice {
@@ -476,13 +486,14 @@ struct WeakLibThermoStateDevice {
   Axis axes[3]{};
 
   WeakLibThermoStateDevice() = default;
-  WeakLibThermoStateDevice(WeakLibThermoStateDevice&&) = default;
-  WeakLibThermoStateDevice& operator=(WeakLibThermoStateDevice&&) = default;
-  WeakLibThermoStateDevice(const WeakLibThermoStateDevice&) = delete;
-  WeakLibThermoStateDevice& operator=(const WeakLibThermoStateDevice&) = delete;
+  WeakLibThermoStateDevice(WeakLibThermoStateDevice &&) = default;
+  WeakLibThermoStateDevice &operator=(WeakLibThermoStateDevice &&) = default;
+  WeakLibThermoStateDevice(const WeakLibThermoStateDevice &) = delete;
+  WeakLibThermoStateDevice &
+  operator=(const WeakLibThermoStateDevice &) = delete;
 
   void ReleaseDeviceData() noexcept {
-    for (auto& a : axisStorage) {
+    for (auto &a : axisStorage) {
       a = amrex::Gpu::DeviceVector<double>{};
     }
   }
@@ -492,7 +503,7 @@ struct WeakLibThermoStateDevice {
 struct WeakLibOpacityTable {
   // Grids
   WeakLibOpacityGrid energyGrid;
-  WeakLibOpacityGrid etaGrid;  // Only used by NES/Pair
+  WeakLibOpacityGrid etaGrid; // Only used by NES/Pair
   WeakLibThermoState thermoState;
 
   // Opacity types
@@ -503,16 +514,20 @@ struct WeakLibOpacityTable {
   WeakLibScatBremTable scatBrem;
 
   WeakLibOpacityTable() = default;
-  WeakLibOpacityTable(WeakLibOpacityTable&&) = default;
-  WeakLibOpacityTable& operator=(WeakLibOpacityTable&&) = default;
-  WeakLibOpacityTable(const WeakLibOpacityTable&) = delete;
-  WeakLibOpacityTable& operator=(const WeakLibOpacityTable&) = delete;
+  WeakLibOpacityTable(WeakLibOpacityTable &&) = default;
+  WeakLibOpacityTable &operator=(WeakLibOpacityTable &&) = default;
+  WeakLibOpacityTable(const WeakLibOpacityTable &) = delete;
+  WeakLibOpacityTable &operator=(const WeakLibOpacityTable &) = delete;
 
   [[nodiscard]] bool HasEmAb() const noexcept { return emAb.IsLoaded(); }
   [[nodiscard]] bool HasScatIso() const noexcept { return scatIso.IsLoaded(); }
   [[nodiscard]] bool HasScatNES() const noexcept { return scatNES.IsLoaded(); }
-  [[nodiscard]] bool HasScatPair() const noexcept { return scatPair.IsLoaded(); }
-  [[nodiscard]] bool HasScatBrem() const noexcept { return scatBrem.IsLoaded(); }
+  [[nodiscard]] bool HasScatPair() const noexcept {
+    return scatPair.IsLoaded();
+  }
+  [[nodiscard]] bool HasScatBrem() const noexcept {
+    return scatBrem.IsLoaded();
+  }
 };
 
 struct WeakLibOpacityTableDevice {
@@ -527,16 +542,21 @@ struct WeakLibOpacityTableDevice {
   WeakLibScatBremTableDevice scatBrem;
 
   WeakLibOpacityTableDevice() = default;
-  WeakLibOpacityTableDevice(WeakLibOpacityTableDevice&&) = default;
-  WeakLibOpacityTableDevice& operator=(WeakLibOpacityTableDevice&&) = default;
-  WeakLibOpacityTableDevice(const WeakLibOpacityTableDevice&) = delete;
-  WeakLibOpacityTableDevice& operator=(const WeakLibOpacityTableDevice&) = delete;
+  WeakLibOpacityTableDevice(WeakLibOpacityTableDevice &&) = default;
+  WeakLibOpacityTableDevice &operator=(WeakLibOpacityTableDevice &&) = default;
+  WeakLibOpacityTableDevice(const WeakLibOpacityTableDevice &) = delete;
+  WeakLibOpacityTableDevice &
+  operator=(const WeakLibOpacityTableDevice &) = delete;
 
   [[nodiscard]] bool HasEmAb() const noexcept { return emAb.IsLoaded(); }
   [[nodiscard]] bool HasScatIso() const noexcept { return scatIso.IsLoaded(); }
   [[nodiscard]] bool HasScatNES() const noexcept { return scatNES.IsLoaded(); }
-  [[nodiscard]] bool HasScatPair() const noexcept { return scatPair.IsLoaded(); }
-  [[nodiscard]] bool HasScatBrem() const noexcept { return scatBrem.IsLoaded(); }
+  [[nodiscard]] bool HasScatPair() const noexcept {
+    return scatPair.IsLoaded();
+  }
+  [[nodiscard]] bool HasScatBrem() const noexcept {
+    return scatBrem.IsLoaded();
+  }
 
   void ReleaseDeviceData() noexcept {
     energyGrid.ReleaseDeviceData();

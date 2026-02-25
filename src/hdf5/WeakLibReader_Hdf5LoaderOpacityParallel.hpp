@@ -6,8 +6,7 @@ namespace WeakLibReader {
 namespace detail {
 
 /// Broadcast a WeakLibOpacityGrid from root to all ranks.
-inline void BcastOpacityGrid(WeakLibOpacityGrid& grid, int root)
-{
+inline void BcastOpacityGrid(WeakLibOpacityGrid &grid, int root) {
   const int myRank = amrex::ParallelDescriptor::MyProc();
 
   int header[2] = {0, 0};
@@ -43,8 +42,7 @@ inline void BcastOpacityGrid(WeakLibOpacityGrid& grid, int root)
 }
 
 /// Broadcast a WeakLibThermoState from root to all ranks.
-inline void BcastThermoState(WeakLibThermoState& ts, int root)
-{
+inline void BcastThermoState(WeakLibThermoState &ts, int root) {
   const int myRank = amrex::ParallelDescriptor::MyProc();
 
   int header[6] = {0, 0, 0, 0, 0, 0};
@@ -71,9 +69,11 @@ inline void BcastThermoState(WeakLibThermoState& ts, int root)
 
   for (int i = 0; i < 3; ++i) {
     if (ts.dimensions[i] > 0) {
-      amrex::ParallelDescriptor::Bcast(ts.axisStorage[i].data(), ts.dimensions[i], root);
+      amrex::ParallelDescriptor::Bcast(ts.axisStorage[i].data(),
+                                       ts.dimensions[i], root);
     }
-    ts.axes[i] = Axis{ts.axisStorage[i].data(), ts.dimensions[i], axisScales[i]};
+    ts.axes[i] =
+        Axis{ts.axisStorage[i].data(), ts.dimensions[i], axisScales[i]};
   }
 
   BcastStringArray(ts.names, root);
@@ -81,14 +81,15 @@ inline void BcastThermoState(WeakLibThermoState& ts, int root)
 }
 
 /// Broadcast a WeakLibECTable from root to all ranks.
-inline void BcastECTable(WeakLibECTable& ec, int root)
-{
+inline void BcastECTable(WeakLibECTable &ec, int root) {
   const int myRank = amrex::ParallelDescriptor::MyProc();
 
   int present = (myRank == root && ec.IsPresent()) ? 1 : 0;
   amrex::ParallelDescriptor::Bcast(&present, 1, root);
   if (present == 0) {
-    if (myRank != root) { ec = WeakLibECTable{}; }
+    if (myRank != root) {
+      ec = WeakLibECTable{};
+    }
     return;
   }
 
@@ -103,9 +104,12 @@ inline void BcastECTable(WeakLibECTable& ec, int root)
 
   double doubles[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   if (myRank == root) {
-    doubles[0] = ec.rhoMin;  doubles[1] = ec.rhoMax;
-    doubles[2] = ec.tempMin; doubles[3] = ec.tempMax;
-    doubles[4] = ec.yeMin;   doubles[5] = ec.yeMax;
+    doubles[0] = ec.rhoMin;
+    doubles[1] = ec.rhoMax;
+    doubles[2] = ec.tempMin;
+    doubles[3] = ec.tempMax;
+    doubles[4] = ec.yeMin;
+    doubles[5] = ec.yeMax;
     doubles[6] = ec.specOffset;
     doubles[7] = ec.rateOffset;
   }
@@ -116,10 +120,16 @@ inline void BcastECTable(WeakLibECTable& ec, int root)
   const auto rateSize = static_cast<std::size_t>(nRho) * nT * nYe;
 
   if (myRank != root) {
-    ec.nE = nE; ec.nRho = nRho; ec.nT = nT; ec.nYe = nYe;
-    ec.rhoMin = doubles[0];  ec.rhoMax = doubles[1];
-    ec.tempMin = doubles[2]; ec.tempMax = doubles[3];
-    ec.yeMin = doubles[4];   ec.yeMax = doubles[5];
+    ec.nE = nE;
+    ec.nRho = nRho;
+    ec.nT = nT;
+    ec.nYe = nYe;
+    ec.rhoMin = doubles[0];
+    ec.rhoMax = doubles[1];
+    ec.tempMin = doubles[2];
+    ec.tempMax = doubles[3];
+    ec.yeMin = doubles[4];
+    ec.yeMax = doubles[5];
     ec.specOffset = doubles[6];
     ec.rateOffset = doubles[7];
     ec.energyValues.resize(nE);
@@ -135,42 +145,48 @@ inline void BcastECTable(WeakLibECTable& ec, int root)
   amrex::ParallelDescriptor::Bcast(ec.tempValues.data(), nT, root);
   amrex::ParallelDescriptor::Bcast(ec.yeValues.data(), nYe, root);
   if (specSize > 0) {
-    amrex::ParallelDescriptor::Bcast(ec.spectrum.data(), static_cast<int>(specSize), root);
+    amrex::ParallelDescriptor::Bcast(ec.spectrum.data(),
+                                     static_cast<int>(specSize), root);
   }
   if (rateSize > 0) {
-    amrex::ParallelDescriptor::Bcast(ec.rate.data(), static_cast<int>(rateSize), root);
+    amrex::ParallelDescriptor::Bcast(ec.rate.data(), static_cast<int>(rateSize),
+                                     root);
   }
 
   BcastString(ec.unit, root);
 }
 
 /// Broadcast a WeakLibEmAbTable from root to all ranks.
-inline void BcastEmAbTable(WeakLibEmAbTable& tab, int root)
-{
+inline void BcastEmAbTable(WeakLibEmAbTable &tab, int root) {
   const int myRank = amrex::ParallelDescriptor::MyProc();
 
   int header[5] = {0, 0, 0, 0, 0};
   if (myRank == root) {
     header[0] = tab.nOpacities;
-    for (int i = 0; i < 4; ++i) { header[1 + i] = tab.dimensions[i]; }
+    for (int i = 0; i < 4; ++i) {
+      header[1 + i] = tab.dimensions[i];
+    }
   }
   amrex::ParallelDescriptor::Bcast(header, 5, root);
 
   const int nOpacities = header[0];
   std::array<int, 4> dims{{header[1], header[2], header[3], header[4]}};
-  const auto dataSize = static_cast<std::size_t>(dims[0]) * dims[1] * dims[2] * dims[3];
+  const auto dataSize =
+      static_cast<std::size_t>(dims[0]) * dims[1] * dims[2] * dims[3];
 
   static_assert(sizeof(WeakLibEmAbParameters) == 7 * sizeof(int),
                 "WeakLibEmAbParameters must be 7 contiguous ints");
-  amrex::ParallelDescriptor::Bcast(
-      reinterpret_cast<int*>(&tab.parameters), 7, root);
+  amrex::ParallelDescriptor::Bcast(reinterpret_cast<int *>(&tab.parameters), 7,
+                                   root);
 
   amrex::ParallelDescriptor::Bcast(tab.offsets.data(), 2, root);
 
   if (myRank != root) {
     tab.nOpacities = nOpacities;
     tab.dimensions = dims;
-    for (int s = 0; s < nOpacities; ++s) { tab.opacities[s].resize(dataSize); }
+    for (int s = 0; s < nOpacities; ++s) {
+      tab.opacities[s].resize(dataSize);
+    }
     std::array<int, 5> ext5{{dims[0], dims[1], dims[2], dims[3], 1}};
     tab.layout = MakeLayout(ext5.data(), 4);
   }
@@ -188,24 +204,27 @@ inline void BcastEmAbTable(WeakLibEmAbTable& tab, int root)
 }
 
 /// Broadcast a WeakLibScatIsoTable from root to all ranks.
-inline void BcastScatIsoTable(WeakLibScatIsoTable& tab, int root)
-{
+inline void BcastScatIsoTable(WeakLibScatIsoTable &tab, int root) {
   const int myRank = amrex::ParallelDescriptor::MyProc();
 
   int header[7] = {0, 0, 0, 0, 0, 0, 0};
   if (myRank == root) {
     header[0] = tab.nOpacities;
     header[1] = tab.nMoments;
-    for (int i = 0; i < 5; ++i) { header[2 + i] = tab.dimensions[i]; }
+    for (int i = 0; i < 5; ++i) {
+      header[2 + i] = tab.dimensions[i];
+    }
   }
   amrex::ParallelDescriptor::Bcast(header, 7, root);
 
   const int nOpacities = header[0];
   const int nMoments = header[1];
   std::array<int, 5> dims;
-  for (int i = 0; i < 5; ++i) { dims[i] = header[2 + i]; }
-  const auto dataSize = static_cast<std::size_t>(dims[0]) * dims[1]
-                         * dims[2] * dims[3] * dims[4];
+  for (int i = 0; i < 5; ++i) {
+    dims[i] = header[2 + i];
+  }
+  const auto dataSize =
+      static_cast<std::size_t>(dims[0]) * dims[1] * dims[2] * dims[3] * dims[4];
   const auto offsetSize = static_cast<std::size_t>(nOpacities) * nMoments;
 
   int corrections[3] = {0, 0, 0};
@@ -228,7 +247,9 @@ inline void BcastScatIsoTable(WeakLibScatIsoTable& tab, int root)
     tab.manyBodyCorrections = corrections[2];
     tab.gaStrange = gaStrangeVal;
     tab.offsets.resize(offsetSize);
-    for (int s = 0; s < nOpacities; ++s) { tab.kernels[s].resize(dataSize); }
+    for (int s = 0; s < nOpacities; ++s) {
+      tab.kernels[s].resize(dataSize);
+    }
     tab.layout = MakeLayout(dims.data(), 5);
   }
 
@@ -248,15 +269,16 @@ inline void BcastScatIsoTable(WeakLibScatIsoTable& tab, int root)
 }
 
 /// Broadcast a WeakLibScatKernelTable (NES/Pair/Brem) from root to all ranks.
-inline void BcastScatKernelTable(WeakLibScatKernelTable& tab, int root)
-{
+inline void BcastScatKernelTable(WeakLibScatKernelTable &tab, int root) {
   const int myRank = amrex::ParallelDescriptor::MyProc();
 
   int header[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   if (myRank == root) {
     header[0] = tab.nOpacities;
     header[1] = tab.nMoments;
-    for (int i = 0; i < 5; ++i) { header[2 + i] = tab.dimensions[i]; }
+    for (int i = 0; i < 5; ++i) {
+      header[2 + i] = tab.dimensions[i];
+    }
     header[7] = tab.nps;
   }
   amrex::ParallelDescriptor::Bcast(header, 8, root);
@@ -264,9 +286,11 @@ inline void BcastScatKernelTable(WeakLibScatKernelTable& tab, int root)
   const int nOpacities = header[0];
   const int nMoments = header[1];
   std::array<int, 5> dims;
-  for (int i = 0; i < 5; ++i) { dims[i] = header[2 + i]; }
-  const auto dataSize = static_cast<std::size_t>(dims[0]) * dims[1]
-                         * dims[2] * dims[3] * dims[4];
+  for (int i = 0; i < 5; ++i) {
+    dims[i] = header[2 + i];
+  }
+  const auto dataSize =
+      static_cast<std::size_t>(dims[0]) * dims[1] * dims[2] * dims[3] * dims[4];
   const auto offsetSize = static_cast<std::size_t>(nOpacities) * nMoments;
 
   if (myRank != root) {
@@ -297,18 +321,14 @@ inline void BcastScatKernelTable(WeakLibScatKernelTable& tab, int root)
 /// Load opacity tables in parallel: root reads HDF5, then broadcasts to all
 /// ranks. Falls back to serial loader when running single-rank.
 inline Hdf5LoadStatus LoadWeakLibOpacityTableFullParallel(
-    WeakLibOpacityTable& output,
-    const std::string& fileEmAb = "",
-    const std::string& fileIso = "",
-    const std::string& fileNES = "",
-    const std::string& filePair = "",
-    const std::string& fileBrem = "",
-    int readerRank = amrex::ParallelDescriptor::IOProcessorNumber())
-{
+    WeakLibOpacityTable &output, const std::string &fileEmAb = "",
+    const std::string &fileIso = "", const std::string &fileNES = "",
+    const std::string &filePair = "", const std::string &fileBrem = "",
+    int readerRank = amrex::ParallelDescriptor::IOProcessorNumber()) {
   const int nProcs = amrex::ParallelDescriptor::NProcs();
   if (nProcs <= 1) {
-    return LoadWeakLibOpacityTableFull(output, fileEmAb, fileIso,
-                                       fileNES, filePair, fileBrem);
+    return LoadWeakLibOpacityTableFull(output, fileEmAb, fileIso, fileNES,
+                                       filePair, fileBrem);
   }
 
   int root = readerRank;
@@ -320,8 +340,8 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFullParallel(
   WeakLibOpacityTable localTable;
   Hdf5LoadStatus status = Hdf5LoadStatus::Success;
   if (myRank == root) {
-    status = LoadWeakLibOpacityTableFull(localTable, fileEmAb, fileIso,
-                                          fileNES, filePair, fileBrem);
+    status = LoadWeakLibOpacityTableFull(localTable, fileEmAb, fileIso, fileNES,
+                                         filePair, fileBrem);
   }
 
   int statusInt = static_cast<int>(status);
@@ -343,7 +363,7 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFullParallel(
   }
   amrex::ParallelDescriptor::Bcast(presence, 6, root);
 
-  WeakLibOpacityTable& table = (myRank == root) ? localTable : output;
+  WeakLibOpacityTable &table = (myRank == root) ? localTable : output;
 
   detail::BcastOpacityGrid(table.energyGrid, root);
   detail::BcastThermoState(table.thermoState, root);
@@ -352,11 +372,21 @@ inline Hdf5LoadStatus LoadWeakLibOpacityTableFullParallel(
     detail::BcastOpacityGrid(table.etaGrid, root);
   }
 
-  if (presence[0]) { detail::BcastEmAbTable(table.emAb, root); }
-  if (presence[1]) { detail::BcastScatIsoTable(table.scatIso, root); }
-  if (presence[2]) { detail::BcastScatKernelTable(table.scatNES, root); }
-  if (presence[3]) { detail::BcastScatKernelTable(table.scatPair, root); }
-  if (presence[4]) { detail::BcastScatKernelTable(table.scatBrem, root); }
+  if (presence[0]) {
+    detail::BcastEmAbTable(table.emAb, root);
+  }
+  if (presence[1]) {
+    detail::BcastScatIsoTable(table.scatIso, root);
+  }
+  if (presence[2]) {
+    detail::BcastScatKernelTable(table.scatNES, root);
+  }
+  if (presence[3]) {
+    detail::BcastScatKernelTable(table.scatPair, root);
+  }
+  if (presence[4]) {
+    detail::BcastScatKernelTable(table.scatBrem, root);
+  }
 
   if (myRank == root) {
     output = std::move(localTable);

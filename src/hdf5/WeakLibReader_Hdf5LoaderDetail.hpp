@@ -15,8 +15,7 @@
 namespace WeakLibReader {
 namespace detail {
 
-inline void CloseHandle(hid_t handle, herr_t (*closer)(hid_t)) noexcept
-{
+inline void CloseHandle(hid_t handle, herr_t (*closer)(hid_t)) noexcept {
   if (handle >= 0 && closer != nullptr) {
     closer(handle);
   }
@@ -24,7 +23,7 @@ inline void CloseHandle(hid_t handle, herr_t (*closer)(hid_t)) noexcept
 
 struct ScopedH5ErrorSuppressor {
   H5E_auto2_t oldFunc;
-  void* oldClientData;
+  void *oldClientData;
   ScopedH5ErrorSuppressor() {
     H5Eget_auto2(H5E_DEFAULT, &oldFunc, &oldClientData);
     H5Eset_auto2(H5E_DEFAULT, nullptr, nullptr);
@@ -32,8 +31,8 @@ struct ScopedH5ErrorSuppressor {
   ~ScopedH5ErrorSuppressor() {
     H5Eset_auto2(H5E_DEFAULT, oldFunc, oldClientData);
   }
-  ScopedH5ErrorSuppressor(const ScopedH5ErrorSuppressor&) = delete;
-  ScopedH5ErrorSuppressor& operator=(const ScopedH5ErrorSuppressor&) = delete;
+  ScopedH5ErrorSuppressor(const ScopedH5ErrorSuppressor &) = delete;
+  ScopedH5ErrorSuppressor &operator=(const ScopedH5ErrorSuppressor &) = delete;
 };
 
 struct ScopedHandle {
@@ -41,16 +40,16 @@ struct ScopedHandle {
   herr_t (*closer)(hid_t) = nullptr;
 
   ScopedHandle() = default;
-  ScopedHandle(hid_t handle, herr_t (*fn)(hid_t)) noexcept : id(handle), closer(fn) {}
-  ScopedHandle(const ScopedHandle&) = delete;
-  ScopedHandle& operator=(const ScopedHandle&) = delete;
-  ScopedHandle(ScopedHandle&& other) noexcept : id(other.id), closer(other.closer)
-  {
+  ScopedHandle(hid_t handle, herr_t (*fn)(hid_t)) noexcept
+      : id(handle), closer(fn) {}
+  ScopedHandle(const ScopedHandle &) = delete;
+  ScopedHandle &operator=(const ScopedHandle &) = delete;
+  ScopedHandle(ScopedHandle &&other) noexcept
+      : id(other.id), closer(other.closer) {
     other.id = -1;
     other.closer = nullptr;
   }
-  ScopedHandle& operator=(ScopedHandle&& other) noexcept
-  {
+  ScopedHandle &operator=(ScopedHandle &&other) noexcept {
     if (this != &other) {
       Reset();
       id = other.id;
@@ -62,13 +61,17 @@ struct ScopedHandle {
   }
   ~ScopedHandle() { Reset(); }
 
-  void Reset() noexcept { CloseHandle(id, closer); id = -1; closer = nullptr; }
+  void Reset() noexcept {
+    CloseHandle(id, closer);
+    id = -1;
+    closer = nullptr;
+  }
   [[nodiscard]] hid_t Get() const noexcept { return id; }
   [[nodiscard]] bool Valid() const noexcept { return id >= 0; }
 };
 
-inline bool ReadStringAttribute(hid_t parent, const std::string& name, std::string& out)
-{
+inline bool ReadStringAttribute(hid_t parent, const std::string &name,
+                                std::string &out) {
   if (parent < 0) {
     return false;
   }
@@ -89,7 +92,7 @@ inline bool ReadStringAttribute(hid_t parent, const std::string& name, std::stri
   }
 
   if (isVariable) {
-    char* buffer = nullptr;
+    char *buffer = nullptr;
     if (H5Aread(attr.Get(), native.Get(), &buffer) < 0 || buffer == nullptr) {
       return false;
     }
@@ -107,8 +110,8 @@ inline bool ReadStringAttribute(hid_t parent, const std::string& name, std::stri
   return true;
 }
 
-inline bool ReadIntArray(hid_t parent, const char* name, int* out, std::size_t count)
-{
+inline bool ReadIntArray(hid_t parent, const char *name, int *out,
+                         std::size_t count) {
   if (parent < 0) {
     return false;
   }
@@ -127,12 +130,12 @@ inline bool ReadIntArray(hid_t parent, const char* name, int* out, std::size_t c
   if (dims != static_cast<hsize_t>(count)) {
     return false;
   }
-  return H5Dread(dataset.Get(), H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, out) >= 0;
+  return H5Dread(dataset.Get(), H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                 out) >= 0;
 }
 
 template <typename Container>
-inline bool ValidateAxis(const Container& values, AxisScale scale)
-{
+inline bool ValidateAxis(const Container &values, AxisScale scale) {
   if (values.size() < 2) {
     return false;
   }
@@ -154,8 +157,7 @@ inline bool ValidateAxis(const Container& values, AxisScale scale)
 
 // Read a single integer from a 1-element dataset.
 // Matches pattern used in Fortran ReadDependentVariablesHDF for index datasets.
-inline bool ReadScalarInt(hid_t parent, const char* name, int& out)
-{
+inline bool ReadScalarInt(hid_t parent, const char *name, int &out) {
   if (parent < 0) {
     return false;
   }
@@ -181,13 +183,14 @@ inline bool ReadScalarInt(hid_t parent, const char* name, int& out)
     return false;
   }
 
-  return H5Dread(dataset.Get(), H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, &out) >= 0;
+  return H5Dread(dataset.Get(), H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                 &out) >= 0;
 }
 
 // Read a 1D string array dataset.
 // Matches Fortran Read1dHDF_string (wlIOModuleHDF.F90:601-618).
-inline bool ReadStringArray(hid_t parent, const char* name, std::vector<std::string>& out)
-{
+inline bool ReadStringArray(hid_t parent, const char *name,
+                            std::vector<std::string> &out) {
   if (parent < 0) {
     return false;
   }
@@ -219,11 +222,12 @@ inline bool ReadStringArray(hid_t parent, const char* name, std::vector<std::str
 
   if (isVariable) {
     // Variable-length strings
-    std::vector<char*> buffer(count, nullptr);
+    std::vector<char *> buffer(count, nullptr);
     ScopedHandle memtype(H5Tcopy(H5T_C_S1), H5Tclose);
     H5Tset_size(memtype.Get(), H5T_VARIABLE);
 
-    if (H5Dread(dataset.Get(), memtype.Get(), H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()) < 0) {
+    if (H5Dread(dataset.Get(), memtype.Get(), H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                buffer.data()) < 0) {
       return false;
     }
 
@@ -242,14 +246,15 @@ inline bool ReadStringArray(hid_t parent, const char* name, std::vector<std::str
     const std::size_t strLen = H5Tget_size(dtype.Get());
     std::vector<char> buffer(count * strLen);
 
-    if (H5Dread(dataset.Get(), dtype.Get(), H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()) < 0) {
+    if (H5Dread(dataset.Get(), dtype.Get(), H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                buffer.data()) < 0) {
       return false;
     }
 
     out.resize(count);
     for (hsize_t i = 0; i < count; ++i) {
       // Extract string, trimming trailing spaces/nulls
-      const char* start = buffer.data() + i * strLen;
+      const char *start = buffer.data() + i * strLen;
       std::size_t len = strLen;
       while (len > 0 && (start[len - 1] == '\0' || start[len - 1] == ' ')) {
         --len;
@@ -262,10 +267,9 @@ inline bool ReadStringArray(hid_t parent, const char* name, std::vector<std::str
 }
 
 template <int ND>
-inline bool OpenWeakLibDataset(hid_t parent, const char* name,
-                               ScopedHandle& dataset,
-                               std::array<hsize_t, ND>& fileDims)
-{
+inline bool OpenWeakLibDataset(hid_t parent, const char *name,
+                               ScopedHandle &dataset,
+                               std::array<hsize_t, ND> &fileDims) {
   if (parent < 0) {
     return false;
   }
@@ -286,13 +290,13 @@ inline bool OpenWeakLibDataset(hid_t parent, const char* name,
   }
 
   fileDims.fill(0);
-  return H5Sget_simple_extent_dims(dataspace.Get(), fileDims.data(), nullptr) >= 0;
+  return H5Sget_simple_extent_dims(dataspace.Get(), fileDims.data(), nullptr) >=
+         0;
 }
 
 template <int ND>
-inline bool ValidateFortranDims(const std::array<hsize_t, ND>& fileDims,
-                                const std::array<int, ND>& expectedDims)
-{
+inline bool ValidateFortranDims(const std::array<hsize_t, ND> &fileDims,
+                                const std::array<int, ND> &expectedDims) {
   for (int i = 0; i < ND; ++i) {
     if (expectedDims[i] <= 0) {
       return false;
@@ -305,10 +309,8 @@ inline bool ValidateFortranDims(const std::array<hsize_t, ND>& fileDims,
 }
 
 template <typename T, int ND, typename Container>
-bool ReadWeakLibArrayNd(hid_t parent, const char* name,
-                        Container& output,
-                        const std::array<int, ND>& expectedDims)
-{
+bool ReadWeakLibArrayNd(hid_t parent, const char *name, Container &output,
+                        const std::array<int, ND> &expectedDims) {
   ScopedHandle dataset;
   std::array<hsize_t, ND> fileDims{};
   if (!OpenWeakLibDataset<ND>(parent, name, dataset, fileDims)) {
@@ -325,21 +327,21 @@ bool ReadWeakLibArrayNd(hid_t parent, const char* name,
   }
   output.resize(totalSize);
 
-  const hid_t memType = std::is_same_v<T, double> ? H5T_NATIVE_DOUBLE : H5T_NATIVE_INT;
-  return H5Dread(dataset.Get(), memType, H5S_ALL, H5S_ALL, H5P_DEFAULT, output.data()) >= 0;
+  const hid_t memType =
+      std::is_same_v<T, double> ? H5T_NATIVE_DOUBLE : H5T_NATIVE_INT;
+  return H5Dread(dataset.Get(), memType, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                 output.data()) >= 0;
 }
 
-inline bool GroupExists(hid_t loc, const char* name)
-{
+inline bool GroupExists(hid_t loc, const char *name) {
   ScopedH5ErrorSuppressor suppress;
   htri_t exists = H5Lexists(loc, name, H5P_DEFAULT);
   return exists > 0;
 }
 
 // Load an opacity grid group (EnergyGrid or EtaGrid) from an HDF5 file.
-inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char* groupName,
-                                              WeakLibOpacityGrid& grid)
-{
+inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char *groupName,
+                                             WeakLibOpacityGrid &grid) {
   ScopedHandle group(H5Gopen(file, groupName, H5P_DEFAULT), H5Gclose);
   if (!group.Valid()) {
     return Hdf5LoadStatus::DatasetOpenFailed;
@@ -400,8 +402,7 @@ inline Hdf5LoadStatus LoadWeakLibOpacityGrid(hid_t file, const char* groupName,
   return Hdf5LoadStatus::Success;
 }
 
-inline std::size_t ComputeTotalSize(int nd, const std::array<int, 5>& extents)
-{
+inline std::size_t ComputeTotalSize(int nd, const std::array<int, 5> &extents) {
   std::size_t size = 1;
   const std::size_t maxSize = std::numeric_limits<std::size_t>::max();
   for (int dim = 0; dim < nd; ++dim) {
@@ -418,12 +419,9 @@ inline std::size_t ComputeTotalSize(int nd, const std::array<int, 5>& extents)
 }
 
 template <typename Container>
-inline Hdf5LoadStatus ReadAxisDataset1D(hid_t datasetId,
-                                        int expectedExtent,
-                                        AxisScale scale,
-                                        Container& storage,
-                                        Axis& outAxis)
-{
+inline Hdf5LoadStatus ReadAxisDataset1D(hid_t datasetId, int expectedExtent,
+                                        AxisScale scale, Container &storage,
+                                        Axis &outAxis) {
   ScopedHandle space(H5Dget_space(datasetId), H5Sclose);
   if (!space.Valid()) {
     return Hdf5LoadStatus::AxisReadFailed;
@@ -457,41 +455,43 @@ inline Hdf5LoadStatus ReadAxisDataset1D(hid_t datasetId,
 }
 
 template <typename Container>
-inline Hdf5LoadStatus LoadWeakLibAxis(hid_t thermoGroup,
-                                      const char* datasetName,
-                                      int expectedExtent,
-                                      AxisScale scale,
-                                      Container& storage,
-                                      Axis& outAxis)
-{
-  ScopedHandle dataset(H5Dopen(thermoGroup, datasetName, H5P_DEFAULT), H5Dclose);
+inline Hdf5LoadStatus
+LoadWeakLibAxis(hid_t thermoGroup, const char *datasetName, int expectedExtent,
+                AxisScale scale, Container &storage, Axis &outAxis) {
+  ScopedHandle dataset(H5Dopen(thermoGroup, datasetName, H5P_DEFAULT),
+                       H5Dclose);
   if (!dataset.Valid()) {
     return Hdf5LoadStatus::AxisDatasetOpenFailed;
   }
 
-  return ReadAxisDataset1D(dataset.Get(), expectedExtent, scale, storage, outAxis);
+  return ReadAxisDataset1D(dataset.Get(), expectedExtent, scale, storage,
+                           outAxis);
 }
 
 /// Broadcast a single std::string from root to all ranks.
-inline void BcastString(std::string& s, int root)
-{
+inline void BcastString(std::string &s, int root) {
   const int myRank = amrex::ParallelDescriptor::MyProc();
   int len = (myRank == root) ? static_cast<int>(s.size()) : 0;
   amrex::ParallelDescriptor::Bcast(&len, 1, root);
   if (len == 0) {
-    if (myRank != root) { s.clear(); }
+    if (myRank != root) {
+      s.clear();
+    }
     return;
   }
   std::vector<char> buf(len);
-  if (myRank == root) { std::memcpy(buf.data(), s.data(), len); }
+  if (myRank == root) {
+    std::memcpy(buf.data(), s.data(), len);
+  }
   amrex::ParallelDescriptor::Bcast(buf.data(), len, root);
-  if (myRank != root) { s.assign(buf.data(), len); }
+  if (myRank != root) {
+    s.assign(buf.data(), len);
+  }
 }
 
 /// Broadcast a vector of strings from root to all ranks.
 /// Format: [count][len0][len1]...[lenN-1][chars...]
-inline void BcastStringVector(std::vector<std::string>& strings, int root)
-{
+inline void BcastStringVector(std::vector<std::string> &strings, int root) {
   const int myRank = amrex::ParallelDescriptor::MyProc();
 
   // Broadcast count
@@ -546,8 +546,7 @@ inline void BcastStringVector(std::vector<std::string>& strings, int root)
 
 /// Broadcast a fixed-size array of strings from root to all ranks.
 template <std::size_t N>
-inline void BcastStringArray(std::array<std::string, N>& strings, int root)
-{
+inline void BcastStringArray(std::array<std::string, N> &strings, int root) {
   std::vector<std::string> vec(strings.begin(), strings.end());
   BcastStringVector(vec, root);
   for (std::size_t i = 0; i < N && i < vec.size(); ++i) {
@@ -557,8 +556,7 @@ inline void BcastStringArray(std::array<std::string, N>& strings, int root)
 
 // Load the ThermoState group shared by EOS and opacity HDF5 files.
 inline Hdf5LoadStatus LoadWeakLibThermoState(hid_t file,
-                                                     WeakLibThermoState& ts)
-{
+                                             WeakLibThermoState &ts) {
   ScopedHandle group(H5Gopen(file, "ThermoState", H5P_DEFAULT), H5Gclose);
   if (!group.Valid()) {
     return Hdf5LoadStatus::DatasetOpenFailed;
@@ -582,10 +580,12 @@ inline Hdf5LoadStatus LoadWeakLibThermoState(hid_t file,
   }
 
   std::vector<std::string> namesVec, unitsVec;
-  if (!ReadStringArray(group.Get(), "Names", namesVec) || namesVec.size() != 3) {
+  if (!ReadStringArray(group.Get(), "Names", namesVec) ||
+      namesVec.size() != 3) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
-  if (!ReadStringArray(group.Get(), "Units", unitsVec) || unitsVec.size() != 3) {
+  if (!ReadStringArray(group.Get(), "Units", unitsVec) ||
+      unitsVec.size() != 3) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
   for (int i = 0; i < 3; ++i) {
@@ -593,12 +593,12 @@ inline Hdf5LoadStatus LoadWeakLibThermoState(hid_t file,
     ts.units[i] = unitsVec[i];
   }
 
-  const char* axisDatasetNames[3] = {"Density", "Temperature", "Electron Fraction"};
+  const char *axisDatasetNames[3] = {"Density", "Temperature",
+                                     "Electron Fraction"};
   for (int i = 0; i < 3; ++i) {
-    Hdf5LoadStatus status = LoadWeakLibAxis(
-        group.Get(), axisDatasetNames[i],
-        ts.dimensions[i], axisScales[i],
-        ts.axisStorage[i], ts.axes[i]);
+    Hdf5LoadStatus status =
+        LoadWeakLibAxis(group.Get(), axisDatasetNames[i], ts.dimensions[i],
+                        axisScales[i], ts.axisStorage[i], ts.axes[i]);
     if (status != Hdf5LoadStatus::Success) {
       return status;
     }
@@ -609,12 +609,10 @@ inline Hdf5LoadStatus LoadWeakLibThermoState(hid_t file,
 
 // Copy a host vector to a device vector (resize + copy).
 template <typename HostVec, typename DeviceVec>
-inline void CopyVectorToDevice(const HostVec& host, DeviceVec& device)
-{
+inline void CopyVectorToDevice(const HostVec &host, DeviceVec &device) {
   device.resize(host.size());
   if (!host.empty()) {
-    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                     host.begin(), host.end(),
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice, host.begin(), host.end(),
                      device.begin());
   }
 }

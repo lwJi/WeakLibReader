@@ -4,10 +4,8 @@
 
 namespace WeakLibReader {
 inline Hdf5LoadStatus LoadWeakLibEosTableFullParallel(
-    const std::string& filePath,
-    WeakLibEosTable& output,
-    int readerRank = amrex::ParallelDescriptor::IOProcessorNumber())
-{
+    const std::string &filePath, WeakLibEosTable &output,
+    int readerRank = amrex::ParallelDescriptor::IOProcessorNumber()) {
   const int nProcs = amrex::ParallelDescriptor::NProcs();
   if (nProcs <= 1) {
     return LoadWeakLibEosTableFull(filePath, output);
@@ -61,8 +59,7 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFullParallel(
 
     for (int dim = 0; dim < 3; ++dim) {
       output.axisStorage[dim].resize(axisCounts[dim]);
-      output.axes[dim] = Axis{output.axisStorage[dim].data(),
-                              axisCounts[dim],
+      output.axes[dim] = Axis{output.axisStorage[dim].data(), axisCounts[dim],
                               static_cast<AxisScale>(header[4 + dim])};
     }
 
@@ -78,15 +75,17 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFullParallel(
     output.variableNames.resize(nVariables);
     output.variableUnits.resize(nVariables);
 
-    const std::array<int, 5> extents5{{dimensions[0], dimensions[1], dimensions[2], 1, 1}};
+    const std::array<int, 5> extents5{
+        {dimensions[0], dimensions[1], dimensions[2], 1, 1}};
     output.layout = MakeLayout(extents5.data(), 3);
   }
 
-  WeakLibEosTable& table = (myRank == root) ? localTable : output;
+  WeakLibEosTable &table = (myRank == root) ? localTable : output;
 
   for (int dim = 0; dim < 3; ++dim) {
     if (axisCounts[dim] > 0) {
-      amrex::ParallelDescriptor::Bcast(table.axisStorage[dim].data(), axisCounts[dim], root);
+      amrex::ParallelDescriptor::Bcast(table.axisStorage[dim].data(),
+                                       axisCounts[dim], root);
     }
   }
 
@@ -113,7 +112,8 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFullParallel(
 
   static_assert(sizeof(WeakLibEosIndices) == 15 * sizeof(int),
                 "WeakLibEosIndices must be 15 contiguous ints");
-  amrex::ParallelDescriptor::Bcast(reinterpret_cast<int*>(&table.indices), 15, root);
+  amrex::ParallelDescriptor::Bcast(reinterpret_cast<int *>(&table.indices), 15,
+                                   root);
 
   if (myRank == root) {
     output = std::move(localTable);
