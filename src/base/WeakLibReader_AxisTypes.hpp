@@ -12,23 +12,20 @@ namespace WeakLibReader {
 enum class AxisScale : std::uint8_t { Linear, Log10 };
 
 struct Axis {
-  const double* grid = nullptr;
+  const double *grid = nullptr;
   int n = 0;
   AxisScale scale = AxisScale::Linear;
 };
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-Axis MakeAxis(const double* grid, int n, AxisScale scale) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE Axis
+MakeAxis(const double *grid, int n, AxisScale scale) noexcept {
   return Axis{grid, n, scale};
 }
 
 namespace detail {
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-void IndexAndDelta(const Axis& axis, double x,
-                   int& idx, double& frac) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE void
+IndexAndDelta(const Axis &axis, double x, int &idx, double &frac) noexcept {
   if (axis.scale == AxisScale::Linear) {
     IndexAndDeltaLin(x, axis.grid, axis.n, idx, frac);
   } else {

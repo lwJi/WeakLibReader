@@ -1,8 +1,8 @@
 #pragma once
 
+#include "interp/WeakLibReader_LogInterpolateCore.hpp"
 #include <AMReX_GpuQualifiers.H>
 #include <cstddef>
-#include "interp/WeakLibReader_LogInterpolateCore.hpp"
 
 namespace WeakLibReader {
 
@@ -10,31 +10,23 @@ namespace WeakLibReader {
 /// Physics: Bremsstrahlung uses 3 (pp, nn, pn). Sized with margin.
 constexpr int kMaxAlpha = 4;
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int SumLogInterpolateSingleVariable2D2DCustomAligned(
-    std::size_t sizeE,
-    const double* logD, std::size_t nAlpha,
-    const double* logT, std::size_t count,
-    const Axis axes[2],
-    const double* alpha,
-    const double* data,
-    double offset,
-    double* out) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+SumLogInterpolateSingleVariable2D2DCustomAligned(
+    std::size_t sizeE, const double *logD, std::size_t nAlpha,
+    const double *logT, std::size_t count, const Axis axes[2],
+    const double *alpha, const double *data, double offset,
+    double *out) noexcept {
   if (logD == nullptr || logT == nullptr || data == nullptr ||
-      alpha == nullptr || out == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr) {
+      alpha == nullptr || out == nullptr || axes[0].grid == nullptr ||
+      axes[1].grid == nullptr) {
     return 1;
   }
   if (sizeE == 0 || nAlpha == 0 || count == 0) {
     return 0;
   }
 
-  int extents[4] = {
-      static_cast<int>(sizeE),
-      static_cast<int>(sizeE),
-      axes[0].n,
-      axes[1].n};
+  int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), axes[0].n,
+                    axes[1].n};
   const Layout layout = MakeLayout(extents, 4);
 
   const std::size_t planeSize = sizeE * sizeE;
@@ -43,7 +35,7 @@ int SumLogInterpolateSingleVariable2D2DCustomAligned(
   double fracD[kMaxAlpha];
 
   for (std::size_t k = 0; k < count; ++k) {
-    double* plane = out + k * planeSize;
+    double *plane = out + k * planeSize;
 
     int idxT = 0;
     double fracT = 0.0;
@@ -63,11 +55,8 @@ int SumLogInterpolateSingleVariable2D2DCustomAligned(
         double sum = 0.0;
         for (std::size_t l = 0; l < nAlpha; ++l) {
           const double interp = LinearInterp2D4DArray2DAlignedPoint(
-              static_cast<int>(i), static_cast<int>(j),
-              idxD[l], idxT,
-              fracD[l], fracT,
-              offset,
-              data, layout);
+              static_cast<int>(i), static_cast<int>(j), idxD[l], idxT, fracD[l],
+              fracT, offset, data, layout);
           sum += alpha[l] * interp;
         }
         detail::StoreSymmetric(plane, sizeE, i, j, sum);

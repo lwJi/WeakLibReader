@@ -34,15 +34,17 @@ extern "C" void TestWeakLibReader_LoadTable(CCTK_ARGUMENTS) {
   const int iE = eos_table.indices.iInternalEnergyDensity;
   const int iP = eos_table.indices.iPressure;
   const int iS = eos_table.indices.iEntropyPerBaryon;
-  const int totalSize = eos_table.dimensions[0]
-                      * eos_table.dimensions[1]
-                      * eos_table.dimensions[2];
+  const int totalSize = eos_table.dimensions[0] * eos_table.dimensions[1] *
+                        eos_table.dimensions[2];
 
   eos_inversion_bounds = WeakLibReader::InitializeEosInversionBounds(
       eos_table.axes, totalSize,
-      (iE >= 0) ? eos_table.VariableData(iE) : nullptr, (iE >= 0) ? eos_table.offsets[iE] : 0.0,
-      (iP >= 0) ? eos_table.VariableData(iP) : nullptr, (iP >= 0) ? eos_table.offsets[iP] : 0.0,
-      (iS >= 0) ? eos_table.VariableData(iS) : nullptr, (iS >= 0) ? eos_table.offsets[iS] : 0.0);
+      (iE >= 0) ? eos_table.VariableData(iE) : nullptr,
+      (iE >= 0) ? eos_table.offsets[iE] : 0.0,
+      (iP >= 0) ? eos_table.VariableData(iP) : nullptr,
+      (iP >= 0) ? eos_table.offsets[iP] : 0.0,
+      (iS >= 0) ? eos_table.VariableData(iS) : nullptr,
+      (iS >= 0) ? eos_table.offsets[iS] : 0.0);
 
   eos_table_device = WeakLibReader::MakeDeviceCopy(eos_table);
 }
@@ -59,24 +61,23 @@ extern "C" void TestWeakLibReader_Init(CCTK_ARGUMENTS) {
   CCTK_INFO("Initializing grid function");
 
   const WeakLibReader::Axis axes[3] = {
-    eos_table_device.axes[0],
-    eos_table_device.axes[1],
-    eos_table_device.axes[2],
+      eos_table_device.axes[0],
+      eos_table_device.axes[1],
+      eos_table_device.axes[2],
   };
   const int ipress = eos_table_device.indices.iPressure;
   const double pressureOffset = eos_table_device.offsets[ipress];
-  const double* pressureData = eos_table_device.VariableData(ipress);
+  const double *pressureData = eos_table_device.VariableData(ipress);
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double rho = RescaleToAxis(p.x, axes[0]);
-      const double T   = RescaleToAxis(p.y, axes[1]);
-      const double Ye  = RescaleToAxis(p.z, axes[2]);
-      pressure(p.I) = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
-          rho, T, Ye,
-          axes,
-          pressureData, pressureOffset);
+        const double rho = RescaleToAxis(p.x, axes[0]);
+        const double T = RescaleToAxis(p.y, axes[1]);
+        const double Ye = RescaleToAxis(p.z, axes[2]);
+        pressure(p.I) =
+            WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
+                rho, T, Ye, axes, pressureData, pressureOffset);
       });
 }
 
@@ -91,54 +92,57 @@ extern "C" void TestWeakLibReader_ComputeEosDerived(CCTK_ARGUMENTS) {
   CCTK_INFO("Computing EOS-derived quantities");
 
   const WeakLibReader::Axis axes[3] = {
-    eos_table_device.axes[0],  // Rho
-    eos_table_device.axes[1],  // T
-    eos_table_device.axes[2],  // Ye
+      eos_table_device.axes[0], // Rho
+      eos_table_device.axes[1], // T
+      eos_table_device.axes[2], // Ye
   };
 
   // EOS variable indices
   const int iMuE = eos_table_device.indices.iElectronChemicalPotential;
-  const int iXp  = eos_table_device.indices.iProtonMassFraction;
-  const int iXn  = eos_table_device.indices.iNeutronMassFraction;
+  const int iXp = eos_table_device.indices.iProtonMassFraction;
+  const int iXn = eos_table_device.indices.iNeutronMassFraction;
 
-  const double* muEData = eos_table_device.VariableData(iMuE);
+  const double *muEData = eos_table_device.VariableData(iMuE);
   const double muEOffset = eos_table_device.offsets[iMuE];
-  const double* xpData = eos_table_device.VariableData(iXp);
+  const double *xpData = eos_table_device.VariableData(iXp);
   const double xpOffset = eos_table_device.offsets[iXp];
-  const double* xnData = eos_table_device.VariableData(iXn);
+  const double *xnData = eos_table_device.VariableData(iXn);
   const double xnOffset = eos_table_device.offsets[iXn];
 
   // Boltzmann constant in MeV/K (same units as EOS table)
-  constexpr double kB_MeV_per_K = 8.6173303e-11;  // MeV/K
+  constexpr double kB_MeV_per_K = 8.6173303e-11; // MeV/K
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      // Rescale [0,1) grid coordinates to physical axis ranges
-      const double rho = RescaleToAxis(p.x, axes[0]);
-      const double T   = RescaleToAxis(p.y, axes[1]);
-      const double Ye  = RescaleToAxis(p.z, axes[2]);
+        // Rescale [0,1) grid coordinates to physical axis ranges
+        const double rho = RescaleToAxis(p.x, axes[0]);
+        const double T = RescaleToAxis(p.y, axes[1]);
+        const double Ye = RescaleToAxis(p.z, axes[2]);
 
-      // Interpolate mu_e from EOS
-      const double muE = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
-          rho, T, Ye, axes, muEData, muEOffset);
+        // Interpolate mu_e from EOS
+        const double muE =
+            WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
+                rho, T, Ye, axes, muEData, muEOffset);
 
-      // eta = mu_e / (kB * T) - dimensionless
-      // Note: table T is in Kelvin, mu_e in MeV
-      const double eta = muE / (kB_MeV_per_K * T);
-      eos_log_eta(p.I) = eta;  // raw value; IndexAndDelta handles log
+        // eta = mu_e / (kB * T) - dimensionless
+        // Note: table T is in Kelvin, mu_e in MeV
+        const double eta = muE / (kB_MeV_per_K * T);
+        eos_log_eta(p.I) = eta; // raw value; IndexAndDelta handles log
 
-      // Interpolate mass fractions
-      const double Xp = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
-          rho, T, Ye, axes, xpData, xpOffset);
-      const double Xn = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
-          rho, T, Ye, axes, xnData, xnOffset);
+        // Interpolate mass fractions
+        const double Xp =
+            WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
+                rho, T, Ye, axes, xpData, xpOffset);
+        const double Xn =
+            WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
+                rho, T, Ye, axes, xnData, xnOffset);
 
-      // Density-weighted terms for Brem (raw values)
-      eos_dxp(p.I)  = rho * Xp;
-      eos_dxn(p.I)  = rho * Xn;
-      const double XpXn = Xp * Xn;
-      eos_dxpn(p.I) = (XpXn > 0.0) ? rho * sqrt(XpXn) : 0.0;
+        // Density-weighted terms for Brem (raw values)
+        eos_dxp(p.I) = rho * Xp;
+        eos_dxn(p.I) = rho * Xn;
+        const double XpXn = Xp * Xn;
+        eos_dxpn(p.I) = (XpXn > 0.0) ? rho * sqrt(XpXn) : 0.0;
       });
 }
 
@@ -148,14 +152,14 @@ extern "C" void TestWeakLibReader_InvertEos(CCTK_ARGUMENTS) {
   CCTK_INFO("Testing EOS inversion: recovering T from (rho, E, Ye)");
 
   const WeakLibReader::Axis axes[3] = {
-    eos_table_device.axes[0],  // Rho
-    eos_table_device.axes[1],  // T
-    eos_table_device.axes[2],  // Ye
+      eos_table_device.axes[0], // Rho
+      eos_table_device.axes[1], // T
+      eos_table_device.axes[2], // Ye
   };
   const WeakLibReader::Layout layout = eos_table_device.layout;
 
   const int iE = eos_table_device.indices.iInternalEnergyDensity;
-  const double* eData = eos_table_device.VariableData(iE);
+  const double *eData = eos_table_device.VariableData(iE);
   const double eOffset = eos_table_device.offsets[iE];
 
   const WeakLibReader::EosInversionBounds bounds = eos_inversion_bounds;
@@ -163,21 +167,22 @@ extern "C" void TestWeakLibReader_InvertEos(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double rho = RescaleToAxis(p.x, axes[0]);
-      const double T   = RescaleToAxis(p.y, axes[1]);
-      const double Ye  = RescaleToAxis(p.z, axes[2]);
+        const double rho = RescaleToAxis(p.x, axes[0]);
+        const double T = RescaleToAxis(p.y, axes[1]);
+        const double Ye = RescaleToAxis(p.z, axes[2]);
 
-      // Forward interpolate energy
-      const double E = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
-          rho, T, Ye, axes, eData, eOffset);
+        // Forward interpolate energy
+        const double E =
+            WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
+                rho, T, Ye, axes, eData, eOffset);
 
-      // Invert to recover T
-      double T_recovered = 0.0;
-      const auto error = WeakLibReader::ComputeTemperatureFromEnergy(
-          rho, E, Ye, axes, eData, layout, eOffset, bounds, T_recovered);
+        // Invert to recover T
+        double T_recovered = 0.0;
+        const auto error = WeakLibReader::ComputeTemperatureFromEnergy(
+            rho, E, Ye, axes, eData, layout, eOffset, bounds, T_recovered);
 
-      eos_inv_temp(p.I)  = T_recovered;
-      eos_inv_error(p.I) = static_cast<double>(static_cast<int>(error));
+        eos_inv_temp(p.I) = T_recovered;
+        eos_inv_error(p.I) = static_cast<double>(static_cast<int>(error));
       });
 }
 
@@ -187,14 +192,14 @@ extern "C" void TestWeakLibReader_InvertEosPressure(CCTK_ARGUMENTS) {
   CCTK_INFO("Testing EOS inversion: recovering T from (rho, P, Ye)");
 
   const WeakLibReader::Axis axes[3] = {
-    eos_table_device.axes[0],
-    eos_table_device.axes[1],
-    eos_table_device.axes[2],
+      eos_table_device.axes[0],
+      eos_table_device.axes[1],
+      eos_table_device.axes[2],
   };
   const WeakLibReader::Layout layout = eos_table_device.layout;
 
   const int iP = eos_table_device.indices.iPressure;
-  const double* pData = eos_table_device.VariableData(iP);
+  const double *pData = eos_table_device.VariableData(iP);
   const double pOffset = eos_table_device.offsets[iP];
 
   const WeakLibReader::EosInversionBounds bounds = eos_inversion_bounds;
@@ -202,21 +207,22 @@ extern "C" void TestWeakLibReader_InvertEosPressure(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double rho = RescaleToAxis(p.x, axes[0]);
-      const double T   = RescaleToAxis(p.y, axes[1]);
-      const double Ye  = RescaleToAxis(p.z, axes[2]);
+        const double rho = RescaleToAxis(p.x, axes[0]);
+        const double T = RescaleToAxis(p.y, axes[1]);
+        const double Ye = RescaleToAxis(p.z, axes[2]);
 
-      // Forward interpolate pressure
-      const double P = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
-          rho, T, Ye, axes, pData, pOffset);
+        // Forward interpolate pressure
+        const double P =
+            WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
+                rho, T, Ye, axes, pData, pOffset);
 
-      // Invert to recover T
-      double T_recovered = 0.0;
-      const auto error = WeakLibReader::ComputeTemperatureFromPressure(
-          rho, P, Ye, axes, pData, layout, pOffset, bounds, T_recovered);
+        // Invert to recover T
+        double T_recovered = 0.0;
+        const auto error = WeakLibReader::ComputeTemperatureFromPressure(
+            rho, P, Ye, axes, pData, layout, pOffset, bounds, T_recovered);
 
-      eos_inv_temp_press(p.I)  = T_recovered;
-      eos_inv_error_press(p.I) = static_cast<double>(static_cast<int>(error));
+        eos_inv_temp_press(p.I) = T_recovered;
+        eos_inv_error_press(p.I) = static_cast<double>(static_cast<int>(error));
       });
 }
 
@@ -226,14 +232,14 @@ extern "C" void TestWeakLibReader_InvertEosEntropy(CCTK_ARGUMENTS) {
   CCTK_INFO("Testing EOS inversion: recovering T from (rho, S, Ye)");
 
   const WeakLibReader::Axis axes[3] = {
-    eos_table_device.axes[0],
-    eos_table_device.axes[1],
-    eos_table_device.axes[2],
+      eos_table_device.axes[0],
+      eos_table_device.axes[1],
+      eos_table_device.axes[2],
   };
   const WeakLibReader::Layout layout = eos_table_device.layout;
 
   const int iS = eos_table_device.indices.iEntropyPerBaryon;
-  const double* sData = eos_table_device.VariableData(iS);
+  const double *sData = eos_table_device.VariableData(iS);
   const double sOffset = eos_table_device.offsets[iS];
 
   const WeakLibReader::EosInversionBounds bounds = eos_inversion_bounds;
@@ -241,19 +247,21 @@ extern "C" void TestWeakLibReader_InvertEosEntropy(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double rho = RescaleToAxis(p.x, axes[0]);
-      const double T   = RescaleToAxis(p.y, axes[1]);
-      const double Ye  = RescaleToAxis(p.z, axes[2]);
+        const double rho = RescaleToAxis(p.x, axes[0]);
+        const double T = RescaleToAxis(p.y, axes[1]);
+        const double Ye = RescaleToAxis(p.z, axes[2]);
 
-      const double S = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
-          rho, T, Ye, axes, sData, sOffset);
+        const double S =
+            WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
+                rho, T, Ye, axes, sData, sOffset);
 
-      double T_recovered = 0.0;
-      const auto error = WeakLibReader::ComputeTemperatureFromEntropy(
-          rho, S, Ye, axes, sData, layout, sOffset, bounds, T_recovered);
+        double T_recovered = 0.0;
+        const auto error = WeakLibReader::ComputeTemperatureFromEntropy(
+            rho, S, Ye, axes, sData, layout, sOffset, bounds, T_recovered);
 
-      eos_inv_temp_entropy(p.I)  = T_recovered;
-      eos_inv_error_entropy(p.I) = static_cast<double>(static_cast<int>(error));
+        eos_inv_temp_entropy(p.I) = T_recovered;
+        eos_inv_error_entropy(p.I) =
+            static_cast<double>(static_cast<int>(error));
       });
 }
 
@@ -263,14 +271,14 @@ extern "C" void TestWeakLibReader_InvertEosGuess(CCTK_ARGUMENTS) {
   CCTK_INFO("Testing EOS inversion with T guess");
 
   const WeakLibReader::Axis axes[3] = {
-    eos_table_device.axes[0],
-    eos_table_device.axes[1],
-    eos_table_device.axes[2],
+      eos_table_device.axes[0],
+      eos_table_device.axes[1],
+      eos_table_device.axes[2],
   };
   const WeakLibReader::Layout layout = eos_table_device.layout;
 
   const int iE = eos_table_device.indices.iInternalEnergyDensity;
-  const double* eData = eos_table_device.VariableData(iE);
+  const double *eData = eos_table_device.VariableData(iE);
   const double eOffset = eos_table_device.offsets[iE];
 
   const WeakLibReader::EosInversionBounds bounds = eos_inversion_bounds;
@@ -278,20 +286,21 @@ extern "C" void TestWeakLibReader_InvertEosGuess(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double rho = RescaleToAxis(p.x, axes[0]);
-      const double T   = RescaleToAxis(p.y, axes[1]);
-      const double Ye  = RescaleToAxis(p.z, axes[2]);
+        const double rho = RescaleToAxis(p.x, axes[0]);
+        const double T = RescaleToAxis(p.y, axes[1]);
+        const double Ye = RescaleToAxis(p.z, axes[2]);
 
-      const double E = WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
-          rho, T, Ye, axes, eData, eOffset);
+        const double E =
+            WeakLibReader::LogInterpolateSingleVariable3DCustomPoint(
+                rho, T, Ye, axes, eData, eOffset);
 
-      // Use the known T as initial guess (simulates a good guess scenario)
-      double T_recovered = 0.0;
-      const auto error = WeakLibReader::ComputeTemperatureFromEnergy(
-          rho, E, Ye, axes, eData, layout, eOffset, bounds, T, T_recovered);
+        // Use the known T as initial guess (simulates a good guess scenario)
+        double T_recovered = 0.0;
+        const auto error = WeakLibReader::ComputeTemperatureFromEnergy(
+            rho, E, Ye, axes, eData, layout, eOffset, bounds, T, T_recovered);
 
-      eos_inv_temp_guess(p.I)  = T_recovered;
-      eos_inv_error_guess(p.I) = static_cast<double>(static_cast<int>(error));
+        eos_inv_temp_guess(p.I) = T_recovered;
+        eos_inv_error_guess(p.I) = static_cast<double>(static_cast<int>(error));
       });
 }
 

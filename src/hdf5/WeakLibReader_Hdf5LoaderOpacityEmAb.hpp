@@ -5,8 +5,7 @@
 namespace WeakLibReader {
 namespace detail {
 
-inline bool LoadEmAbParameters(hid_t file, WeakLibEmAbParameters& params)
-{
+inline bool LoadEmAbParameters(hid_t file, WeakLibEmAbParameters &params) {
   if (!GroupExists(file, "EmAb Parameters")) {
     params = WeakLibEmAbParameters{};
     return true;
@@ -28,8 +27,7 @@ inline bool LoadEmAbParameters(hid_t file, WeakLibEmAbParameters& params)
   return true;
 }
 
-inline Hdf5LoadStatus LoadECTable(hid_t file, WeakLibECTable& ecTable)
-{
+inline Hdf5LoadStatus LoadECTable(hid_t file, WeakLibECTable &ecTable) {
   if (!GroupExists(file, "EC_table")) {
     ecTable = WeakLibECTable{};
     return Hdf5LoadStatus::Success;
@@ -48,11 +46,12 @@ inline Hdf5LoadStatus LoadECTable(hid_t file, WeakLibECTable& ecTable)
   }
 
   // Helper: open a dataset and read doubles into a pre-sized buffer.
-  auto readDoubleDataset = [&](const char* name, double* data) -> bool {
+  auto readDoubleDataset = [&](const char *name, double *data) -> bool {
     ScopedHandle ds(H5Dopen(group.Get(), name, H5P_DEFAULT), H5Dclose);
-    if (!ds.Valid()) return false;
-    return H5Dread(ds.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL,
-                   H5P_DEFAULT, data) >= 0;
+    if (!ds.Valid())
+      return false;
+    return H5Dread(ds.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+                   data) >= 0;
   };
 
   ecTable.energyValues.resize(ecTable.nE);
@@ -83,13 +82,16 @@ inline Hdf5LoadStatus LoadECTable(hid_t file, WeakLibECTable& ecTable)
   readDoubleDataset("spec_Offsets", &ecTable.specOffset);
   readDoubleDataset("rate_Offsets", &ecTable.rateOffset);
 
-  const std::array<int, 4> specDims{{ecTable.nRho, ecTable.nT, ecTable.nYe, ecTable.nE}};
-  if (!ReadWeakLibArrayNd<double, 4>(group.Get(), "Spectrum", ecTable.spectrum, specDims)) {
+  const std::array<int, 4> specDims{
+      {ecTable.nRho, ecTable.nT, ecTable.nYe, ecTable.nE}};
+  if (!ReadWeakLibArrayNd<double, 4>(group.Get(), "Spectrum", ecTable.spectrum,
+                                     specDims)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
   const std::array<int, 3> rateDims{{ecTable.nRho, ecTable.nT, ecTable.nYe}};
-  if (!ReadWeakLibArrayNd<double, 3>(group.Get(), "Rate", ecTable.rate, rateDims)) {
+  if (!ReadWeakLibArrayNd<double, 3>(group.Get(), "Rate", ecTable.rate,
+                                     rateDims)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
@@ -98,18 +100,16 @@ inline Hdf5LoadStatus LoadECTable(hid_t file, WeakLibECTable& ecTable)
 
 } // namespace detail
 
-inline Hdf5LoadStatus LoadWeakLibEmAbTable(hid_t file,
-                                            WeakLibEmAbTable& emAb,
-                                            const WeakLibOpacityGrid& energyGrid,
-                                            const WeakLibThermoState& thermoState)
-{
+inline Hdf5LoadStatus
+LoadWeakLibEmAbTable(hid_t file, WeakLibEmAbTable &emAb,
+                     const WeakLibOpacityGrid &energyGrid,
+                     const WeakLibThermoState &thermoState) {
   if (!detail::LoadEmAbParameters(file, emAb.parameters)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
-  const char* groupName = emAb.parameters.IsLegacy()
-                              ? "EmAb_CorrectedAbsorption"
-                              : "EmAb";
+  const char *groupName =
+      emAb.parameters.IsLegacy() ? "EmAb_CorrectedAbsorption" : "EmAb";
 
   if (!detail::GroupExists(file, groupName)) {
     return Hdf5LoadStatus::DatasetOpenFailed;
@@ -126,26 +126,29 @@ inline Hdf5LoadStatus LoadWeakLibEmAbTable(hid_t file,
 
   // Dimensions: [nE, nRho, nT, nYe]
   emAb.dimensions[0] = energyGrid.nPoints;
-  emAb.dimensions[1] = thermoState.dimensions[0];  // nRho
-  emAb.dimensions[2] = thermoState.dimensions[1];  // nT
-  emAb.dimensions[3] = thermoState.dimensions[2];  // nYe
+  emAb.dimensions[1] = thermoState.dimensions[0]; // nRho
+  emAb.dimensions[2] = thermoState.dimensions[1]; // nT
+  emAb.dimensions[3] = thermoState.dimensions[2]; // nYe
 
   std::vector<std::string> unitVec;
   if (!detail::ReadStringArray(group.Get(), "Units", unitVec) ||
       unitVec.size() < static_cast<size_t>(emAb.nOpacities)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
-  for (int i = 0; i < WeakLibEmAbTable::NumSpecies && i < emAb.nOpacities; ++i) {
+  for (int i = 0; i < WeakLibEmAbTable::NumSpecies && i < emAb.nOpacities;
+       ++i) {
     emAb.units[i] = unitVec[i];
   }
 
   {
     std::vector<double> offsetVec;
     std::array<int, 1> offsetDims{{emAb.nOpacities}};
-    if (!detail::ReadWeakLibArrayNd<double, 1>(group.Get(), "Offsets", offsetVec, offsetDims)) {
+    if (!detail::ReadWeakLibArrayNd<double, 1>(group.Get(), "Offsets",
+                                               offsetVec, offsetDims)) {
       return Hdf5LoadStatus::DatasetReadFailed;
     }
-    for (int i = 0; i < WeakLibEmAbTable::NumSpecies && i < emAb.nOpacities; ++i) {
+    for (int i = 0; i < WeakLibEmAbTable::NumSpecies && i < emAb.nOpacities;
+         ++i) {
       emAb.offsets[i] = offsetVec[i];
     }
   }
@@ -153,15 +156,19 @@ inline Hdf5LoadStatus LoadWeakLibEmAbTable(hid_t file,
   emAb.names[0] = "Electron Neutrino";
   emAb.names[1] = "Electron Antineutrino";
 
-  for (int iSpecies = 0; iSpecies < WeakLibEmAbTable::NumSpecies && iSpecies < emAb.nOpacities; ++iSpecies) {
-    if (!detail::ReadWeakLibArrayNd<double, 4>(group.Get(), emAb.names[iSpecies].c_str(),
-                                   emAb.opacities[iSpecies], emAb.dimensions)) {
+  for (int iSpecies = 0;
+       iSpecies < WeakLibEmAbTable::NumSpecies && iSpecies < emAb.nOpacities;
+       ++iSpecies) {
+    if (!detail::ReadWeakLibArrayNd<double, 4>(
+            group.Get(), emAb.names[iSpecies].c_str(), emAb.opacities[iSpecies],
+            emAb.dimensions)) {
       return Hdf5LoadStatus::DatasetReadFailed;
     }
   }
 
   const std::array<int, 5> extents5{{emAb.dimensions[0], emAb.dimensions[1],
-                                emAb.dimensions[2], emAb.dimensions[3], 1}};
+                                     emAb.dimensions[2], emAb.dimensions[3],
+                                     1}};
   emAb.layout = MakeLayout(extents5.data(), 4);
 
   if (emAb.parameters.nucleiEcTable > 0) {

@@ -9,13 +9,12 @@
 namespace WeakLibReader {
 
 struct Layout {
-  int nd = 0;                  // number of dimensions, 1..5
-  int n[5] = {1, 1, 1, 1, 1};   // extent along each axis (column-major ordering)
+  int nd = 0;                 // number of dimensions, 1..5
+  int n[5] = {1, 1, 1, 1, 1}; // extent along each axis (column-major ordering)
   std::size_t stride[5] = {0, 0, 0, 0, 0}; // column-major stride for each axis
 
-  AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-  std::size_t Offset(const int idx[5]) const noexcept
-  {
+  AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE std::size_t
+  Offset(const int idx[5]) const noexcept {
     std::size_t k = 0;
     for (int dim = 0; dim < nd; ++dim) {
       k += static_cast<std::size_t>(idx[dim]) * stride[dim];
@@ -23,45 +22,39 @@ struct Layout {
     return k;
   }
 
-  AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-  std::size_t Offset(int i0) const noexcept
-  {
+  AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE std::size_t
+  Offset(int i0) const noexcept {
     const int idx[5] = {i0, 0, 0, 0, 0};
     return Offset(idx);
   }
 
-  AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-  std::size_t Offset(int i0, int i1) const noexcept
-  {
+  AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE std::size_t
+  Offset(int i0, int i1) const noexcept {
     const int idx[5] = {i0, i1, 0, 0, 0};
     return Offset(idx);
   }
 
-  AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-  std::size_t Offset(int i0, int i1, int i2) const noexcept
-  {
+  AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE std::size_t
+  Offset(int i0, int i1, int i2) const noexcept {
     const int idx[5] = {i0, i1, i2, 0, 0};
     return Offset(idx);
   }
 
-  AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-  std::size_t Offset(int i0, int i1, int i2, int i3) const noexcept
-  {
+  AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE std::size_t
+  Offset(int i0, int i1, int i2, int i3) const noexcept {
     const int idx[5] = {i0, i1, i2, i3, 0};
     return Offset(idx);
   }
 
-  AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-  std::size_t Offset(int i0, int i1, int i2, int i3, int i4) const noexcept
-  {
+  AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE std::size_t
+  Offset(int i0, int i1, int i2, int i3, int i4) const noexcept {
     const int idx[5] = {i0, i1, i2, i3, i4};
     return Offset(idx);
   }
 };
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-Layout MakeLayout(const int* extents, int nd) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE Layout MakeLayout(const int *extents,
+                                                           int nd) noexcept {
   AMREX_ASSERT(extents != nullptr);
   AMREX_ASSERT(nd >= 1 && nd <= 5);
 
@@ -77,9 +70,8 @@ Layout MakeLayout(const int* extents, int nd) noexcept
   return layout;
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-Layout SliceLeading(const Layout& layout, int drop) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE Layout
+SliceLeading(const Layout &layout, int drop) noexcept {
   AMREX_ASSERT(drop >= 0 && drop < layout.nd);
 
   Layout result{};

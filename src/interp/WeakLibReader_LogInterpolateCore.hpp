@@ -12,14 +12,11 @@
 namespace WeakLibReader {
 namespace detail {
 
-template<int ND>
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double LogInterpolatedValueDirect(const double* data,
-                                  const Layout& layout,
-                                  const Axis axes[ND],
-                                  const double coords[ND],
-                                  double offset) noexcept
-{
+template <int ND>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE double
+LogInterpolatedValueDirect(const double *data, const Layout &layout,
+                           const Axis axes[ND], const double coords[ND],
+                           double offset) noexcept {
   int indices[ND];
   double fractions[ND];
 
@@ -30,11 +27,9 @@ double LogInterpolatedValueDirect(const double* data,
   return LinearInterpPointDirect<ND>(indices, fractions, offset, data, layout);
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-void StoreSymmetric(double* plane, std::size_t size,
-                    std::size_t i, std::size_t j,
-                    double value) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE void
+StoreSymmetric(double *plane, std::size_t size, std::size_t i, std::size_t j,
+               double value) noexcept {
   const std::size_t idxLower = j * size + i;
   plane[idxLower] = value;
   if (i != j) {
@@ -42,10 +37,9 @@ void StoreSymmetric(double* plane, std::size_t size,
   }
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-void ComputeAxisScale(const Axis& axis, int idx, double coord,
-                      double& scale) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE void
+ComputeAxisScale(const Axis &axis, int idx, double coord,
+                 double &scale) noexcept {
   AMREX_ASSERT(axis.grid != nullptr);
   if (axis.scale == AxisScale::Linear) {
     const double span = axis.grid[idx + 1] - axis.grid[idx];
@@ -61,16 +55,12 @@ void ComputeAxisScale(const Axis& axis, int idx, double coord,
   }
 }
 
-template<int ND>
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-void LogInterpolatedDerivativeDirect(const double* data,
-                                     const Layout& layout,
-                                     const Axis axes[ND],
-                                     const double coords[ND],
-                                     double offset,
-                                     double& interpolant,
-                                     double derivatives[ND]) noexcept
-{
+template <int ND>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE void
+LogInterpolatedDerivativeDirect(const double *data, const Layout &layout,
+                                const Axis axes[ND], const double coords[ND],
+                                double offset, double &interpolant,
+                                double derivatives[ND]) noexcept {
   int indices[ND];
   double fractions[ND];
   double scales[ND];
@@ -80,8 +70,8 @@ void LogInterpolatedDerivativeDirect(const double* data,
     ComputeAxisScale(axes[d], indices[d], coords[d], scales[d]);
   }
 
-  LinearInterpDerivPointDirect<ND>(indices, fractions, scales, offset,
-                                   data, layout, interpolant, derivatives);
+  LinearInterpDerivPointDirect<ND>(indices, fractions, scales, offset, data,
+                                   layout, interpolant, derivatives);
 }
 
 } // namespace detail

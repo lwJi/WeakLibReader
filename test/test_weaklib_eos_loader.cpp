@@ -18,8 +18,7 @@ namespace {
 using namespace test_helpers;
 
 // Write the EOS variable index datasets shared by all test EOS files.
-void WriteEosVariableIndices(hid_t dvGroup)
-{
+void WriteEosVariableIndices(hid_t dvGroup) {
   WriteIntArrayDataset(dvGroup, "iPressure", {1});
   WriteIntArrayDataset(dvGroup, "iEntropyPerBaryon", {2});
   WriteIntArrayDataset(dvGroup, "iInternalEnergyDensity", {1});
@@ -42,17 +41,18 @@ void WriteEosVariableIndices(hid_t dvGroup)
 // (the correct WeakLib layout) or C order {nRho,nT,nYe} (for rejection tests).
 enum class DimOrder { Fortran, COrder };
 
-void CreateWeakLibEosTestFileImpl(const std::filesystem::path& filePath,
+void CreateWeakLibEosTestFileImpl(const std::filesystem::path &filePath,
                                   int nRho, int nT, int nYe,
-                                  const std::vector<double>& yeValues,
-                                  DimOrder order)
-{
+                                  const std::vector<double> &yeValues,
+                                  DimOrder order) {
   constexpr int nVariables = 3;
 
-  hid_t file = H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t file =
+      H5Fcreate(filePath.c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(file >= 0);
 
-  hid_t thermoGroup = H5Gcreate(file, "ThermoState", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t thermoGroup =
+      H5Gcreate(file, "ThermoState", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(thermoGroup >= 0);
 
   WriteIntArrayDataset(thermoGroup, "LogInterp", {1, 1, 0});
@@ -68,13 +68,14 @@ void CreateWeakLibEosTestFileImpl(const std::filesystem::path& filePath,
 
   H5Gclose(thermoGroup);
 
-  hid_t dvGroup = H5Gcreate(file, "DependentVariables", H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t dvGroup = H5Gcreate(file, "DependentVariables", H5P_DEFAULT,
+                            H5P_DEFAULT, H5P_DEFAULT);
   REQUIRE(dvGroup >= 0);
 
   WriteIntArrayDataset(dvGroup, "nVariables", {nVariables});
 
-  const std::vector<std::string> varNames = {
-      "Pressure", "Entropy Per Baryon", "Gamma1"};
+  const std::vector<std::string> varNames = {"Pressure", "Entropy Per Baryon",
+                                             "Gamma1"};
   WriteStringArrayDataset(dvGroup, "Names", varNames);
   WriteStringArrayDataset(dvGroup, "Units",
                           {"dyn/cm^2", "kb/baryon", "dimensionless"});
@@ -82,12 +83,10 @@ void CreateWeakLibEosTestFileImpl(const std::filesystem::path& filePath,
 
   std::array<hsize_t, 3> fileDims{};
   if (order == DimOrder::Fortran) {
-    fileDims = {static_cast<hsize_t>(nYe),
-                static_cast<hsize_t>(nT),
+    fileDims = {static_cast<hsize_t>(nYe), static_cast<hsize_t>(nT),
                 static_cast<hsize_t>(nRho)};
   } else {
-    fileDims = {static_cast<hsize_t>(nRho),
-                static_cast<hsize_t>(nT),
+    fileDims = {static_cast<hsize_t>(nRho), static_cast<hsize_t>(nT),
                 static_cast<hsize_t>(nYe)};
   }
   const std::size_t totalSize = static_cast<std::size_t>(nRho * nT * nYe);
@@ -109,25 +108,25 @@ void CreateWeakLibEosTestFileImpl(const std::filesystem::path& filePath,
   H5Fclose(file);
 }
 
-void CreateWeakLibEosTestFileFull(const std::filesystem::path& filePath)
-{
-  CreateWeakLibEosTestFileImpl(filePath, 2, 3, 2, {0.1, 0.2}, DimOrder::Fortran);
+void CreateWeakLibEosTestFileFull(const std::filesystem::path &filePath) {
+  CreateWeakLibEosTestFileImpl(filePath, 2, 3, 2, {0.1, 0.2},
+                               DimOrder::Fortran);
 }
 
-void CreateWeakLibEosTestFileFullCOrder(const std::filesystem::path& filePath)
-{
-  CreateWeakLibEosTestFileImpl(filePath, 2, 3, 4, {0.1, 0.2, 0.3, 0.4}, DimOrder::COrder);
+void CreateWeakLibEosTestFileFullCOrder(const std::filesystem::path &filePath) {
+  CreateWeakLibEosTestFileImpl(filePath, 2, 3, 4, {0.1, 0.2, 0.3, 0.4},
+                               DimOrder::COrder);
 }
 
 } // namespace
 
-TEST_CASE("LoadWeakLibEosTableFull reads complete EOS table", "[hdf5][weaklib]")
-{
+TEST_CASE("LoadWeakLibEosTableFull reads complete EOS table",
+          "[hdf5][weaklib]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
 
-  const std::filesystem::path eosPath =
-      std::filesystem::temp_directory_path() / "weaklibreader_eos_small_full.h5";
+  const std::filesystem::path eosPath = std::filesystem::temp_directory_path() /
+                                        "weaklibreader_eos_small_full.h5";
   CreateWeakLibEosTestFileFull(eosPath);
 
   WeakLibEosTable table;
@@ -135,9 +134,9 @@ TEST_CASE("LoadWeakLibEosTableFull reads complete EOS table", "[hdf5][weaklib]")
   REQUIRE(status == Hdf5LoadStatus::Success);
 
   // Dimensions are correct
-  CHECK(table.dimensions[0] == 2);  // nRho
-  CHECK(table.dimensions[1] == 3);  // nT
-  CHECK(table.dimensions[2] == 2);  // nYe
+  CHECK(table.dimensions[0] == 2); // nRho
+  CHECK(table.dimensions[1] == 3); // nT
+  CHECK(table.dimensions[2] == 2); // nYe
 
   // nVariables is correct
   CHECK(table.nVariables == 3);
@@ -165,7 +164,7 @@ TEST_CASE("LoadWeakLibEosTableFull reads complete EOS table", "[hdf5][weaklib]")
 
   // Variable data has correct size
   for (int iVar = 0; iVar < table.nVariables; ++iVar) {
-    const auto& var = table.variables[iVar];
+    const auto &var = table.variables[iVar];
     CHECK(var.data() != nullptr);
   }
 
@@ -175,19 +174,20 @@ TEST_CASE("LoadWeakLibEosTableFull reads complete EOS table", "[hdf5][weaklib]")
   // Layout is computed correctly (row-major)
   // stride[0] = 1, stride[1] = n[0], stride[2] = n[0]*n[1]
   CHECK(table.layout.stride[0] == 1);
-  CHECK(table.layout.stride[1] == static_cast<std::size_t>(table.dimensions[0]));
-  CHECK(table.layout.stride[2] == static_cast<std::size_t>(table.dimensions[0] * table.dimensions[1]));
+  CHECK(table.layout.stride[1] ==
+        static_cast<std::size_t>(table.dimensions[0]));
+  CHECK(table.layout.stride[2] ==
+        static_cast<std::size_t>(table.dimensions[0] * table.dimensions[1]));
 
   std::filesystem::remove(eosPath);
 }
 
-TEST_CASE("MakeDeviceCopy works for WeakLibEosTable", "[hdf5][weaklib][gpu]")
-{
+TEST_CASE("MakeDeviceCopy works for WeakLibEosTable", "[hdf5][weaklib][gpu]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
 
-  const std::filesystem::path eosPath =
-      std::filesystem::temp_directory_path() / "weaklibreader_eos_small_device.h5";
+  const std::filesystem::path eosPath = std::filesystem::temp_directory_path() /
+                                        "weaklibreader_eos_small_device.h5";
   CreateWeakLibEosTestFileFull(eosPath);
 
   WeakLibEosTable hostTable;
@@ -214,19 +214,18 @@ TEST_CASE("MakeDeviceCopy works for WeakLibEosTable", "[hdf5][weaklib][gpu]")
   }
 
   // Verify repaired mask round-trips correctly
-  test_helpers::VerifyDeviceRoundTrip(deviceTable.repaired,
-                                      hostTable.repaired);
+  test_helpers::VerifyDeviceRoundTrip(deviceTable.repaired, hostTable.repaired);
 
   std::filesystem::remove(eosPath);
 }
 
-TEST_CASE("LoadWeakLibEosTableFullParallel loads complete table", "[weaklib][eos][parallel]")
-{
+TEST_CASE("LoadWeakLibEosTableFullParallel loads complete table",
+          "[weaklib][eos][parallel]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
 
-  const std::filesystem::path eosPath =
-      std::filesystem::temp_directory_path() / "weaklibreader_eos_parallel_full.h5";
+  const std::filesystem::path eosPath = std::filesystem::temp_directory_path() /
+                                        "weaklibreader_eos_parallel_full.h5";
   CreateWeakLibEosTestFileFull(eosPath);
 
   WeakLibEosTable table;
@@ -235,7 +234,8 @@ TEST_CASE("LoadWeakLibEosTableFullParallel loads complete table", "[weaklib][eos
 
   // Load sequential for comparison
   WeakLibEosTable seqTable;
-  REQUIRE(LoadWeakLibEosTableFull(eosPath.string(), seqTable) == Hdf5LoadStatus::Success);
+  REQUIRE(LoadWeakLibEosTableFull(eosPath.string(), seqTable) ==
+          Hdf5LoadStatus::Success);
 
   // Verify dimensions match
   CHECK(table.nVariables == seqTable.nVariables);
@@ -267,16 +267,16 @@ TEST_CASE("LoadWeakLibEosTableFullParallel loads complete table", "[weaklib][eos
   const std::size_t varSize = static_cast<std::size_t>(table.dimensions[0]) *
                               table.dimensions[1] * table.dimensions[2];
   for (int iVar = 0; iVar < table.nVariables; ++iVar) {
-    const double* parData = table.variables[iVar].data();
-    const double* seqData = seqTable.variables[iVar].data();
+    const double *parData = table.variables[iVar].data();
+    const double *seqData = seqTable.variables[iVar].data();
     for (std::size_t i = 0; i < varSize; ++i) {
       CHECK(parData[i] == seqData[i]);
     }
   }
 
   // Verify repaired mask matches
-  const int* parRepaired = table.repaired.data();
-  const int* seqRepaired = seqTable.repaired.data();
+  const int *parRepaired = table.repaired.data();
+  const int *seqRepaired = seqTable.repaired.data();
   for (std::size_t i = 0; i < varSize; ++i) {
     CHECK(parRepaired[i] == seqRepaired[i]);
   }
@@ -284,20 +284,21 @@ TEST_CASE("LoadWeakLibEosTableFullParallel loads complete table", "[weaklib][eos
   std::filesystem::remove(eosPath);
 }
 
-TEST_CASE("LoadWeakLibEosTableFullParallel fails for nonexistent file", "[weaklib][eos][parallel]")
-{
+TEST_CASE("LoadWeakLibEosTableFullParallel fails for nonexistent file",
+          "[weaklib][eos][parallel]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
   detail::ScopedH5ErrorSuppressor silencer{};
 
   WeakLibEosTable table;
-  const Hdf5LoadStatus status = LoadWeakLibEosTableFullParallel("/nonexistent/path.h5", table);
+  const Hdf5LoadStatus status =
+      LoadWeakLibEosTableFullParallel("/nonexistent/path.h5", table);
 
   CHECK(status == Hdf5LoadStatus::FileOpenFailed);
 }
 
-TEST_CASE("LoadWeakLibEosTableFull rejects C-ordered dependent variables", "[weaklib][eos][validation]")
-{
+TEST_CASE("LoadWeakLibEosTableFull rejects C-ordered dependent variables",
+          "[weaklib][eos][validation]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
 

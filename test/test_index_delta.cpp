@@ -12,8 +12,7 @@ using test_constants::Tol;
 // ClampIndex Tests
 // =============================================================================
 
-TEST_CASE("ClampIndex clamps below and above", "[indexdelta]")
-{
+TEST_CASE("ClampIndex clamps below and above", "[indexdelta]") {
   using WeakLibReader::detail::ClampIndex;
 
   // Below range
@@ -36,8 +35,7 @@ TEST_CASE("ClampIndex clamps below and above", "[indexdelta]")
 // IndexAndDeltaLin Tests
 // =============================================================================
 
-TEST_CASE("IndexAndDeltaLin at exact grid points", "[indexdelta][linear]")
-{
+TEST_CASE("IndexAndDeltaLin at exact grid points", "[indexdelta][linear]") {
   using WeakLibReader::IndexAndDeltaLin;
 
   const double grid[] = {1.0, 2.0, 3.0, 4.0, 5.0};
@@ -71,8 +69,7 @@ TEST_CASE("IndexAndDeltaLin at exact grid points", "[indexdelta][linear]")
   CHECK(t == Catch::Approx(1.0).margin(Tol));
 }
 
-TEST_CASE("IndexAndDeltaLin at midpoints", "[indexdelta][linear]")
-{
+TEST_CASE("IndexAndDeltaLin at midpoints", "[indexdelta][linear]") {
   using WeakLibReader::IndexAndDeltaLin;
 
   const double grid[] = {1.0, 2.0, 3.0, 4.0, 5.0};
@@ -91,8 +88,8 @@ TEST_CASE("IndexAndDeltaLin at midpoints", "[indexdelta][linear]")
   CHECK(t == Catch::Approx(0.5).margin(Tol));
 }
 
-TEST_CASE("IndexAndDeltaLin below range (extrapolation)", "[indexdelta][linear]")
-{
+TEST_CASE("IndexAndDeltaLin below range (extrapolation)",
+          "[indexdelta][linear]") {
   using WeakLibReader::IndexAndDeltaLin;
 
   const double grid[] = {1.0, 2.0, 3.0, 4.0, 5.0};
@@ -108,8 +105,8 @@ TEST_CASE("IndexAndDeltaLin below range (extrapolation)", "[indexdelta][linear]"
   CHECK(t == Catch::Approx(-0.5).margin(Tol));
 }
 
-TEST_CASE("IndexAndDeltaLin above range (extrapolation)", "[indexdelta][linear]")
-{
+TEST_CASE("IndexAndDeltaLin above range (extrapolation)",
+          "[indexdelta][linear]") {
   using WeakLibReader::IndexAndDeltaLin;
 
   const double grid[] = {1.0, 2.0, 3.0, 4.0, 5.0};
@@ -129,8 +126,7 @@ TEST_CASE("IndexAndDeltaLin above range (extrapolation)", "[indexdelta][linear]"
 // IndexAndDeltaLog10 Tests
 // =============================================================================
 
-TEST_CASE("IndexAndDeltaLog10 at exact grid points", "[indexdelta][log10]")
-{
+TEST_CASE("IndexAndDeltaLog10 at exact grid points", "[indexdelta][log10]") {
   using WeakLibReader::IndexAndDeltaLog10;
 
   const double grid[] = {1.0, 10.0, 100.0, 1000.0};
@@ -159,8 +155,7 @@ TEST_CASE("IndexAndDeltaLog10 at exact grid points", "[indexdelta][log10]")
   CHECK(t == Catch::Approx(1.0).margin(Tol));
 }
 
-TEST_CASE("IndexAndDeltaLog10 at geometric midpoints", "[indexdelta][log10]")
-{
+TEST_CASE("IndexAndDeltaLog10 at geometric midpoints", "[indexdelta][log10]") {
   using WeakLibReader::IndexAndDeltaLog10;
 
   const double grid[] = {1.0, 10.0, 100.0, 1000.0};
@@ -179,8 +174,8 @@ TEST_CASE("IndexAndDeltaLog10 at geometric midpoints", "[indexdelta][log10]")
   CHECK(t == Catch::Approx(0.5).margin(Tol));
 }
 
-TEST_CASE("IndexAndDeltaLog10 below range (extrapolation)", "[indexdelta][log10]")
-{
+TEST_CASE("IndexAndDeltaLog10 below range (extrapolation)",
+          "[indexdelta][log10]") {
   using WeakLibReader::IndexAndDeltaLog10;
 
   const double grid[] = {1.0, 10.0, 100.0, 1000.0};
@@ -196,8 +191,8 @@ TEST_CASE("IndexAndDeltaLog10 below range (extrapolation)", "[indexdelta][log10]
   CHECK(t == Catch::Approx(std::log10(0.5)).margin(Tol));
 }
 
-TEST_CASE("IndexAndDeltaLog10 above range (extrapolation)", "[indexdelta][log10]")
-{
+TEST_CASE("IndexAndDeltaLog10 above range (extrapolation)",
+          "[indexdelta][log10]") {
   using WeakLibReader::IndexAndDeltaLog10;
 
   const double grid[] = {1.0, 10.0, 100.0, 1000.0};
@@ -209,7 +204,8 @@ TEST_CASE("IndexAndDeltaLog10 above range (extrapolation)", "[indexdelta][log10]
   IndexAndDeltaLog10(2000.0, grid, n, i, t);
   CHECK(i == 2);
   CHECK(t > 1.0);
-  // delta = log10(2000 / 100) / log10(1000 / 100) = log10(20) / log10(10) = log10(20)
+  // delta = log10(2000 / 100) / log10(1000 / 100) = log10(20) / log10(10) =
+  // log10(20)
   CHECK(t == Catch::Approx(std::log10(20.0)).margin(Tol));
 }
 
@@ -217,8 +213,7 @@ TEST_CASE("IndexAndDeltaLog10 above range (extrapolation)", "[indexdelta][log10]
 // Non-uniform Grid Test
 // =============================================================================
 
-TEST_CASE("IndexAndDeltaLin with non-uniform grid", "[indexdelta][linear]")
-{
+TEST_CASE("IndexAndDeltaLin with non-uniform grid", "[indexdelta][linear]") {
   using WeakLibReader::IndexAndDeltaLin;
 
   // Non-uniform grid: the initial index estimate assumes uniform spacing,

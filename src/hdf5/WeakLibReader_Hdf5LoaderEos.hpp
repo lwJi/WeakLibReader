@@ -3,12 +3,12 @@
 #include "hdf5/WeakLibReader_Hdf5LoaderDetail.hpp"
 
 namespace WeakLibReader {
-inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
-                                               WeakLibEosTable& output)
-{
+inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string &filePath,
+                                              WeakLibEosTable &output) {
   WeakLibEosTable result;
 
-  detail::ScopedHandle file(H5Fopen(filePath.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
+  detail::ScopedHandle file(
+      H5Fopen(filePath.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
   if (!file.Valid()) {
     return Hdf5LoadStatus::FileOpenFailed;
   }
@@ -26,12 +26,14 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
   result.dimensions = ts.dimensions;
   for (int i = 0; i < 3; ++i) {
     result.axisStorage[i] = std::move(ts.axisStorage[i]);
-    result.axes[i] = Axis{result.axisStorage[i].data(), ts.axes[i].n, ts.axes[i].scale};
+    result.axes[i] =
+        Axis{result.axisStorage[i].data(), ts.axes[i].n, ts.axes[i].scale};
     result.axisNames[i] = std::move(ts.names[i]);
     result.axisUnits[i] = std::move(ts.units[i]);
   }
 
-  detail::ScopedHandle dvGroup(H5Gopen(file.Get(), "DependentVariables", H5P_DEFAULT), H5Gclose);
+  detail::ScopedHandle dvGroup(
+      H5Gopen(file.Get(), "DependentVariables", H5P_DEFAULT), H5Gclose);
   if (!dvGroup.Valid()) {
     return Hdf5LoadStatus::DatasetOpenFailed;
   }
@@ -46,8 +48,10 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
   if (!detail::ReadStringArray(dvGroup.Get(), "Units", result.variableUnits)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
-  if (result.variableNames.size() != static_cast<std::size_t>(result.nVariables) ||
-      result.variableUnits.size() != static_cast<std::size_t>(result.nVariables)) {
+  if (result.variableNames.size() !=
+          static_cast<std::size_t>(result.nVariables) ||
+      result.variableUnits.size() !=
+          static_cast<std::size_t>(result.nVariables)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
@@ -61,39 +65,47 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
 
   result.variables.resize(result.nVariables);
   for (int iVar = 0; iVar < result.nVariables; ++iVar) {
-    const std::string& varName = result.variableNames[iVar];
+    const std::string &varName = result.variableNames[iVar];
     if (!detail::ReadWeakLibArrayNd<double, 3>(dvGroup.Get(), varName.c_str(),
-                                   result.variables[iVar], result.dimensions)) {
+                                               result.variables[iVar],
+                                               result.dimensions)) {
       return Hdf5LoadStatus::DatasetReadFailed;
     }
   }
 
-  if (!detail::ReadWeakLibArrayNd<int, 3>(dvGroup.Get(), "Repaired", result.repaired, result.dimensions)) {
+  if (!detail::ReadWeakLibArrayNd<int, 3>(dvGroup.Get(), "Repaired",
+                                          result.repaired, result.dimensions)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
   // Read Fortran 1-based index mappings and normalize to 0-based for C++.
   {
-    struct IndexEntry { const char* name; int WeakLibEosIndices::* field; };
-    const IndexEntry entries[] = {
-      {"iPressure",                  &WeakLibEosIndices::iPressure},
-      {"iEntropyPerBaryon",          &WeakLibEosIndices::iEntropyPerBaryon},
-      {"iInternalEnergyDensity",     &WeakLibEosIndices::iInternalEnergyDensity},
-      {"iElectronChemicalPotential", &WeakLibEosIndices::iElectronChemicalPotential},
-      {"iProtonChemicalPotential",   &WeakLibEosIndices::iProtonChemicalPotential},
-      {"iNeutronChemicalPotential",  &WeakLibEosIndices::iNeutronChemicalPotential},
-      {"iProtonMassFraction",        &WeakLibEosIndices::iProtonMassFraction},
-      {"iNeutronMassFraction",       &WeakLibEosIndices::iNeutronMassFraction},
-      {"iAlphaMassFraction",         &WeakLibEosIndices::iAlphaMassFraction},
-      {"iHeavyMassFraction",         &WeakLibEosIndices::iHeavyMassFraction},
-      {"iHeavyChargeNumber",         &WeakLibEosIndices::iHeavyChargeNumber},
-      {"iHeavyMassNumber",           &WeakLibEosIndices::iHeavyMassNumber},
-      {"iHeavyBindingEnergy",        &WeakLibEosIndices::iHeavyBindingEnergy},
-      {"iThermalEnergy",             &WeakLibEosIndices::iThermalEnergy},
-      {"iGamma1",                    &WeakLibEosIndices::iGamma1},
+    struct IndexEntry {
+      const char *name;
+      int WeakLibEosIndices::*field;
     };
-    for (const auto& entry : entries) {
-      int& idx = result.indices.*entry.field;
+    const IndexEntry entries[] = {
+        {"iPressure", &WeakLibEosIndices::iPressure},
+        {"iEntropyPerBaryon", &WeakLibEosIndices::iEntropyPerBaryon},
+        {"iInternalEnergyDensity", &WeakLibEosIndices::iInternalEnergyDensity},
+        {"iElectronChemicalPotential",
+         &WeakLibEosIndices::iElectronChemicalPotential},
+        {"iProtonChemicalPotential",
+         &WeakLibEosIndices::iProtonChemicalPotential},
+        {"iNeutronChemicalPotential",
+         &WeakLibEosIndices::iNeutronChemicalPotential},
+        {"iProtonMassFraction", &WeakLibEosIndices::iProtonMassFraction},
+        {"iNeutronMassFraction", &WeakLibEosIndices::iNeutronMassFraction},
+        {"iAlphaMassFraction", &WeakLibEosIndices::iAlphaMassFraction},
+        {"iHeavyMassFraction", &WeakLibEosIndices::iHeavyMassFraction},
+        {"iHeavyChargeNumber", &WeakLibEosIndices::iHeavyChargeNumber},
+        {"iHeavyMassNumber", &WeakLibEosIndices::iHeavyMassNumber},
+        {"iHeavyBindingEnergy", &WeakLibEosIndices::iHeavyBindingEnergy},
+        {"iThermalEnergy", &WeakLibEosIndices::iThermalEnergy},
+        {"iGamma1", &WeakLibEosIndices::iGamma1},
+    };
+    for (const auto &entry : entries) {
+      int &idx = result.indices.*entry.field;
       if (!detail::ReadScalarInt(dvGroup.Get(), entry.name, idx)) {
         return Hdf5LoadStatus::DatasetReadFailed;
       }
@@ -103,15 +115,15 @@ inline Hdf5LoadStatus LoadWeakLibEosTableFull(const std::string& filePath,
     }
   }
 
-  const std::array<int, 5> extents5{{result.dimensions[0], result.dimensions[1], result.dimensions[2], 1, 1}};
+  const std::array<int, 5> extents5{
+      {result.dimensions[0], result.dimensions[1], result.dimensions[2], 1, 1}};
   result.layout = MakeLayout(extents5.data(), 3);
 
   output = std::move(result);
   return Hdf5LoadStatus::Success;
 }
 
-inline WeakLibEosTableDevice MakeDeviceCopy(const WeakLibEosTable& host)
-{
+inline WeakLibEosTableDevice MakeDeviceCopy(const WeakLibEosTable &host) {
   WeakLibEosTableDevice device{};
   device.nVariables = host.nVariables;
   device.dimensions = host.dimensions;
@@ -122,7 +134,8 @@ inline WeakLibEosTableDevice MakeDeviceCopy(const WeakLibEosTable& host)
 
   for (int dim = 0; dim < 3; ++dim) {
     detail::CopyVectorToDevice(host.axisStorage[dim], device.axisStorage[dim]);
-    device.axes[dim] = Axis{device.axisStorage[dim].data(), host.axes[dim].n, host.axes[dim].scale};
+    device.axes[dim] = Axis{device.axisStorage[dim].data(), host.axes[dim].n,
+                            host.axes[dim].scale};
   }
 
   device.variables.resize(host.nVariables);

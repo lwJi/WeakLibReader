@@ -7,15 +7,13 @@
 
 namespace WeakLibReader {
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateSingleVariable1D3DCustomPoint(
-    const double* logE, std::size_t sizeE,
-    double logD, double logT, double y,
-    const Axis axes[4],
-    const double* data,
-    double offset,
-    double* out) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateSingleVariable1D3DCustomPoint(const double *logE,
+                                            std::size_t sizeE, double logD,
+                                            double logT, double y,
+                                            const Axis axes[4],
+                                            const double *data, double offset,
+                                            double *out) noexcept {
   if (logE == nullptr || out == nullptr || data == nullptr ||
       axes[0].grid == nullptr || axes[1].grid == nullptr ||
       axes[2].grid == nullptr || axes[3].grid == nullptr) {
@@ -31,25 +29,23 @@ int LogInterpolateSingleVariable1D3DCustomPoint(
 
   for (std::size_t i = 0; i < sizeE; ++i) {
     double coords[ND] = {logE[i], logD, logT, y};
-    out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+    out[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords,
+                                                    offset);
   }
 
   return 0;
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateSingleVariable1D3DCustom(
-    const double* logE, std::size_t sizeE,
-    const double* logD, const double* logT, const double* y, std::size_t count,
-    const Axis axes[4],
-    const double* data,
-    double offset,
-    double* out) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateSingleVariable1D3DCustom(const double *logE, std::size_t sizeE,
+                                       const double *logD, const double *logT,
+                                       const double *y, std::size_t count,
+                                       const Axis axes[4], const double *data,
+                                       double offset, double *out) noexcept {
   if (logE == nullptr || logD == nullptr || logT == nullptr || y == nullptr ||
-      out == nullptr || data == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr ||
-      axes[2].grid == nullptr || axes[3].grid == nullptr) {
+      out == nullptr || data == nullptr || axes[0].grid == nullptr ||
+      axes[1].grid == nullptr || axes[2].grid == nullptr ||
+      axes[3].grid == nullptr) {
     return 1;
   }
   if (sizeE == 0 || count == 0) {
@@ -61,25 +57,23 @@ int LogInterpolateSingleVariable1D3DCustom(
   const Layout layout = MakeLayout(extents, ND);
 
   for (std::size_t j = 0; j < count; ++j) {
-    double* row = out + j * sizeE;
+    double *row = out + j * sizeE;
     for (std::size_t i = 0; i < sizeE; ++i) {
       double coords[ND] = {logE[i], logD[j], logT[j], y[j]};
-      row[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+      row[i] = detail::LogInterpolatedValueDirect<ND>(data, layout, axes,
+                                                      coords, offset);
     }
   }
 
   return 0;
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateSingleVariable2D2DCustomPoint(
-    const double* logE, std::size_t sizeE,
-    double logT, double logX,
-    const Axis axes[4],
-    const double* data,
-    double offset,
-    double* out) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateSingleVariable2D2DCustomPoint(const double *logE,
+                                            std::size_t sizeE, double logT,
+                                            double logX, const Axis axes[4],
+                                            const double *data, double offset,
+                                            double *out) noexcept {
   if (logE == nullptr || data == nullptr || out == nullptr ||
       axes[0].grid == nullptr || axes[1].grid == nullptr ||
       axes[2].grid == nullptr || axes[3].grid == nullptr) {
@@ -96,7 +90,8 @@ int LogInterpolateSingleVariable2D2DCustomPoint(
   for (std::size_t j = 0; j < sizeE; ++j) {
     for (std::size_t i = 0; i <= j; ++i) {
       double coords[ND] = {logE[i], logE[j], logT, logX};
-      const double value = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+      const double value = detail::LogInterpolatedValueDirect<ND>(
+          data, layout, axes, coords, offset);
       detail::StoreSymmetric(out, sizeE, i, j, value);
     }
   }
@@ -104,18 +99,14 @@ int LogInterpolateSingleVariable2D2DCustomPoint(
   return 0;
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateSingleVariable2D2DCustom(
-    const double* logE, std::size_t sizeE,
-    const double* logT, const double* logX, std::size_t count,
-    const Axis axes[4],
-    const double* data,
-    double offset,
-    double* out) noexcept
-{
-  if (logE == nullptr || logT == nullptr || logX == nullptr ||
-      out == nullptr || data == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr ||
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateSingleVariable2D2DCustom(const double *logE, std::size_t sizeE,
+                                       const double *logT, const double *logX,
+                                       std::size_t count, const Axis axes[4],
+                                       const double *data, double offset,
+                                       double *out) noexcept {
+  if (logE == nullptr || logT == nullptr || logX == nullptr || out == nullptr ||
+      data == nullptr || axes[0].grid == nullptr || axes[1].grid == nullptr ||
       axes[2].grid == nullptr || axes[3].grid == nullptr) {
     return 1;
   }
@@ -129,11 +120,12 @@ int LogInterpolateSingleVariable2D2DCustom(
 
   const std::size_t planeSize = sizeE * sizeE;
   for (std::size_t l = 0; l < count; ++l) {
-    double* plane = out + l * planeSize;
+    double *plane = out + l * planeSize;
     for (std::size_t j = 0; j < sizeE; ++j) {
       for (std::size_t i = 0; i <= j; ++i) {
         double coords[ND] = {logE[i], logE[j], logT[l], logX[l]};
-        const double value = detail::LogInterpolatedValueDirect<ND>(data, layout, axes, coords, offset);
+        const double value = detail::LogInterpolatedValueDirect<ND>(
+            data, layout, axes, coords, offset);
         detail::StoreSymmetric(plane, sizeE, i, j, value);
       }
     }
@@ -142,28 +134,20 @@ int LogInterpolateSingleVariable2D2DCustom(
   return 0;
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateSingleVariable2D2DCustomAlignedPoint(
-    std::size_t sizeE,
-    double logT, double logX,
-    const Axis axes[2],
-    const double* data,
-    double offset,
-    double* out) noexcept
-{
-  if (data == nullptr || out == nullptr ||
-      axes[0].grid == nullptr || axes[1].grid == nullptr) {
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateSingleVariable2D2DCustomAlignedPoint(
+    std::size_t sizeE, double logT, double logX, const Axis axes[2],
+    const double *data, double offset, double *out) noexcept {
+  if (data == nullptr || out == nullptr || axes[0].grid == nullptr ||
+      axes[1].grid == nullptr) {
     return 1;
   }
   if (sizeE == 0) {
     return 0;
   }
 
-  int extents[4] = {
-      static_cast<int>(sizeE),
-      static_cast<int>(sizeE),
-      axes[0].n,
-      axes[1].n};
+  int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), axes[0].n,
+                    axes[1].n};
   const Layout layout = MakeLayout(extents, 4);
 
   int idxT = 0;
@@ -176,9 +160,8 @@ int LogInterpolateSingleVariable2D2DCustomAlignedPoint(
   for (std::size_t j = 0; j < sizeE; ++j) {
     for (std::size_t i = 0; i <= j; ++i) {
       const double value = LinearInterp2D4DArray2DAlignedPoint(
-          static_cast<int>(i), static_cast<int>(j),
-          idxT, idxX, fracT, fracX, offset,
-          data, layout);
+          static_cast<int>(i), static_cast<int>(j), idxT, idxX, fracT, fracX,
+          offset, data, layout);
       detail::StoreSymmetric(out, sizeE, i, j, value);
     }
   }
@@ -186,15 +169,11 @@ int LogInterpolateSingleVariable2D2DCustomAlignedPoint(
   return 0;
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-int LogInterpolateSingleVariable2D2DCustomAligned(
-    std::size_t sizeE,
-    const double* logT, const double* logX, std::size_t count,
-    const Axis axes[2],
-    const double* data,
-    double offset,
-    double* out) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE int
+LogInterpolateSingleVariable2D2DCustomAligned(
+    std::size_t sizeE, const double *logT, const double *logX,
+    std::size_t count, const Axis axes[2], const double *data, double offset,
+    double *out) noexcept {
   if (logT == nullptr || logX == nullptr || data == nullptr || out == nullptr ||
       axes[0].grid == nullptr || axes[1].grid == nullptr) {
     return 1;
@@ -205,11 +184,9 @@ int LogInterpolateSingleVariable2D2DCustomAligned(
 
   const std::size_t planeSize = sizeE * sizeE;
   for (std::size_t k = 0; k < count; ++k) {
-    double* plane = out + k * planeSize;
+    double *plane = out + k * planeSize;
     const int rc = LogInterpolateSingleVariable2D2DCustomAlignedPoint(
-        sizeE, logT[k], logX[k],
-        axes,
-        data, offset, plane);
+        sizeE, logT[k], logX[k], axes, data, offset, plane);
     if (rc != 0) {
       return rc;
     }
@@ -221,17 +198,13 @@ int LogInterpolateSingleVariable2D2DCustomAligned(
 /// Pre-align one moment of a scattering kernel onto aligned energy nodes.
 /// Transforms a 5D raw kernel [nE, nE, nMom, nDim3, nDim4] into a 4D aligned
 /// table [nAlignedE, nAlignedE, nDim3, nDim4] stored as log10(value + offset).
-/// Relies on column-major layout: the 2D energy slice at any fixed (iMom, iD3, iD4)
-/// is contiguous in memory.
-inline void PreAlignScatteringKernelMoment(
-    const double* rawKernel,
-    const Layout& rawLayout,
-    const Axis& energyAxis,
-    int iMom, int nDim3, int nDim4,
-    const double* alignedE, int nAlignedE,
-    double offset,
-    double* output) noexcept
-{
+/// Relies on column-major layout: the 2D energy slice at any fixed (iMom, iD3,
+/// iD4) is contiguous in memory.
+inline void
+PreAlignScatteringKernelMoment(const double *rawKernel, const Layout &rawLayout,
+                               const Axis &energyAxis, int iMom, int nDim3,
+                               int nDim4, const double *alignedE, int nAlignedE,
+                               double offset, double *output) noexcept {
   const int outExtents[4] = {nAlignedE, nAlignedE, nDim3, nDim4};
   const Layout outLayout = MakeLayout(outExtents, 4);
   const Axis energyAxes[2] = {energyAxis, energyAxis};
@@ -239,13 +212,12 @@ inline void PreAlignScatteringKernelMoment(
   for (int iD4 = 0; iD4 < nDim4; ++iD4) {
     for (int iD3 = 0; iD3 < nDim3; ++iD3) {
       const int sliceIdx[5] = {0, 0, iMom, iD3, iD4};
-      const double* slice2d = rawKernel + rawLayout.Offset(sliceIdx);
+      const double *slice2d = rawKernel + rawLayout.Offset(sliceIdx);
 
       for (int iA2 = 0; iA2 < nAlignedE; ++iA2) {
         for (int iA1 = 0; iA1 < nAlignedE; ++iA1) {
           const double value = LogInterpolateSingleVariable2DCustomPoint(
-              alignedE[iA1], alignedE[iA2],
-              energyAxes, slice2d, offset);
+              alignedE[iA1], alignedE[iA2], energyAxes, slice2d, offset);
 
           const int outIdx[4] = {iA1, iA2, iD3, iD4};
           output[outLayout.Offset(outIdx)] = math::Log10(value + offset);

@@ -1,11 +1,11 @@
 #define SIMPLE_CATCH_NO_MAIN
 #include <catch2/catch_test_macros.hpp>
 
-#include "interp/WeakLibReader_LogInterpolate.hpp"
-#include "interp/WeakLibReader_InterpLogTable.hpp"
+#include "base/WeakLibReader_AxisTypes.hpp"
 #include "base/WeakLibReader_InterpBasis.hpp"
 #include "base/WeakLibReader_Layout.hpp"
-#include "base/WeakLibReader_AxisTypes.hpp"
+#include "interp/WeakLibReader_InterpLogTable.hpp"
+#include "interp/WeakLibReader_LogInterpolate.hpp"
 #include "test_constants.hpp"
 
 #include <array>
@@ -13,8 +13,8 @@
 
 using test_constants::Tol;
 
-TEST_CASE("4D log interpolation matches quadrilinear expectation", "[loginterp][4d]")
-{
+TEST_CASE("4D log interpolation matches quadrilinear expectation",
+          "[loginterp][4d]") {
   using namespace WeakLibReader;
 
   const std::array<double, 2> gridA{1.0, 2.0};
@@ -39,11 +39,10 @@ TEST_CASE("4D log interpolation matches quadrilinear expectation", "[loginterp][
     }
   }
 
-  Axis axes[4] = {
-      MakeAxis(gridA.data(), 2, AxisScale::Linear),
-      MakeAxis(gridB.data(), 2, AxisScale::Linear),
-      MakeAxis(gridC.data(), 2, AxisScale::Linear),
-      MakeAxis(gridD.data(), 2, AxisScale::Linear)};
+  Axis axes[4] = {MakeAxis(gridA.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridB.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridC.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridD.data(), 2, AxisScale::Linear)};
 
   const double a = 1.5;
   const double b = 2.0;
@@ -60,8 +59,8 @@ TEST_CASE("4D log interpolation matches quadrilinear expectation", "[loginterp][
   CHECK(result == Catch::Approx(expected).margin(Tol));
 }
 
-TEST_CASE("Batch 4D log interpolation matches point wrapper", "[loginterp][4d][batch]")
-{
+TEST_CASE("Batch 4D log interpolation matches point wrapper",
+          "[loginterp][4d][batch]") {
   using namespace WeakLibReader;
 
   const std::array<double, 2> gridA{1.0, 2.0};
@@ -84,11 +83,10 @@ TEST_CASE("Batch 4D log interpolation matches point wrapper", "[loginterp][4d][b
     }
   }
 
-  Axis axes[4] = {
-      MakeAxis(gridA.data(), 2, AxisScale::Linear),
-      MakeAxis(gridB.data(), 2, AxisScale::Linear),
-      MakeAxis(gridC.data(), 2, AxisScale::Linear),
-      MakeAxis(gridD.data(), 2, AxisScale::Linear)};
+  Axis axes[4] = {MakeAxis(gridA.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridB.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridC.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridD.data(), 2, AxisScale::Linear)};
 
   std::array<double, 3> x0{1.0, 1.5, 2.0};
   std::array<double, 3> x1{1.0, 2.0, 3.0};
@@ -97,11 +95,8 @@ TEST_CASE("Batch 4D log interpolation matches point wrapper", "[loginterp][4d][b
   std::array<double, 3> out{};
 
   const int rc = LogInterpolateSingleVariable4DCustom(
-      x0.data(), x1.data(), x2.data(), x3.data(), x0.size(),
-      axes,
-      table.data(),
-      0.0,
-      out.data());
+      x0.data(), x1.data(), x2.data(), x3.data(), x0.size(), axes, table.data(),
+      0.0, out.data());
   REQUIRE(rc == 0);
 
   for (std::size_t i = 0; i < x0.size(); ++i) {
@@ -111,14 +106,14 @@ TEST_CASE("Batch 4D log interpolation matches point wrapper", "[loginterp][4d][b
   }
 }
 
-TEST_CASE("4D mixed axes log interpolation respects offset", "[loginterp][4d][offset]")
-{
+TEST_CASE("4D mixed axes log interpolation respects offset",
+          "[loginterp][4d][offset]") {
   using namespace WeakLibReader;
 
-  const std::array<double, 2> gridA{1.0, 10.0};   // log10 axis
-  const std::array<double, 2> gridB{2.0, 20.0};   // log10 axis
-  const std::array<double, 2> gridC{0.0, 1.0};    // linear axis
-  const std::array<double, 2> gridD{5.0, 9.0};    // linear axis
+  const std::array<double, 2> gridA{1.0, 10.0}; // log10 axis
+  const std::array<double, 2> gridB{2.0, 20.0}; // log10 axis
+  const std::array<double, 2> gridC{0.0, 1.0};  // linear axis
+  const std::array<double, 2> gridD{5.0, 9.0};  // linear axis
 
   const int extents[4] = {2, 2, 2, 2};
   const Layout layout = MakeLayout(extents, 4);
@@ -136,11 +131,10 @@ TEST_CASE("4D mixed axes log interpolation respects offset", "[loginterp][4d][of
     }
   }
 
-  Axis axes[4] = {
-      MakeAxis(gridA.data(), 2, AxisScale::Log10),
-      MakeAxis(gridB.data(), 2, AxisScale::Log10),
-      MakeAxis(gridC.data(), 2, AxisScale::Linear),
-      MakeAxis(gridD.data(), 2, AxisScale::Linear)};
+  Axis axes[4] = {MakeAxis(gridA.data(), 2, AxisScale::Log10),
+                  MakeAxis(gridB.data(), 2, AxisScale::Log10),
+                  MakeAxis(gridC.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridD.data(), 2, AxisScale::Linear)};
 
   double coords[4] = {3.0, 5.0, 0.25, 6.0};
 
@@ -151,10 +145,9 @@ TEST_CASE("4D mixed axes log interpolation respects offset", "[loginterp][4d][of
   IndexAndDeltaLin(coords[2], gridC.data(), 2, idxC, fracC);
   IndexAndDeltaLin(coords[3], gridD.data(), 2, idxD, fracD);
 
-  const double expected = LinearInterp4DPoint(
-      idxA, idxB, idxC, idxD,
-      fracA, fracB, fracC, fracD,
-      offset, table.data(), layout);
+  const double expected =
+      LinearInterp4DPoint(idxA, idxB, idxC, idxD, fracA, fracB, fracC, fracD,
+                          offset, table.data(), layout);
 
   const double result = detail::LogInterpolatedValueDirect<4>(
       table.data(), layout, axes, coords, offset);
@@ -162,14 +155,14 @@ TEST_CASE("4D mixed axes log interpolation respects offset", "[loginterp][4d][of
   CHECK(result == Catch::Approx(expected).margin(Tol));
 }
 
-TEST_CASE("4D mixed axes derivative matches kernel", "[loginterp][4d][derivative]")
-{
+TEST_CASE("4D mixed axes derivative matches kernel",
+          "[loginterp][4d][derivative]") {
   using namespace WeakLibReader;
 
-  const std::array<double, 2> gridA{1.0, 10.0};   // log10 axis
-  const std::array<double, 2> gridB{2.0, 20.0};   // log10 axis
-  const std::array<double, 2> gridC{0.0, 1.0};    // linear axis
-  const std::array<double, 2> gridD{5.0, 9.0};    // linear axis
+  const std::array<double, 2> gridA{1.0, 10.0}; // log10 axis
+  const std::array<double, 2> gridB{2.0, 20.0}; // log10 axis
+  const std::array<double, 2> gridC{0.0, 1.0};  // linear axis
+  const std::array<double, 2> gridD{5.0, 9.0};  // linear axis
 
   const int extents[4] = {2, 2, 2, 2};
   const Layout layout = MakeLayout(extents, 4);
@@ -180,18 +173,18 @@ TEST_CASE("4D mixed axes derivative matches kernel", "[loginterp][4d][derivative
     for (int ib = 0; ib < 2; ++ib) {
       for (int ic = 0; ic < 2; ++ic) {
         for (int id = 0; id < 2; ++id) {
-          const double actual = 1.5 + 0.15 * ia + 0.25 * ib + 0.35 * ic + 0.45 * id;
+          const double actual =
+              1.5 + 0.15 * ia + 0.25 * ib + 0.35 * ic + 0.45 * id;
           table[layout.Offset(ia, ib, ic, id)] = std::log10(actual + offset);
         }
       }
     }
   }
 
-  Axis axes[4] = {
-      MakeAxis(gridA.data(), 2, AxisScale::Log10),
-      MakeAxis(gridB.data(), 2, AxisScale::Log10),
-      MakeAxis(gridC.data(), 2, AxisScale::Linear),
-      MakeAxis(gridD.data(), 2, AxisScale::Linear)};
+  Axis axes[4] = {MakeAxis(gridA.data(), 2, AxisScale::Log10),
+                  MakeAxis(gridB.data(), 2, AxisScale::Log10),
+                  MakeAxis(gridC.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridD.data(), 2, AxisScale::Linear)};
 
   double coords[4] = {4.0, 6.0, 0.4, 7.0};
 
@@ -202,8 +195,10 @@ TEST_CASE("4D mixed axes derivative matches kernel", "[loginterp][4d][derivative
   IndexAndDeltaLin(coords[2], gridC.data(), 2, idxC, fracC);
   IndexAndDeltaLin(coords[3], gridD.data(), 2, idxD, fracD);
 
-  const double aA = 1.0 / (coords[0] * WeakLibReader::math::Log10(gridA[1] / gridA[0]));
-  const double aB = 1.0 / (coords[1] * WeakLibReader::math::Log10(gridB[1] / gridB[0]));
+  const double aA =
+      1.0 / (coords[0] * WeakLibReader::math::Log10(gridA[1] / gridA[0]));
+  const double aB =
+      1.0 / (coords[1] * WeakLibReader::math::Log10(gridB[1] / gridB[0]));
   const double aC = WeakLibReader::math::Ln10 / (gridC[1] - gridC[0]);
   const double aD = WeakLibReader::math::Ln10 / (gridD[1] - gridD[0]);
 
@@ -212,17 +207,15 @@ TEST_CASE("4D mixed axes derivative matches kernel", "[loginterp][4d][derivative
   double expectedDB = 0.0;
   double expectedDC = 0.0;
   double expectedDD = 0.0;
-  LinearInterpDeriv4DPoint(
-      idxA, idxB, idxC, idxD,
-      fracA, fracB, fracC, fracD,
-      aA, aB, aC, aD,
-      offset, table.data(), layout,
-      expectedInterp, expectedDA, expectedDB, expectedDC, expectedDD);
+  LinearInterpDeriv4DPoint(idxA, idxB, idxC, idxD, fracA, fracB, fracC, fracD,
+                           aA, aB, aC, aD, offset, table.data(), layout,
+                           expectedInterp, expectedDA, expectedDB, expectedDC,
+                           expectedDD);
 
   double interpolant = 0.0;
   double deriv[4] = {0.0, 0.0, 0.0, 0.0};
-  detail::LogInterpolatedDerivativeDirect<4>(
-      table.data(), layout, axes, coords, offset, interpolant, deriv);
+  detail::LogInterpolatedDerivativeDirect<4>(table.data(), layout, axes, coords,
+                                             offset, interpolant, deriv);
 
   CHECK(interpolant == Catch::Approx(expectedInterp).margin(Tol));
   CHECK(deriv[0] == Catch::Approx(expectedDA).margin(Tol));
@@ -231,8 +224,7 @@ TEST_CASE("4D mixed axes derivative matches kernel", "[loginterp][4d][derivative
   CHECK(deriv[3] == Catch::Approx(expectedDD).margin(Tol));
 }
 
-TEST_CASE("5D log interpolation via LinearInterp5DPoint", "[loginterp][5d]")
-{
+TEST_CASE("5D log interpolation via LinearInterp5DPoint", "[loginterp][5d]") {
   using namespace WeakLibReader;
 
   const std::array<double, 2> grid0{1.0, 2.0};
@@ -252,9 +244,8 @@ TEST_CASE("5D log interpolation via LinearInterp5DPoint", "[loginterp][5d]")
       for (int i2 = 0; i2 < 2; ++i2) {
         for (int i3 = 0; i3 < 2; ++i3) {
           for (int i4 = 0; i4 < 2; ++i4) {
-            table[layout.Offset(i0, i1, i2, i3, i4)] =
-                std::log10(actual(grid0[i0], grid1[i1], grid2[i2],
-                                  grid3[i3], grid4[i4]));
+            table[layout.Offset(i0, i1, i2, i3, i4)] = std::log10(
+                actual(grid0[i0], grid1[i1], grid2[i2], grid3[i3], grid4[i4]));
           }
         }
       }
@@ -275,12 +266,8 @@ TEST_CASE("5D log interpolation via LinearInterp5DPoint", "[loginterp][5d]")
   const double d3 = (x3 - grid3[0]) / (grid3[1] - grid3[0]);
   const double d4 = (x4 - grid4[0]) / (grid4[1] - grid4[0]);
 
-  const double result = LinearInterp5DPoint(
-      0, 0, 0, 0, 0,
-      d0, d1, d2, d3, d4,
-      0.0,
-      table.data(),
-      layout);
+  const double result = LinearInterp5DPoint(0, 0, 0, 0, 0, d0, d1, d2, d3, d4,
+                                            0.0, table.data(), layout);
 
   // Compute expected using PentaLinear directly
   const double p00000 = table[layout.Offset(0, 0, 0, 0, 0)];
@@ -317,22 +304,17 @@ TEST_CASE("5D log interpolation via LinearInterp5DPoint", "[loginterp][5d]")
   const double p11111 = table[layout.Offset(1, 1, 1, 1, 1)];
 
   const double logExpected = PentaLinear(
-      p00000, p10000, p01000, p11000,
-      p00100, p10100, p01100, p11100,
-      p00010, p10010, p01010, p11010,
-      p00110, p10110, p01110, p11110,
-      p00001, p10001, p01001, p11001,
-      p00101, p10101, p01101, p11101,
-      p00011, p10011, p01011, p11011,
-      p00111, p10111, p01111, p11111,
-      d0, d1, d2, d3, d4);
+      p00000, p10000, p01000, p11000, p00100, p10100, p01100, p11100, p00010,
+      p10010, p01010, p11010, p00110, p10110, p01110, p11110, p00001, p10001,
+      p01001, p11001, p00101, p10101, p01101, p11101, p00011, p10011, p01011,
+      p11011, p00111, p10111, p01111, p11111, d0, d1, d2, d3, d4);
   const double expected = std::pow(10.0, logExpected);
 
   CHECK(result == Catch::Approx(expected).margin(Tol));
 }
 
-TEST_CASE("PentaLinear reduces to TetraLinear at boundaries", "[loginterp][5d][pentalinear]")
-{
+TEST_CASE("PentaLinear reduces to TetraLinear at boundaries",
+          "[loginterp][5d][pentalinear]") {
   using namespace WeakLibReader;
 
   // When dX5 = 0, PentaLinear should equal the "lo" TetraLinear
@@ -349,49 +331,35 @@ TEST_CASE("PentaLinear reduces to TetraLinear at boundaries", "[loginterp][5d][p
 
   // dX5 = 0 should give the "lo" tetralinear result
   const double penta0 = PentaLinear(
-      p00000, p10000, p01000, p11000,
-      p00100, p10100, p01100, p11100,
-      p00010, p10010, p01010, p11010,
-      p00110, p10110, p01110, p11110,
-      p00001, p10001, p01001, p11001,
-      p00101, p10101, p01101, p11101,
-      p00011, p10011, p01011, p11011,
-      p00111, p10111, p01111, p11111,
-      dX1, dX2, dX3, dX4, 0.0);
+      p00000, p10000, p01000, p11000, p00100, p10100, p01100, p11100, p00010,
+      p10010, p01010, p11010, p00110, p10110, p01110, p11110, p00001, p10001,
+      p01001, p11001, p00101, p10101, p01101, p11101, p00011, p10011, p01011,
+      p11011, p00111, p10111, p01111, p11111, dX1, dX2, dX3, dX4, 0.0);
 
-  const double tetraLo = TetraLinear(
-      p00000, p10000, p01000, p11000,
-      p00100, p10100, p01100, p11100,
-      p00010, p10010, p01010, p11010,
-      p00110, p10110, p01110, p11110,
-      dX1, dX2, dX3, dX4);
+  const double tetraLo =
+      TetraLinear(p00000, p10000, p01000, p11000, p00100, p10100, p01100,
+                  p11100, p00010, p10010, p01010, p11010, p00110, p10110,
+                  p01110, p11110, dX1, dX2, dX3, dX4);
 
   CHECK(penta0 == Catch::Approx(tetraLo).margin(Tol));
 
   // dX5 = 1 should give the "hi" tetralinear result
   const double penta1 = PentaLinear(
-      p00000, p10000, p01000, p11000,
-      p00100, p10100, p01100, p11100,
-      p00010, p10010, p01010, p11010,
-      p00110, p10110, p01110, p11110,
-      p00001, p10001, p01001, p11001,
-      p00101, p10101, p01101, p11101,
-      p00011, p10011, p01011, p11011,
-      p00111, p10111, p01111, p11111,
-      dX1, dX2, dX3, dX4, 1.0);
+      p00000, p10000, p01000, p11000, p00100, p10100, p01100, p11100, p00010,
+      p10010, p01010, p11010, p00110, p10110, p01110, p11110, p00001, p10001,
+      p01001, p11001, p00101, p10101, p01101, p11101, p00011, p10011, p01011,
+      p11011, p00111, p10111, p01111, p11111, dX1, dX2, dX3, dX4, 1.0);
 
-  const double tetraHi = TetraLinear(
-      p00001, p10001, p01001, p11001,
-      p00101, p10101, p01101, p11101,
-      p00011, p10011, p01011, p11011,
-      p00111, p10111, p01111, p11111,
-      dX1, dX2, dX3, dX4);
+  const double tetraHi =
+      TetraLinear(p00001, p10001, p01001, p11001, p00101, p10101, p01101,
+                  p11101, p00011, p10011, p01011, p11011, p00111, p10111,
+                  p01111, p11111, dX1, dX2, dX3, dX4);
 
   CHECK(penta1 == Catch::Approx(tetraHi).margin(Tol));
 }
 
-TEST_CASE("1D3D sweep batch matches direct interpolation", "[loginterp][4d][batch]")
-{
+TEST_CASE("1D3D sweep batch matches direct interpolation",
+          "[loginterp][4d][batch]") {
   using namespace WeakLibReader;
 
   constexpr std::size_t sizeE = 2;
@@ -427,19 +395,14 @@ TEST_CASE("1D3D sweep batch matches direct interpolation", "[loginterp][4d][batc
   std::array<double, count> y{0.25, 0.75};
   std::array<double, sizeE * count> out{};
 
-  Axis axes[4] = {
-      MakeAxis(gridE.data(), 2, AxisScale::Linear),
-      MakeAxis(gridD.data(), 2, AxisScale::Linear),
-      MakeAxis(gridT.data(), 2, AxisScale::Linear),
-      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
+  Axis axes[4] = {MakeAxis(gridE.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridD.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridT.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridY.data(), 2, AxisScale::Linear)};
 
   const int rc = LogInterpolateSingleVariable1D3DCustom(
-      logE.data(), sizeE,
-      logD.data(), logT.data(), y.data(), count,
-      axes,
-      table.data(),
-      0.0,
-      out.data());
+      logE.data(), sizeE, logD.data(), logT.data(), y.data(), count, axes,
+      table.data(), 0.0, out.data());
   REQUIRE(rc == 0);
 
   for (std::size_t j = 0; j < count; ++j) {
@@ -453,8 +416,8 @@ TEST_CASE("1D3D sweep batch matches direct interpolation", "[loginterp][4d][batc
   }
 }
 
-TEST_CASE("1D3D single point matches batch with count=1", "[loginterp][4d][1d3d]")
-{
+TEST_CASE("1D3D single point matches batch with count=1",
+          "[loginterp][4d][1d3d]") {
   using namespace WeakLibReader;
 
   constexpr std::size_t sizeE = 3;
@@ -483,11 +446,10 @@ TEST_CASE("1D3D single point matches batch with count=1", "[loginterp][4d][1d3d]
     }
   }
 
-  Axis axes[4] = {
-      MakeAxis(gridE.data(), 2, AxisScale::Linear),
-      MakeAxis(gridD.data(), 2, AxisScale::Linear),
-      MakeAxis(gridT.data(), 2, AxisScale::Linear),
-      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
+  Axis axes[4] = {MakeAxis(gridE.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridD.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridT.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridY.data(), 2, AxisScale::Linear)};
 
   std::array<double, sizeE> logE{1.0, 1.5, 2.0};
   const double logD = 2.0;
@@ -496,11 +458,7 @@ TEST_CASE("1D3D single point matches batch with count=1", "[loginterp][4d][1d3d]
 
   std::array<double, sizeE> outPoint{};
   const int rcPoint = LogInterpolateSingleVariable1D3DCustomPoint(
-      logE.data(), sizeE,
-      logD, logT, y,
-      axes,
-      table.data(),
-      0.0,
+      logE.data(), sizeE, logD, logT, y, axes, table.data(), 0.0,
       outPoint.data());
   REQUIRE(rcPoint == 0);
 
@@ -511,12 +469,8 @@ TEST_CASE("1D3D single point matches batch with count=1", "[loginterp][4d][1d3d]
   std::array<double, sizeE> outBatch{};
 
   const int rcBatch = LogInterpolateSingleVariable1D3DCustom(
-      logE.data(), sizeE,
-      logDArr.data(), logTArr.data(), yArr.data(), 1,
-      axes,
-      table.data(),
-      0.0,
-      outBatch.data());
+      logE.data(), sizeE, logDArr.data(), logTArr.data(), yArr.data(), 1, axes,
+      table.data(), 0.0, outBatch.data());
   REQUIRE(rcBatch == 0);
 
   for (std::size_t i = 0; i < sizeE; ++i) {

@@ -1,10 +1,10 @@
 #define SIMPLE_CATCH_NO_MAIN
 #include <catch2/catch_test_macros.hpp>
 
-#include "interp/WeakLibReader_LogInterpolate.hpp"
-#include "interp/WeakLibReader_InterpLogTable.hpp"
-#include "base/WeakLibReader_Layout.hpp"
 #include "base/WeakLibReader_AxisTypes.hpp"
+#include "base/WeakLibReader_Layout.hpp"
+#include "interp/WeakLibReader_InterpLogTable.hpp"
+#include "interp/WeakLibReader_LogInterpolate.hpp"
 #include "test_constants.hpp"
 
 #include <array>
@@ -12,8 +12,8 @@
 
 using test_constants::Tol;
 
-TEST_CASE("Log derivative wrapper matches direct kernel for 3D tables", "[loginterp][derivative][3d]")
-{
+TEST_CASE("Log derivative wrapper matches direct kernel for 3D tables",
+          "[loginterp][derivative][3d]") {
   using namespace WeakLibReader;
 
   const std::array<double, 2> gridD{1.0, 10.0};
@@ -39,10 +39,9 @@ TEST_CASE("Log derivative wrapper matches direct kernel for 3D tables", "[logint
     }
   }
 
-  Axis axes[3] = {
-      MakeAxis(gridD.data(), 2, AxisScale::Log10),
-      MakeAxis(gridT.data(), 2, AxisScale::Log10),
-      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
+  Axis axes[3] = {MakeAxis(gridD.data(), 2, AxisScale::Log10),
+                  MakeAxis(gridT.data(), 2, AxisScale::Log10),
+                  MakeAxis(gridY.data(), 2, AxisScale::Linear)};
 
   const double dCoord = 3.0;
   const double tCoord = 6.0;
@@ -68,19 +67,14 @@ TEST_CASE("Log derivative wrapper matches direct kernel for 3D tables", "[logint
   double expectedDD = 0.0;
   double expectedDT = 0.0;
   double expectedDY = 0.0;
-  LinearInterpDeriv3DPoint(idxD, idxT, idxY,
-                           fracD, fracT, fracY,
-                           aD, aT, aY,
-                           0.0, table.data(), layout,
-                           expectedInterp, expectedDD, expectedDT, expectedDY);
+  LinearInterpDeriv3DPoint(idxD, idxT, idxY, fracD, fracT, fracY, aD, aT, aY,
+                           0.0, table.data(), layout, expectedInterp,
+                           expectedDD, expectedDT, expectedDY);
 
   double interpolated = 0.0;
   double deriv[3] = {0.0, 0.0, 0.0};
   const int rc = LogInterpolateDifferentiateSingleVariable3DCustomPoint(
-      dCoord, tCoord, yCoord,
-      axes,
-      table.data(),
-      0.0, interpolated, deriv);
+      dCoord, tCoord, yCoord, axes, table.data(), 0.0, interpolated, deriv);
   REQUIRE(rc == 0);
 
   CHECK(interpolated == Catch::Approx(expectedInterp).margin(Tol));
@@ -89,39 +83,39 @@ TEST_CASE("Log derivative wrapper matches direct kernel for 3D tables", "[logint
   CHECK(deriv[2] == Catch::Approx(expectedDY).margin(Tol));
 }
 
-TEST_CASE("Aligned derivative wrapper mirrors kernel output", "[loginterp][derivative][2d2d]")
-{
+TEST_CASE("Aligned derivative wrapper mirrors kernel output",
+          "[loginterp][derivative][2d2d]") {
   using namespace WeakLibReader;
 
   constexpr std::size_t sizeE = 2;
   const std::array<double, 2> gridT{1.0, 2.0};
   const std::array<double, 2> gridX{1.0, 3.0};
 
-  const int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), 2, 2};
+  const int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), 2,
+                          2};
   const Layout layout = MakeLayout(extents, 4);
 
   std::array<double, sizeE * sizeE * 2 * 2> table{};
   auto value = [](int i, int j, double t, double x) {
-    return 2.0 + 0.1 * static_cast<double>(i) +
-           0.2 * static_cast<double>(j) +
-           0.3 * t +
-           0.4 * x;
+    return 2.0 + 0.1 * static_cast<double>(i) + 0.2 * static_cast<double>(j) +
+           0.3 * t + 0.4 * x;
   };
 
   for (std::size_t j = 0; j < sizeE; ++j) {
     for (std::size_t i = 0; i < sizeE; ++i) {
       for (int it = 0; it < 2; ++it) {
         for (int ix = 0; ix < 2; ++ix) {
-          table[layout.Offset(static_cast<int>(i), static_cast<int>(j), it, ix)] =
-              std::log10(value(static_cast<int>(i), static_cast<int>(j), gridT[it], gridX[ix]));
+          table[layout.Offset(static_cast<int>(i), static_cast<int>(j), it,
+                              ix)] =
+              std::log10(value(static_cast<int>(i), static_cast<int>(j),
+                               gridT[it], gridX[ix]));
         }
       }
     }
   }
 
-  Axis axes[2] = {
-      MakeAxis(gridT.data(), 2, AxisScale::Linear),
-      MakeAxis(gridX.data(), 2, AxisScale::Linear)};
+  Axis axes[2] = {MakeAxis(gridT.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridX.data(), 2, AxisScale::Linear)};
 
   const double logTCoord = 1.4;
   const double logXCoord = 2.4;
@@ -142,14 +136,10 @@ TEST_CASE("Aligned derivative wrapper mirrors kernel output", "[loginterp][deriv
   std::array<double, sizeE * sizeE> planeDerivT{};
   std::array<double, sizeE * sizeE> planeDerivX{};
 
-  const int rc = LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
-      sizeE, logTCoord, logXCoord,
-      axes,
-      table.data(),
-      0.0,
-      planeInterp.data(),
-      planeDerivT.data(),
-      planeDerivX.data());
+  const int rc =
+      LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
+          sizeE, logTCoord, logXCoord, axes, table.data(), 0.0,
+          planeInterp.data(), planeDerivT.data(), planeDerivX.data());
   REQUIRE(rc == 0);
 
   for (std::size_t j = 0; j < sizeE; ++j) {
@@ -158,13 +148,9 @@ TEST_CASE("Aligned derivative wrapper mirrors kernel output", "[loginterp][deriv
       double dTExpected = 0.0;
       double dXExpected = 0.0;
       LinearInterpDeriv2D4DArray2DAlignedPoint(
-          static_cast<int>(i), static_cast<int>(j),
-          idxT, idxX,
-          fracT, fracX,
-          aT, aX,
-          0.0,
-          table.data(), layout,
-          interpExpected, dTExpected, dXExpected);
+          static_cast<int>(i), static_cast<int>(j), idxT, idxX, fracT, fracX,
+          aT, aX, 0.0, table.data(), layout, interpExpected, dTExpected,
+          dXExpected);
 
       const std::size_t lower = j * sizeE + i;
       const std::size_t upper = i * sizeE + j;
@@ -178,8 +164,8 @@ TEST_CASE("Aligned derivative wrapper mirrors kernel output", "[loginterp][deriv
   }
 }
 
-TEST_CASE("Batch 3D derivative matches point version", "[loginterp][3d][derivative][batch]")
-{
+TEST_CASE("Batch 3D derivative matches point version",
+          "[loginterp][3d][derivative][batch]") {
   using namespace WeakLibReader;
 
   constexpr std::size_t count = 3;
@@ -205,10 +191,9 @@ TEST_CASE("Batch 3D derivative matches point version", "[loginterp][3d][derivati
     }
   }
 
-  Axis axes[3] = {
-      MakeAxis(gridD.data(), 2, AxisScale::Log10),
-      MakeAxis(gridT.data(), 2, AxisScale::Log10),
-      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
+  Axis axes[3] = {MakeAxis(gridD.data(), 2, AxisScale::Log10),
+                  MakeAxis(gridT.data(), 2, AxisScale::Log10),
+                  MakeAxis(gridY.data(), 2, AxisScale::Linear)};
 
   std::array<double, count> dCoord{2.0, 5.0, 8.0};
   std::array<double, count> tCoord{10.0, 50.0, 80.0};
@@ -218,12 +203,8 @@ TEST_CASE("Batch 3D derivative matches point version", "[loginterp][3d][derivati
   std::array<double, count * 3> derivBatch{};
 
   const int rcBatch = LogInterpolateDifferentiateSingleVariable3DCustom(
-      dCoord.data(), tCoord.data(), yCoord.data(), count,
-      axes,
-      table.data(),
-      0.0,
-      interpBatch.data(),
-      derivBatch.data());
+      dCoord.data(), tCoord.data(), yCoord.data(), count, axes, table.data(),
+      0.0, interpBatch.data(), derivBatch.data());
   REQUIRE(rcBatch == 0);
 
   for (std::size_t i = 0; i < count; ++i) {
@@ -231,11 +212,8 @@ TEST_CASE("Batch 3D derivative matches point version", "[loginterp][3d][derivati
     double derivPoint[3] = {0.0, 0.0, 0.0};
 
     const int rcPoint = LogInterpolateDifferentiateSingleVariable3DCustomPoint(
-        dCoord[i], tCoord[i], yCoord[i],
-        axes,
-        table.data(),
-        0.0,
-        interpPoint, derivPoint);
+        dCoord[i], tCoord[i], yCoord[i], axes, table.data(), 0.0, interpPoint,
+        derivPoint);
     REQUIRE(rcPoint == 0);
 
     CHECK(interpBatch[i] == Catch::Approx(interpPoint).margin(Tol));
@@ -245,8 +223,8 @@ TEST_CASE("Batch 3D derivative matches point version", "[loginterp][3d][derivati
   }
 }
 
-TEST_CASE("Batch 2D2D derivative matches point version", "[loginterp][2d2d][derivative][batch]")
-{
+TEST_CASE("Batch 2D2D derivative matches point version",
+          "[loginterp][2d2d][derivative][batch]") {
   using namespace WeakLibReader;
 
   constexpr std::size_t sizeE = 2;
@@ -256,7 +234,8 @@ TEST_CASE("Batch 2D2D derivative matches point version", "[loginterp][2d2d][deri
   const std::array<double, 2> gridT{1.0, 2.0};
   const std::array<double, 2> gridX{1.0, 3.0};
 
-  const int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), 2, 2};
+  const int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), 2,
+                          2};
   const Layout layout = MakeLayout(extents, 4);
 
   std::array<double, sizeE * sizeE * 2 * 2> table{};
@@ -266,8 +245,8 @@ TEST_CASE("Batch 2D2D derivative matches point version", "[loginterp][2d2d][deri
         for (int x = 0; x < 2; ++x) {
           const double actual = 1.0 + 0.1 * gridE[e0] + 0.2 * gridE[e1] +
                                 0.3 * gridT[t] + 0.4 * gridX[x];
-          table[layout.Offset(static_cast<int>(e0), static_cast<int>(e1), t, x)] =
-              std::log10(actual);
+          table[layout.Offset(static_cast<int>(e0), static_cast<int>(e1), t,
+                              x)] = std::log10(actual);
         }
       }
     }
@@ -288,14 +267,8 @@ TEST_CASE("Batch 2D2D derivative matches point version", "[loginterp][2d2d][deri
   std::array<double, planeSize * count> derivXBatch{};
 
   const int rcBatch = LogInterpolateDifferentiateSingleVariable2D2DCustom(
-      gridE.data(), sizeE,
-      logT.data(), logX.data(), count,
-      axes,
-      table.data(),
-      0.0,
-      interpBatch.data(),
-      derivTBatch.data(),
-      derivXBatch.data());
+      gridE.data(), sizeE, logT.data(), logX.data(), count, axes, table.data(),
+      0.0, interpBatch.data(), derivTBatch.data(), derivXBatch.data());
   REQUIRE(rcBatch == 0);
 
   for (std::size_t k = 0; k < count; ++k) {
@@ -303,27 +276,25 @@ TEST_CASE("Batch 2D2D derivative matches point version", "[loginterp][2d2d][deri
     std::array<double, planeSize> derivTPoint{};
     std::array<double, planeSize> derivXPoint{};
 
-    const int rcPoint = LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
-        gridE.data(), sizeE,
-        logT[k], logX[k],
-        axes,
-        table.data(),
-        0.0,
-        interpPoint.data(),
-        derivTPoint.data(),
-        derivXPoint.data());
+    const int rcPoint =
+        LogInterpolateDifferentiateSingleVariable2D2DCustomPoint(
+            gridE.data(), sizeE, logT[k], logX[k], axes, table.data(), 0.0,
+            interpPoint.data(), derivTPoint.data(), derivXPoint.data());
     REQUIRE(rcPoint == 0);
 
     for (std::size_t i = 0; i < planeSize; ++i) {
-      CHECK(interpBatch[k * planeSize + i] == Catch::Approx(interpPoint[i]).margin(Tol));
-      CHECK(derivTBatch[k * planeSize + i] == Catch::Approx(derivTPoint[i]).margin(Tol));
-      CHECK(derivXBatch[k * planeSize + i] == Catch::Approx(derivXPoint[i]).margin(Tol));
+      CHECK(interpBatch[k * planeSize + i] ==
+            Catch::Approx(interpPoint[i]).margin(Tol));
+      CHECK(derivTBatch[k * planeSize + i] ==
+            Catch::Approx(derivTPoint[i]).margin(Tol));
+      CHECK(derivXBatch[k * planeSize + i] ==
+            Catch::Approx(derivXPoint[i]).margin(Tol));
     }
   }
 }
 
-TEST_CASE("Batch aligned 2D2D derivative matches point version", "[loginterp][2d2d][aligned][derivative][batch]")
-{
+TEST_CASE("Batch aligned 2D2D derivative matches point version",
+          "[loginterp][2d2d][aligned][derivative][batch]") {
   using namespace WeakLibReader;
 
   constexpr std::size_t sizeE = 2;
@@ -332,31 +303,31 @@ TEST_CASE("Batch aligned 2D2D derivative matches point version", "[loginterp][2d
   const std::array<double, 2> gridT{1.0, 2.0};
   const std::array<double, 2> gridX{1.0, 3.0};
 
-  const int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), 2, 2};
+  const int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), 2,
+                          2};
   const Layout layout = MakeLayout(extents, 4);
 
   std::array<double, sizeE * sizeE * 2 * 2> table{};
   auto value = [](int i, int j, double t, double x) {
-    return 2.0 + 0.1 * static_cast<double>(i) +
-           0.2 * static_cast<double>(j) +
-           0.3 * t +
-           0.4 * x;
+    return 2.0 + 0.1 * static_cast<double>(i) + 0.2 * static_cast<double>(j) +
+           0.3 * t + 0.4 * x;
   };
 
   for (std::size_t j = 0; j < sizeE; ++j) {
     for (std::size_t i = 0; i < sizeE; ++i) {
       for (int it = 0; it < 2; ++it) {
         for (int ix = 0; ix < 2; ++ix) {
-          table[layout.Offset(static_cast<int>(i), static_cast<int>(j), it, ix)] =
-              std::log10(value(static_cast<int>(i), static_cast<int>(j), gridT[it], gridX[ix]));
+          table[layout.Offset(static_cast<int>(i), static_cast<int>(j), it,
+                              ix)] =
+              std::log10(value(static_cast<int>(i), static_cast<int>(j),
+                               gridT[it], gridX[ix]));
         }
       }
     }
   }
 
-  Axis axes[2] = {
-      MakeAxis(gridT.data(), 2, AxisScale::Linear),
-      MakeAxis(gridX.data(), 2, AxisScale::Linear)};
+  Axis axes[2] = {MakeAxis(gridT.data(), 2, AxisScale::Linear),
+                  MakeAxis(gridX.data(), 2, AxisScale::Linear)};
 
   const std::array<double, count> logT{1.3, 1.7};
   const std::array<double, count> logX{1.5, 2.5};
@@ -366,15 +337,10 @@ TEST_CASE("Batch aligned 2D2D derivative matches point version", "[loginterp][2d
   std::array<double, planeSize * count> derivTBatch{};
   std::array<double, planeSize * count> derivXBatch{};
 
-  const int rcBatch = LogInterpolateDifferentiateSingleVariable2D2DCustomAligned(
-      sizeE,
-      logT.data(), logX.data(), count,
-      axes,
-      table.data(),
-      0.0,
-      interpBatch.data(),
-      derivTBatch.data(),
-      derivXBatch.data());
+  const int rcBatch =
+      LogInterpolateDifferentiateSingleVariable2D2DCustomAligned(
+          sizeE, logT.data(), logX.data(), count, axes, table.data(), 0.0,
+          interpBatch.data(), derivTBatch.data(), derivXBatch.data());
   REQUIRE(rcBatch == 0);
 
   for (std::size_t k = 0; k < count; ++k) {
@@ -382,21 +348,19 @@ TEST_CASE("Batch aligned 2D2D derivative matches point version", "[loginterp][2d
     std::array<double, planeSize> derivTPoint{};
     std::array<double, planeSize> derivXPoint{};
 
-    const int rcPoint = LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
-        sizeE,
-        logT[k], logX[k],
-        axes,
-        table.data(),
-        0.0,
-        interpPoint.data(),
-        derivTPoint.data(),
-        derivXPoint.data());
+    const int rcPoint =
+        LogInterpolateDifferentiateSingleVariable2D2DCustomAlignedPoint(
+            sizeE, logT[k], logX[k], axes, table.data(), 0.0,
+            interpPoint.data(), derivTPoint.data(), derivXPoint.data());
     REQUIRE(rcPoint == 0);
 
     for (std::size_t i = 0; i < planeSize; ++i) {
-      CHECK(interpBatch[k * planeSize + i] == Catch::Approx(interpPoint[i]).margin(Tol));
-      CHECK(derivTBatch[k * planeSize + i] == Catch::Approx(derivTPoint[i]).margin(Tol));
-      CHECK(derivXBatch[k * planeSize + i] == Catch::Approx(derivXPoint[i]).margin(Tol));
+      CHECK(interpBatch[k * planeSize + i] ==
+            Catch::Approx(interpPoint[i]).margin(Tol));
+      CHECK(derivTBatch[k * planeSize + i] ==
+            Catch::Approx(derivTPoint[i]).margin(Tol));
+      CHECK(derivXBatch[k * planeSize + i] ==
+            Catch::Approx(derivXPoint[i]).margin(Tol));
     }
   }
 }

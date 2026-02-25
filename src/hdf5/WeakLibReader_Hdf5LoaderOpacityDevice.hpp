@@ -5,26 +5,26 @@
 namespace WeakLibReader {
 namespace detail {
 
-inline void CopyGridToDevice(const WeakLibOpacityGrid& host, WeakLibOpacityGridDevice& device)
-{
+inline void CopyGridToDevice(const WeakLibOpacityGrid &host,
+                             WeakLibOpacityGridDevice &device) {
   device.nPoints = host.nPoints;
   device.scale = host.scale;
   CopyVectorToDevice(host.values, device.values);
 }
 
-inline void CopyThermoStateToDevice(const WeakLibThermoState& host,
-                                    WeakLibThermoStateDevice& device)
-{
+inline void CopyThermoStateToDevice(const WeakLibThermoState &host,
+                                    WeakLibThermoStateDevice &device) {
   device.dimensions = host.dimensions;
 
   for (int i = 0; i < 3; ++i) {
     CopyVectorToDevice(host.axisStorage[i], device.axisStorage[i]);
-    device.axes[i] = Axis{device.axisStorage[i].data(), host.axes[i].n, host.axes[i].scale};
+    device.axes[i] =
+        Axis{device.axisStorage[i].data(), host.axes[i].n, host.axes[i].scale};
   }
 }
 
-inline void CopyECTableToDevice(const WeakLibECTable& host, WeakLibECTableDevice& device)
-{
+inline void CopyECTableToDevice(const WeakLibECTable &host,
+                                WeakLibECTableDevice &device) {
   device.nE = host.nE;
   device.nRho = host.nRho;
   device.nT = host.nT;
@@ -46,8 +46,8 @@ inline void CopyECTableToDevice(const WeakLibECTable& host, WeakLibECTableDevice
   CopyVectorToDevice(host.rate, device.rate);
 }
 
-inline void CopyEmAbToDevice(const WeakLibEmAbTable& host, WeakLibEmAbTableDevice& device)
-{
+inline void CopyEmAbToDevice(const WeakLibEmAbTable &host,
+                             WeakLibEmAbTableDevice &device) {
   device.nOpacities = host.nOpacities;
   device.dimensions = host.dimensions;
   device.offsets = host.offsets;
@@ -63,9 +63,8 @@ inline void CopyEmAbToDevice(const WeakLibEmAbTable& host, WeakLibEmAbTableDevic
   }
 }
 
-inline void CopyScatIsoToDevice(const WeakLibScatIsoTable& host,
-                                WeakLibScatIsoTableDevice& device)
-{
+inline void CopyScatIsoToDevice(const WeakLibScatIsoTable &host,
+                                WeakLibScatIsoTableDevice &device) {
   device.nOpacities = host.nOpacities;
   device.nMoments = host.nMoments;
   device.dimensions = host.dimensions;
@@ -81,10 +80,8 @@ inline void CopyScatIsoToDevice(const WeakLibScatIsoTable& host,
   }
 }
 
-inline void CopyScatKernelToDevice(
-    const WeakLibScatKernelTable& host,
-    WeakLibScatKernelTableDevice& device)
-{
+inline void CopyScatKernelToDevice(const WeakLibScatKernelTable &host,
+                                   WeakLibScatKernelTableDevice &device) {
   device.nOpacities = host.nOpacities;
   device.nMoments = host.nMoments;
   device.dimensions = host.dimensions;
@@ -97,19 +94,24 @@ inline void CopyScatKernelToDevice(
 
 } // namespace detail
 
-inline WeakLibOpacityTableDevice MakeDeviceCopy(const WeakLibOpacityTable& host)
-{
+inline WeakLibOpacityTableDevice
+MakeDeviceCopy(const WeakLibOpacityTable &host) {
   WeakLibOpacityTableDevice device{};
 
   detail::CopyGridToDevice(host.energyGrid, device.energyGrid);
   detail::CopyGridToDevice(host.etaGrid, device.etaGrid);
   detail::CopyThermoStateToDevice(host.thermoState, device.thermoState);
 
-  if (host.emAb.IsLoaded())    detail::CopyEmAbToDevice(host.emAb, device.emAb);
-  if (host.scatIso.IsLoaded()) detail::CopyScatIsoToDevice(host.scatIso, device.scatIso);
-  if (host.scatNES.IsLoaded())  detail::CopyScatKernelToDevice(host.scatNES, device.scatNES);
-  if (host.scatPair.IsLoaded()) detail::CopyScatKernelToDevice(host.scatPair, device.scatPair);
-  if (host.scatBrem.IsLoaded()) detail::CopyScatKernelToDevice(host.scatBrem, device.scatBrem);
+  if (host.emAb.IsLoaded())
+    detail::CopyEmAbToDevice(host.emAb, device.emAb);
+  if (host.scatIso.IsLoaded())
+    detail::CopyScatIsoToDevice(host.scatIso, device.scatIso);
+  if (host.scatNES.IsLoaded())
+    detail::CopyScatKernelToDevice(host.scatNES, device.scatNES);
+  if (host.scatPair.IsLoaded())
+    detail::CopyScatKernelToDevice(host.scatPair, device.scatPair);
+  if (host.scatBrem.IsLoaded())
+    detail::CopyScatKernelToDevice(host.scatBrem, device.scatBrem);
 
   return device;
 }

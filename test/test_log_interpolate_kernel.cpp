@@ -1,10 +1,10 @@
 #define SIMPLE_CATCH_NO_MAIN
 #include <catch2/catch_test_macros.hpp>
 
-#include "interp/WeakLibReader_InterpLogTable.hpp"
 #include "base/WeakLibReader_InterpBasis.hpp"
 #include "base/WeakLibReader_Layout.hpp"
 #include "base/WeakLibReader_Math.hpp"
+#include "interp/WeakLibReader_InterpLogTable.hpp"
 #include "test_constants.hpp"
 
 #include <array>
@@ -17,12 +17,12 @@ using test_constants::Tol;
 // 1D Interpolation and 2D Derivative Kernel Tests (InterpLogTable.hpp)
 // =============================================================================
 
-TEST_CASE("LinearInterp1DPoint matches linear expectation", "[interp][1d]")
-{
+TEST_CASE("LinearInterp1DPoint matches linear expectation", "[interp][1d]") {
   using namespace WeakLibReader;
 
   // 1D table with log10 values
-  const std::array<double, 3> table{std::log10(2.0), std::log10(4.0), std::log10(8.0)};
+  const std::array<double, 3> table{std::log10(2.0), std::log10(4.0),
+                                    std::log10(8.0)};
   const int extents[1] = {3};
   const Layout layout = MakeLayout(extents, 1);
 
@@ -33,15 +33,15 @@ TEST_CASE("LinearInterp1DPoint matches linear expectation", "[interp][1d]")
 
   const double result = LinearInterp1DPoint(i0, d0, os, table.data(), layout);
 
-  // Expected: 10^(Linear(log10(2), log10(4), 0.5)) = 10^(0.5*log10(2) + 0.5*log10(4))
+  // Expected: 10^(Linear(log10(2), log10(4), 0.5)) = 10^(0.5*log10(2) +
+  // 0.5*log10(4))
   const double logExpected = Linear(table[0], table[1], d0);
   const double expected = std::pow(10.0, logExpected);
 
   CHECK(result == Catch::Approx(expected).margin(Tol));
 }
 
-TEST_CASE("LinearInterp1DPoint with offset", "[interp][1d]")
-{
+TEST_CASE("LinearInterp1DPoint with offset", "[interp][1d]") {
   using namespace WeakLibReader;
 
   const std::array<double, 2> table{std::log10(5.0), std::log10(10.0)};
@@ -59,8 +59,7 @@ TEST_CASE("LinearInterp1DPoint with offset", "[interp][1d]")
   CHECK(result == Catch::Approx(expected).margin(Tol));
 }
 
-TEST_CASE("LinearInterp1DPoint at boundaries", "[interp][1d]")
-{
+TEST_CASE("LinearInterp1DPoint at boundaries", "[interp][1d]") {
   using namespace WeakLibReader;
 
   const std::array<double, 2> table{std::log10(3.0), std::log10(6.0)};
@@ -76,19 +75,18 @@ TEST_CASE("LinearInterp1DPoint at boundaries", "[interp][1d]")
         Catch::Approx(6.0).margin(Tol));
 }
 
-TEST_CASE("LinearInterpDeriv2DPoint returns correct interpolant", "[interp][deriv][2d]")
-{
+TEST_CASE("LinearInterpDeriv2DPoint returns correct interpolant",
+          "[interp][deriv][2d]") {
   using namespace WeakLibReader;
 
-  const std::array<double, 4> table{
-      std::log10(2.0), std::log10(3.0),
-      std::log10(4.0), std::log10(5.0)};
+  const std::array<double, 4> table{std::log10(2.0), std::log10(3.0),
+                                    std::log10(4.0), std::log10(5.0)};
   const int extents[2] = {2, 2};
   const Layout layout = MakeLayout(extents, 2);
 
   const int i0 = 0, i1 = 0;
   const double d0 = 0.5, d1 = 0.5;
-  const double a0 = 1.0, a1 = 1.0;  // axis scale factors
+  const double a0 = 1.0, a1 = 1.0; // axis scale factors
   const double os = 0.0;
 
   double interpolant, dIdX0, dIdX1;
@@ -96,23 +94,24 @@ TEST_CASE("LinearInterpDeriv2DPoint returns correct interpolant", "[interp][deri
                            interpolant, dIdX0, dIdX1);
 
   // Verify interpolant matches LinearInterp2DPoint
-  const double expected = LinearInterp2DPoint(i0, i1, d0, d1, os, table.data(), layout);
+  const double expected =
+      LinearInterp2DPoint(i0, i1, d0, d1, os, table.data(), layout);
   CHECK(interpolant == Catch::Approx(expected).margin(Tol));
 }
 
-TEST_CASE("LinearInterpDeriv2DPoint derivatives match numerical", "[interp][deriv][2d][numerical]")
-{
+TEST_CASE("LinearInterpDeriv2DPoint derivatives match numerical",
+          "[interp][deriv][2d][numerical]") {
   using namespace WeakLibReader;
 
-  const std::array<double, 4> table{
-      std::log10(2.0), std::log10(3.0),
-      std::log10(4.0), std::log10(5.0)};
+  const std::array<double, 4> table{std::log10(2.0), std::log10(3.0),
+                                    std::log10(4.0), std::log10(5.0)};
   const int extents[2] = {2, 2};
   const Layout layout = MakeLayout(extents, 2);
 
   const double d0 = 0.4, d1 = 0.6;
-  // a0, a1 encode axis scale factors; use Ln10 to get derivative w.r.t. fractional coordinate
-  // since d(10^logValue)/d(d0) = 10^logValue * ln(10) * d(logValue)/d(d0)
+  // a0, a1 encode axis scale factors; use Ln10 to get derivative w.r.t.
+  // fractional coordinate since d(10^logValue)/d(d0) = 10^logValue * ln(10) *
+  // d(logValue)/d(d0)
   const double a0 = math::Ln10, a1 = math::Ln10;
   const double os = 0.0;
   const double h = 1.0e-7;
@@ -122,26 +121,28 @@ TEST_CASE("LinearInterpDeriv2DPoint derivatives match numerical", "[interp][deri
                            interpolant, dIdX0, dIdX1);
 
   // Numerical derivative w.r.t. d0
-  const double fPlusX0 = LinearInterp2DPoint(0, 0, d0 + h, d1, os, table.data(), layout);
-  const double fMinusX0 = LinearInterp2DPoint(0, 0, d0 - h, d1, os, table.data(), layout);
+  const double fPlusX0 =
+      LinearInterp2DPoint(0, 0, d0 + h, d1, os, table.data(), layout);
+  const double fMinusX0 =
+      LinearInterp2DPoint(0, 0, d0 - h, d1, os, table.data(), layout);
   const double numericalX0 = (fPlusX0 - fMinusX0) / (2.0 * h);
 
   // Numerical derivative w.r.t. d1
-  const double fPlusX1 = LinearInterp2DPoint(0, 0, d0, d1 + h, os, table.data(), layout);
-  const double fMinusX1 = LinearInterp2DPoint(0, 0, d0, d1 - h, os, table.data(), layout);
+  const double fPlusX1 =
+      LinearInterp2DPoint(0, 0, d0, d1 + h, os, table.data(), layout);
+  const double fMinusX1 =
+      LinearInterp2DPoint(0, 0, d0, d1 - h, os, table.data(), layout);
   const double numericalX1 = (fPlusX1 - fMinusX1) / (2.0 * h);
 
   CHECK(dIdX0 == Catch::Approx(numericalX0).epsilon(1.0e-6));
   CHECK(dIdX1 == Catch::Approx(numericalX1).epsilon(1.0e-6));
 }
 
-TEST_CASE("LinearInterpDeriv2DPoint with offset", "[interp][deriv][2d]")
-{
+TEST_CASE("LinearInterpDeriv2DPoint with offset", "[interp][deriv][2d]") {
   using namespace WeakLibReader;
 
-  const std::array<double, 4> table{
-      std::log10(10.0), std::log10(20.0),
-      std::log10(30.0), std::log10(40.0)};
+  const std::array<double, 4> table{std::log10(10.0), std::log10(20.0),
+                                    std::log10(30.0), std::log10(40.0)};
   const int extents[2] = {2, 2};
   const Layout layout = MakeLayout(extents, 2);
 
@@ -156,17 +157,22 @@ TEST_CASE("LinearInterpDeriv2DPoint with offset", "[interp][deriv][2d]")
                            interpolant, dIdX0, dIdX1);
 
   // Interpolant should match with offset
-  const double expectedInterp = LinearInterp2DPoint(0, 0, d0, d1, os, table.data(), layout);
+  const double expectedInterp =
+      LinearInterp2DPoint(0, 0, d0, d1, os, table.data(), layout);
   CHECK(interpolant == Catch::Approx(expectedInterp).margin(Tol));
 
   // Compute numerical derivatives (w.r.t. fractional coordinates)
   const double h = 1.0e-7;
-  const double fPlusX0 = LinearInterp2DPoint(0, 0, d0 + h, d1, os, table.data(), layout);
-  const double fMinusX0 = LinearInterp2DPoint(0, 0, d0 - h, d1, os, table.data(), layout);
+  const double fPlusX0 =
+      LinearInterp2DPoint(0, 0, d0 + h, d1, os, table.data(), layout);
+  const double fMinusX0 =
+      LinearInterp2DPoint(0, 0, d0 - h, d1, os, table.data(), layout);
   const double numericalX0 = (fPlusX0 - fMinusX0) / (2.0 * h);
 
-  const double fPlusX1 = LinearInterp2DPoint(0, 0, d0, d1 + h, os, table.data(), layout);
-  const double fMinusX1 = LinearInterp2DPoint(0, 0, d0, d1 - h, os, table.data(), layout);
+  const double fPlusX1 =
+      LinearInterp2DPoint(0, 0, d0, d1 + h, os, table.data(), layout);
+  const double fMinusX1 =
+      LinearInterp2DPoint(0, 0, d0, d1 - h, os, table.data(), layout);
   const double numericalX1 = (fPlusX1 - fMinusX1) / (2.0 * h);
 
   // dIdX0 should be numericalX0 * scale0 (since a0 = Ln10 * scale0)
@@ -178,8 +184,8 @@ TEST_CASE("LinearInterpDeriv2DPoint with offset", "[interp][deriv][2d]")
 // Aligned Array Interpolation Tests (InterpLogTable.hpp)
 // =============================================================================
 
-TEST_CASE("LinearInterp2D3DArray1DAlignedPoint matches slice extraction", "[interp][aligned][3d]")
-{
+TEST_CASE("LinearInterp2D3DArray1DAlignedPoint matches slice extraction",
+          "[interp][aligned][3d]") {
   using namespace WeakLibReader;
 
   // 3D array: 2 x 3 x 4 (iFixed x i0 x i1)
@@ -204,9 +210,10 @@ TEST_CASE("LinearInterp2D3DArray1DAlignedPoint matches slice extraction", "[inte
         iFixed, i0, i1, d0, d1, os, table.data(), layout);
 
     // Manual slice: start at offset for iFixed=0, use 2D layout (3x4)
-    const double* slice = table.data() + layout.Offset(iFixed, 0, 0);
+    const double *slice = table.data() + layout.Offset(iFixed, 0, 0);
     const Layout sliceLayout = SliceLeading(layout, 1);
-    const double expected = LinearInterp2DPoint(i0, i1, d0, d1, os, slice, sliceLayout);
+    const double expected =
+        LinearInterp2DPoint(i0, i1, d0, d1, os, slice, sliceLayout);
 
     CHECK(result == Catch::Approx(expected).margin(Tol));
   }
@@ -218,16 +225,17 @@ TEST_CASE("LinearInterp2D3DArray1DAlignedPoint matches slice extraction", "[inte
     const double result = LinearInterp2D3DArray1DAlignedPoint(
         iFixed, i0, i1, d0, d1, os, table.data(), layout);
 
-    const double* slice = table.data() + layout.Offset(iFixed, 0, 0);
+    const double *slice = table.data() + layout.Offset(iFixed, 0, 0);
     const Layout sliceLayout = SliceLeading(layout, 1);
-    const double expected = LinearInterp2DPoint(i0, i1, d0, d1, os, slice, sliceLayout);
+    const double expected =
+        LinearInterp2DPoint(i0, i1, d0, d1, os, slice, sliceLayout);
 
     CHECK(result == Catch::Approx(expected).margin(Tol));
   }
 }
 
-TEST_CASE("LinearInterp3D4DArray1DAlignedPoint matches slice extraction", "[interp][aligned][4d]")
-{
+TEST_CASE("LinearInterp3D4DArray1DAlignedPoint matches slice extraction",
+          "[interp][aligned][4d]") {
   using namespace WeakLibReader;
 
   // 4D array: 2 x 3 x 3 x 3 (iFixed x i0 x i1 x i2)
@@ -248,16 +256,17 @@ TEST_CASE("LinearInterp3D4DArray1DAlignedPoint matches slice extraction", "[inte
     const double result = LinearInterp3D4DArray1DAlignedPoint(
         iFixed, i0, i1, i2, d0, d1, d2, os, table.data(), layout);
 
-    const double* slice = table.data() + layout.Offset(iFixed, 0, 0, 0);
+    const double *slice = table.data() + layout.Offset(iFixed, 0, 0, 0);
     const Layout sliceLayout = SliceLeading(layout, 1);
-    const double expected = LinearInterp3DPoint(i0, i1, i2, d0, d1, d2, os, slice, sliceLayout);
+    const double expected =
+        LinearInterp3DPoint(i0, i1, i2, d0, d1, d2, os, slice, sliceLayout);
 
     CHECK(result == Catch::Approx(expected).margin(Tol));
   }
 }
 
-TEST_CASE("LinearInterp3D5DArray2DAlignedPoint matches slice extraction", "[interp][aligned][5d]")
-{
+TEST_CASE("LinearInterp3D5DArray2DAlignedPoint matches slice extraction",
+          "[interp][aligned][5d]") {
   using namespace WeakLibReader;
 
   // 5D array: 2 x 2 x 3 x 3 x 3 (iFixed0 x iFixed1 x i0 x i1 x i2)
@@ -280,17 +289,19 @@ TEST_CASE("LinearInterp3D5DArray2DAlignedPoint matches slice extraction", "[inte
       const double result = LinearInterp3D5DArray2DAlignedPoint(
           iFixed0, iFixed1, i0, i1, i2, d0, d1, d2, os, table.data(), layout);
 
-      const double* slice = table.data() + layout.Offset(iFixed0, iFixed1, 0, 0, 0);
+      const double *slice =
+          table.data() + layout.Offset(iFixed0, iFixed1, 0, 0, 0);
       const Layout sliceLayout = SliceLeading(layout, 2);
-      const double expected = LinearInterp3DPoint(i0, i1, i2, d0, d1, d2, os, slice, sliceLayout);
+      const double expected =
+          LinearInterp3DPoint(i0, i1, i2, d0, d1, d2, os, slice, sliceLayout);
 
       CHECK(result == Catch::Approx(expected).margin(Tol));
     }
   }
 }
 
-TEST_CASE("LinearInterp4D5DArray1DAlignedPoint matches slice extraction", "[interp][aligned][5d]")
-{
+TEST_CASE("LinearInterp4D5DArray1DAlignedPoint matches slice extraction",
+          "[interp][aligned][5d]") {
   using namespace WeakLibReader;
 
   // 5D array: 2 x 3 x 3 x 3 x 3 (iFixed x i0 x i1 x i2 x i3)
@@ -311,9 +322,10 @@ TEST_CASE("LinearInterp4D5DArray1DAlignedPoint matches slice extraction", "[inte
     const double result = LinearInterp4D5DArray1DAlignedPoint(
         iFixed, i0, i1, i2, i3, d0, d1, d2, d3, os, table.data(), layout);
 
-    const double* slice = table.data() + layout.Offset(iFixed, 0, 0, 0, 0);
+    const double *slice = table.data() + layout.Offset(iFixed, 0, 0, 0, 0);
     const Layout sliceLayout = SliceLeading(layout, 1);
-    const double expected = LinearInterp4DPoint(i0, i1, i2, i3, d0, d1, d2, d3, os, slice, sliceLayout);
+    const double expected = LinearInterp4DPoint(i0, i1, i2, i3, d0, d1, d2, d3,
+                                                os, slice, sliceLayout);
 
     CHECK(result == Catch::Approx(expected).margin(Tol));
   }

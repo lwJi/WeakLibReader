@@ -3,16 +3,16 @@
 #include "hdf5/WeakLibReader_Hdf5LoaderDetail.hpp"
 
 namespace WeakLibReader {
-inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
-                                               WeakLibScatIsoTable& scatIso,
-                                               const WeakLibOpacityGrid& energyGrid,
-                                               const WeakLibThermoState& thermoState)
-{
+inline Hdf5LoadStatus
+LoadWeakLibScatIsoTable(hid_t file, WeakLibScatIsoTable &scatIso,
+                        const WeakLibOpacityGrid &energyGrid,
+                        const WeakLibThermoState &thermoState) {
   if (!detail::GroupExists(file, "Scat_Iso_Kernels")) {
     return Hdf5LoadStatus::DatasetOpenFailed;
   }
 
-  detail::ScopedHandle group(H5Gopen(file, "Scat_Iso_Kernels", H5P_DEFAULT), H5Gclose);
+  detail::ScopedHandle group(H5Gopen(file, "Scat_Iso_Kernels", H5P_DEFAULT),
+                             H5Gclose);
   if (!group.Valid()) {
     return Hdf5LoadStatus::DatasetOpenFailed;
   }
@@ -25,21 +25,23 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
   // Dimensions: [nE, nMom, nRho, nT, nYe]
   scatIso.dimensions[0] = energyGrid.nPoints;
   scatIso.dimensions[1] = scatIso.nMoments;
-  scatIso.dimensions[2] = thermoState.dimensions[0];  // nRho
-  scatIso.dimensions[3] = thermoState.dimensions[1];  // nT
-  scatIso.dimensions[4] = thermoState.dimensions[2];  // nYe
+  scatIso.dimensions[2] = thermoState.dimensions[0]; // nRho
+  scatIso.dimensions[3] = thermoState.dimensions[1]; // nT
+  scatIso.dimensions[4] = thermoState.dimensions[2]; // nYe
 
   std::vector<std::string> unitVec;
   if (!detail::ReadStringArray(group.Get(), "Units", unitVec) ||
       unitVec.size() < static_cast<size_t>(scatIso.nOpacities)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
-  for (int i = 0; i < WeakLibScatIsoTable::NumSpecies && i < scatIso.nOpacities; ++i) {
+  for (int i = 0; i < WeakLibScatIsoTable::NumSpecies && i < scatIso.nOpacities;
+       ++i) {
     scatIso.units[i] = unitVec[i];
   }
 
   const std::array<int, 2> offsetDims{{scatIso.nOpacities, scatIso.nMoments}};
-  if (!detail::ReadWeakLibArrayNd<double, 2>(group.Get(), "Offsets", scatIso.offsets, offsetDims)) {
+  if (!detail::ReadWeakLibArrayNd<double, 2>(group.Get(), "Offsets",
+                                             scatIso.offsets, offsetDims)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
@@ -47,22 +49,30 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
   {
     detail::ScopedH5ErrorSuppressor suppress;
 
-    detail::ReadScalarInt(group.Get(), "weak_magnetism_corr", scatIso.weakMagnetismCorrections);
-    detail::ReadScalarInt(group.Get(), "ion_ion_corr", scatIso.ionIonCorrections);
-    detail::ReadScalarInt(group.Get(), "many_body_corr", scatIso.manyBodyCorrections);
+    detail::ReadScalarInt(group.Get(), "weak_magnetism_corr",
+                          scatIso.weakMagnetismCorrections);
+    detail::ReadScalarInt(group.Get(), "ion_ion_corr",
+                          scatIso.ionIonCorrections);
+    detail::ReadScalarInt(group.Get(), "many_body_corr",
+                          scatIso.manyBodyCorrections);
 
-    detail::ScopedHandle ds(H5Dopen(group.Get(), "ga_strange", H5P_DEFAULT), H5Dclose);
+    detail::ScopedHandle ds(H5Dopen(group.Get(), "ga_strange", H5P_DEFAULT),
+                            H5Dclose);
     if (ds.Valid()) {
-      H5Dread(ds.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, &scatIso.gaStrange);
+      H5Dread(ds.Get(), H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+              &scatIso.gaStrange);
     }
   }
 
   scatIso.names[0] = "Electron Neutrino";
   scatIso.names[1] = "Electron Antineutrino";
 
-  for (int iSpecies = 0; iSpecies < WeakLibScatIsoTable::NumSpecies && iSpecies < scatIso.nOpacities; ++iSpecies) {
-    if (!detail::ReadWeakLibArrayNd<double, 5>(group.Get(), scatIso.names[iSpecies].c_str(),
-                                               scatIso.kernels[iSpecies], scatIso.dimensions)) {
+  for (int iSpecies = 0; iSpecies < WeakLibScatIsoTable::NumSpecies &&
+                         iSpecies < scatIso.nOpacities;
+       ++iSpecies) {
+    if (!detail::ReadWeakLibArrayNd<double, 5>(
+            group.Get(), scatIso.names[iSpecies].c_str(),
+            scatIso.kernels[iSpecies], scatIso.dimensions)) {
       return Hdf5LoadStatus::DatasetReadFailed;
     }
   }
@@ -83,20 +93,17 @@ inline Hdf5LoadStatus LoadWeakLibScatIsoTable(hid_t file,
 /// @param dims       5D dimensions: [nE, nMom, nRho, nT, nYe]
 /// @param iMom       Moment index to extract (0-based)
 /// @return           Contiguous 4D array [nE, nRho, nT, nYe]
-inline std::vector<double> ExtractIsoMomentSlice4D(
-    const double* kernel5d,
-    const std::array<int, 5>& dims,
-    int iMom)
-{
-  const int nE   = dims[0];
+inline std::vector<double>
+ExtractIsoMomentSlice4D(const double *kernel5d, const std::array<int, 5> &dims,
+                        int iMom) {
+  const int nE = dims[0];
   const int nMom = dims[1];
   const int nRho = dims[2];
-  const int nT   = dims[3];
-  const int nYe  = dims[4];
+  const int nT = dims[3];
+  const int nYe = dims[4];
 
   const Layout layout5d = MakeLayout(dims.data(), 5);
-  const std::size_t size4d =
-      static_cast<std::size_t>(nE) * nRho * nT * nYe;
+  const std::size_t size4d = static_cast<std::size_t>(nE) * nRho * nT * nYe;
   std::vector<double> result(size4d);
 
   const std::array<int, 4> dims4d{{nE, nRho, nT, nYe}};
@@ -119,13 +126,10 @@ inline std::vector<double> ExtractIsoMomentSlice4D(
 
 namespace detail {
 
-inline Hdf5LoadStatus LoadScatKernelTable(
-    hid_t file,
-    const char* groupName,
-    const char* kernelDatasetName,
-    const std::array<int, 5>& dims,
-    WeakLibScatKernelTable& table)
-{
+inline Hdf5LoadStatus LoadScatKernelTable(hid_t file, const char *groupName,
+                                          const char *kernelDatasetName,
+                                          const std::array<int, 5> &dims,
+                                          WeakLibScatKernelTable &table) {
   if (!GroupExists(file, groupName)) {
     return Hdf5LoadStatus::DatasetOpenFailed;
   }
@@ -150,12 +154,14 @@ inline Hdf5LoadStatus LoadScatKernelTable(
   table.unit = unitVec[0];
 
   const std::array<int, 2> offsetDims{{table.nOpacities, table.nMoments}};
-  if (!ReadWeakLibArrayNd<double, 2>(group.Get(), "Offsets", table.offsets, offsetDims)) {
+  if (!ReadWeakLibArrayNd<double, 2>(group.Get(), "Offsets", table.offsets,
+                                     offsetDims)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
   table.name = kernelDatasetName;
-  if (!ReadWeakLibArrayNd<double, 5>(group.Get(), kernelDatasetName, table.kernel, table.dimensions)) {
+  if (!ReadWeakLibArrayNd<double, 5>(group.Get(), kernelDatasetName,
+                                     table.kernel, table.dimensions)) {
     return Hdf5LoadStatus::DatasetReadFailed;
   }
 
@@ -166,18 +172,17 @@ inline Hdf5LoadStatus LoadScatKernelTable(
 
 } // namespace detail
 
-inline Hdf5LoadStatus LoadWeakLibScatNESTable(hid_t file,
-                                               WeakLibScatNESTable& scatNES,
-                                               const WeakLibOpacityGrid& energyGrid,
-                                               const WeakLibOpacityGrid& etaGrid,
-                                               const WeakLibThermoState& thermoState)
-{
-  const std::array<int, 5> dims{{
-      energyGrid.nPoints, energyGrid.nPoints, 0 /*placeholder*/,
-      thermoState.dimensions[1], etaGrid.nPoints}};
+inline Hdf5LoadStatus
+LoadWeakLibScatNESTable(hid_t file, WeakLibScatNESTable &scatNES,
+                        const WeakLibOpacityGrid &energyGrid,
+                        const WeakLibOpacityGrid &etaGrid,
+                        const WeakLibThermoState &thermoState) {
+  const std::array<int, 5> dims{{energyGrid.nPoints, energyGrid.nPoints,
+                                 0 /*placeholder*/, thermoState.dimensions[1],
+                                 etaGrid.nPoints}};
 
-  Hdf5LoadStatus status = detail::LoadScatKernelTable(
-      file, "Scat_NES_Kernels", "Kernels", dims, scatNES);
+  Hdf5LoadStatus status = detail::LoadScatKernelTable(file, "Scat_NES_Kernels",
+                                                      "Kernels", dims, scatNES);
   if (status != Hdf5LoadStatus::Success) {
     return status;
   }
@@ -185,7 +190,8 @@ inline Hdf5LoadStatus LoadWeakLibScatNESTable(hid_t file,
   // NPS flag is optional.
   {
     detail::ScopedH5ErrorSuppressor suppress;
-    detail::ScopedHandle group(H5Gopen(file, "Scat_NES_Kernels", H5P_DEFAULT), H5Gclose);
+    detail::ScopedHandle group(H5Gopen(file, "Scat_NES_Kernels", H5P_DEFAULT),
+                               H5Gclose);
     if (group.Valid()) {
       detail::ReadScalarInt(group.Get(), "NPS", scatNES.nps);
     }
@@ -194,31 +200,29 @@ inline Hdf5LoadStatus LoadWeakLibScatNESTable(hid_t file,
   return Hdf5LoadStatus::Success;
 }
 
-inline Hdf5LoadStatus LoadWeakLibScatPairTable(hid_t file,
-                                                WeakLibScatPairTable& scatPair,
-                                                const WeakLibOpacityGrid& energyGrid,
-                                                const WeakLibOpacityGrid& etaGrid,
-                                                const WeakLibThermoState& thermoState)
-{
-  const std::array<int, 5> dims{{
-      energyGrid.nPoints, energyGrid.nPoints, 0 /*placeholder*/,
-      thermoState.dimensions[1], etaGrid.nPoints}};
+inline Hdf5LoadStatus
+LoadWeakLibScatPairTable(hid_t file, WeakLibScatPairTable &scatPair,
+                         const WeakLibOpacityGrid &energyGrid,
+                         const WeakLibOpacityGrid &etaGrid,
+                         const WeakLibThermoState &thermoState) {
+  const std::array<int, 5> dims{{energyGrid.nPoints, energyGrid.nPoints,
+                                 0 /*placeholder*/, thermoState.dimensions[1],
+                                 etaGrid.nPoints}};
 
-  return detail::LoadScatKernelTable(
-      file, "Scat_Pair_Kernels", "Kernels", dims, scatPair);
+  return detail::LoadScatKernelTable(file, "Scat_Pair_Kernels", "Kernels", dims,
+                                     scatPair);
 }
 
-inline Hdf5LoadStatus LoadWeakLibScatBremTable(hid_t file,
-                                                WeakLibScatBremTable& scatBrem,
-                                                const WeakLibOpacityGrid& energyGrid,
-                                                const WeakLibThermoState& thermoState)
-{
-  const std::array<int, 5> dims{{
-      energyGrid.nPoints, energyGrid.nPoints, 0 /*placeholder*/,
-      thermoState.dimensions[0], thermoState.dimensions[1]}};
+inline Hdf5LoadStatus
+LoadWeakLibScatBremTable(hid_t file, WeakLibScatBremTable &scatBrem,
+                         const WeakLibOpacityGrid &energyGrid,
+                         const WeakLibThermoState &thermoState) {
+  const std::array<int, 5> dims{{energyGrid.nPoints, energyGrid.nPoints,
+                                 0 /*placeholder*/, thermoState.dimensions[0],
+                                 thermoState.dimensions[1]}};
 
-  return detail::LoadScatKernelTable(
-      file, "Scat_Brem_Kernels", "S_sigma", dims, scatBrem);
+  return detail::LoadScatKernelTable(file, "Scat_Brem_Kernels", "S_sigma", dims,
+                                     scatBrem);
 }
 
 } // namespace WeakLibReader

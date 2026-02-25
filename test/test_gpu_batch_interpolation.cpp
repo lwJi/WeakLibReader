@@ -3,10 +3,10 @@
 
 #include <AMReX_Gpu.H>
 
-#include "interp/WeakLibReader_LogInterpolate.hpp"
-#include "interp/WeakLibReader_InterpLogTable.hpp"
-#include "base/WeakLibReader_Layout.hpp"
 #include "base/WeakLibReader_AxisTypes.hpp"
+#include "base/WeakLibReader_Layout.hpp"
+#include "interp/WeakLibReader_InterpLogTable.hpp"
+#include "interp/WeakLibReader_LogInterpolate.hpp"
 #include "test_amrex_guard.hpp"
 #include "test_constants.hpp"
 
@@ -19,22 +19,18 @@ using test_constants::Tol;
 namespace {
 
 template <typename T, std::size_t N>
-amrex::Gpu::DeviceVector<T> ToDevice(const std::array<T, N>& host)
-{
+amrex::Gpu::DeviceVector<T> ToDevice(const std::array<T, N> &host) {
   amrex::Gpu::DeviceVector<T> dev(N);
-  amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                   host.data(), host.data() + N,
+  amrex::Gpu::copy(amrex::Gpu::hostToDevice, host.data(), host.data() + N,
                    dev.data());
   return dev;
 }
 
 template <typename T>
-std::vector<T> ToHost(const amrex::Gpu::DeviceVector<T>& dev)
-{
+std::vector<T> ToHost(const amrex::Gpu::DeviceVector<T> &dev) {
   std::vector<T> host(dev.size());
-  amrex::Gpu::copy(amrex::Gpu::deviceToHost,
-                   dev.data(), dev.data() + dev.size(),
-                   host.data());
+  amrex::Gpu::copy(amrex::Gpu::deviceToHost, dev.data(),
+                   dev.data() + dev.size(), host.data());
   return host;
 }
 
@@ -48,29 +44,25 @@ std::vector<T> ToHost(const amrex::Gpu::DeviceVector<T>& dev)
 // reference values.
 // =============================================================================
 
-TEST_CASE("GPU: Batch 2D log interpolation", "[gpu][batch][2d]")
-{
+TEST_CASE("GPU: Batch 2D log interpolation", "[gpu][batch][2d]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
 
   constexpr std::size_t count = 3;
   const std::array<double, 2> gridX{1.0, 2.0};
   const std::array<double, 2> gridY{1.0, 3.0};
-  const std::array<double, 4> table{
-      std::log10(2.0), std::log10(3.0),
-      std::log10(4.0), std::log10(5.0)};
+  const std::array<double, 4> table{std::log10(2.0), std::log10(3.0),
+                                    std::log10(4.0), std::log10(5.0)};
 
   std::array<double, count> x0{1.0, 1.5, 2.0};
   std::array<double, count> x1{1.0, 2.0, 3.0};
 
   // --- Host reference ---
   std::array<double, count> hostOut{};
-  Axis hostAxes[2] = {
-      MakeAxis(gridX.data(), 2, AxisScale::Linear),
-      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
+  Axis hostAxes[2] = {MakeAxis(gridX.data(), 2, AxisScale::Linear),
+                      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
   const int hostRc = LogInterpolateSingleVariable2DCustom(
-      x0.data(), x1.data(), count,
-      hostAxes, table.data(), 0.0, hostOut.data());
+      x0.data(), x1.data(), count, hostAxes, table.data(), 0.0, hostOut.data());
   REQUIRE(hostRc == 0);
 
   // --- Device copy ---
@@ -84,16 +76,15 @@ TEST_CASE("GPU: Batch 2D log interpolation", "[gpu][batch][2d]")
   Axis ax0 = MakeAxis(d_gridX.data(), 2, AxisScale::Linear);
   Axis ax1 = MakeAxis(d_gridY.data(), 2, AxisScale::Linear);
 
-  const double* p_x0 = d_x0.data();
-  const double* p_x1 = d_x1.data();
-  const double* p_table = d_table.data();
-  double* p_out = d_out.data();
+  const double *p_x0 = d_x0.data();
+  const double *p_x1 = d_x1.data();
+  const double *p_table = d_table.data();
+  double *p_out = d_out.data();
 
-  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE (int) {
+  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE(int) {
     Axis axes[2] = {ax0, ax1};
-    LogInterpolateSingleVariable2DCustom(
-        p_x0, p_x1, count,
-        axes, p_table, 0.0, p_out);
+    LogInterpolateSingleVariable2DCustom(p_x0, p_x1, count, axes, p_table, 0.0,
+                                         p_out);
   });
   amrex::Gpu::streamSynchronize();
 
@@ -104,8 +95,7 @@ TEST_CASE("GPU: Batch 2D log interpolation", "[gpu][batch][2d]")
   }
 }
 
-TEST_CASE("GPU: Batch 3D log interpolation", "[gpu][batch][3d]")
-{
+TEST_CASE("GPU: Batch 3D log interpolation", "[gpu][batch][3d]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
 
@@ -120,8 +110,8 @@ TEST_CASE("GPU: Batch 3D log interpolation", "[gpu][batch][3d]")
   for (int ix = 0; ix < 2; ++ix) {
     for (int iy = 0; iy < 2; ++iy) {
       for (int iz = 0; iz < 2; ++iz) {
-        table[layout.Offset(ix, iy, iz)] =
-            std::log10(2.0 + 0.5 * gridX[ix] + 0.3 * gridY[iy] + 0.2 * gridZ[iz]);
+        table[layout.Offset(ix, iy, iz)] = std::log10(
+            2.0 + 0.5 * gridX[ix] + 0.3 * gridY[iy] + 0.2 * gridZ[iz]);
       }
     }
   }
@@ -132,13 +122,12 @@ TEST_CASE("GPU: Batch 3D log interpolation", "[gpu][batch][3d]")
 
   // --- Host reference ---
   std::array<double, count> hostOut{};
-  Axis hostAxes[3] = {
-      MakeAxis(gridX.data(), 2, AxisScale::Log10),
-      MakeAxis(gridY.data(), 2, AxisScale::Log10),
-      MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
+  Axis hostAxes[3] = {MakeAxis(gridX.data(), 2, AxisScale::Log10),
+                      MakeAxis(gridY.data(), 2, AxisScale::Log10),
+                      MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
   const int hostRc = LogInterpolateSingleVariable3DCustom(
-      x0.data(), x1.data(), x2.data(), count,
-      hostAxes, table.data(), 0.0, hostOut.data());
+      x0.data(), x1.data(), x2.data(), count, hostAxes, table.data(), 0.0,
+      hostOut.data());
   REQUIRE(hostRc == 0);
 
   // --- Device copy ---
@@ -155,17 +144,16 @@ TEST_CASE("GPU: Batch 3D log interpolation", "[gpu][batch][3d]")
   Axis ax1 = MakeAxis(d_gridY.data(), 2, AxisScale::Log10);
   Axis ax2 = MakeAxis(d_gridZ.data(), 2, AxisScale::Linear);
 
-  const double* p_x0 = d_x0.data();
-  const double* p_x1 = d_x1.data();
-  const double* p_x2 = d_x2.data();
-  const double* p_table = d_table.data();
-  double* p_out = d_out.data();
+  const double *p_x0 = d_x0.data();
+  const double *p_x1 = d_x1.data();
+  const double *p_x2 = d_x2.data();
+  const double *p_table = d_table.data();
+  double *p_out = d_out.data();
 
-  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE (int) {
+  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE(int) {
     Axis axes[3] = {ax0, ax1, ax2};
-    LogInterpolateSingleVariable3DCustom(
-        p_x0, p_x1, p_x2, count,
-        axes, p_table, 0.0, p_out);
+    LogInterpolateSingleVariable3DCustom(p_x0, p_x1, p_x2, count, axes, p_table,
+                                         0.0, p_out);
   });
   amrex::Gpu::streamSynchronize();
 
@@ -176,8 +164,7 @@ TEST_CASE("GPU: Batch 3D log interpolation", "[gpu][batch][3d]")
   }
 }
 
-TEST_CASE("GPU: Batch 4D log interpolation", "[gpu][batch][4d]")
-{
+TEST_CASE("GPU: Batch 4D log interpolation", "[gpu][batch][4d]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
 
@@ -209,14 +196,13 @@ TEST_CASE("GPU: Batch 4D log interpolation", "[gpu][batch][4d]")
 
   // --- Host reference ---
   std::array<double, count> hostOut{};
-  Axis hostAxes[4] = {
-      MakeAxis(gridA.data(), 2, AxisScale::Linear),
-      MakeAxis(gridB.data(), 2, AxisScale::Linear),
-      MakeAxis(gridC.data(), 2, AxisScale::Linear),
-      MakeAxis(gridD.data(), 2, AxisScale::Linear)};
+  Axis hostAxes[4] = {MakeAxis(gridA.data(), 2, AxisScale::Linear),
+                      MakeAxis(gridB.data(), 2, AxisScale::Linear),
+                      MakeAxis(gridC.data(), 2, AxisScale::Linear),
+                      MakeAxis(gridD.data(), 2, AxisScale::Linear)};
   const int hostRc = LogInterpolateSingleVariable4DCustom(
-      x0.data(), x1.data(), x2.data(), x3.data(), count,
-      hostAxes, table.data(), 0.0, hostOut.data());
+      x0.data(), x1.data(), x2.data(), x3.data(), count, hostAxes, table.data(),
+      0.0, hostOut.data());
   REQUIRE(hostRc == 0);
 
   // --- Device copy ---
@@ -236,18 +222,17 @@ TEST_CASE("GPU: Batch 4D log interpolation", "[gpu][batch][4d]")
   Axis ax2 = MakeAxis(d_gridC.data(), 2, AxisScale::Linear);
   Axis ax3 = MakeAxis(d_gridD.data(), 2, AxisScale::Linear);
 
-  const double* p_x0 = d_x0.data();
-  const double* p_x1 = d_x1.data();
-  const double* p_x2 = d_x2.data();
-  const double* p_x3 = d_x3.data();
-  const double* p_table = d_table.data();
-  double* p_out = d_out.data();
+  const double *p_x0 = d_x0.data();
+  const double *p_x1 = d_x1.data();
+  const double *p_x2 = d_x2.data();
+  const double *p_x3 = d_x3.data();
+  const double *p_table = d_table.data();
+  double *p_out = d_out.data();
 
-  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE (int) {
+  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE(int) {
     Axis axes[4] = {ax0, ax1, ax2, ax3};
-    LogInterpolateSingleVariable4DCustom(
-        p_x0, p_x1, p_x2, p_x3, count,
-        axes, p_table, 0.0, p_out);
+    LogInterpolateSingleVariable4DCustom(p_x0, p_x1, p_x2, p_x3, count, axes,
+                                         p_table, 0.0, p_out);
   });
   amrex::Gpu::streamSynchronize();
 
@@ -258,8 +243,7 @@ TEST_CASE("GPU: Batch 4D log interpolation", "[gpu][batch][4d]")
   }
 }
 
-TEST_CASE("GPU: Batch 1D3D sweep", "[gpu][batch][sweep]")
-{
+TEST_CASE("GPU: Batch 1D3D sweep", "[gpu][batch][sweep]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
 
@@ -294,15 +278,13 @@ TEST_CASE("GPU: Batch 1D3D sweep", "[gpu][batch][sweep]")
 
   // --- Host reference ---
   std::array<double, totalOut> hostOut{};
-  Axis hostAxes[4] = {
-      MakeAxis(gridE.data(), 2, AxisScale::Linear),
-      MakeAxis(gridD.data(), 2, AxisScale::Linear),
-      MakeAxis(gridT.data(), 2, AxisScale::Linear),
-      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
+  Axis hostAxes[4] = {MakeAxis(gridE.data(), 2, AxisScale::Linear),
+                      MakeAxis(gridD.data(), 2, AxisScale::Linear),
+                      MakeAxis(gridT.data(), 2, AxisScale::Linear),
+                      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
   const int hostRc = LogInterpolateSingleVariable1D3DCustom(
-      logE.data(), sizeE,
-      logD.data(), logT.data(), y.data(), count,
-      hostAxes, table.data(), 0.0, hostOut.data());
+      logE.data(), sizeE, logD.data(), logT.data(), y.data(), count, hostAxes,
+      table.data(), 0.0, hostOut.data());
   REQUIRE(hostRc == 0);
 
   // --- Device copy ---
@@ -322,19 +304,17 @@ TEST_CASE("GPU: Batch 1D3D sweep", "[gpu][batch][sweep]")
   Axis ax2 = MakeAxis(d_gridT.data(), 2, AxisScale::Linear);
   Axis ax3 = MakeAxis(d_gridY.data(), 2, AxisScale::Linear);
 
-  const double* p_logE = d_logE.data();
-  const double* p_logD = d_logD.data();
-  const double* p_logT = d_logT.data();
-  const double* p_y = d_y.data();
-  const double* p_table = d_table.data();
-  double* p_out = d_out.data();
+  const double *p_logE = d_logE.data();
+  const double *p_logD = d_logD.data();
+  const double *p_logT = d_logT.data();
+  const double *p_y = d_y.data();
+  const double *p_table = d_table.data();
+  double *p_out = d_out.data();
 
-  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE (int) {
+  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE(int) {
     Axis axes[4] = {ax0, ax1, ax2, ax3};
-    LogInterpolateSingleVariable1D3DCustom(
-        p_logE, sizeE,
-        p_logD, p_logT, p_y, count,
-        axes, p_table, 0.0, p_out);
+    LogInterpolateSingleVariable1D3DCustom(p_logE, sizeE, p_logD, p_logT, p_y,
+                                           count, axes, p_table, 0.0, p_out);
   });
   amrex::Gpu::streamSynchronize();
 
@@ -345,8 +325,7 @@ TEST_CASE("GPU: Batch 1D3D sweep", "[gpu][batch][sweep]")
   }
 }
 
-TEST_CASE("GPU: Batch 2D2D sweep", "[gpu][batch][sweep]")
-{
+TEST_CASE("GPU: Batch 2D2D sweep", "[gpu][batch][sweep]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
 
@@ -359,7 +338,8 @@ TEST_CASE("GPU: Batch 2D2D sweep", "[gpu][batch][sweep]")
   const std::array<double, 2> gridT{1.0, 2.0};
   const std::array<double, 2> gridX{1.0, 3.0};
 
-  const int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), 2, 2};
+  const int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), 2,
+                          2};
   const Layout layout = MakeLayout(extents, 4);
   std::array<double, sizeE * sizeE * 2 * 2> table{};
   for (std::size_t e0 = 0; e0 < sizeE; ++e0) {
@@ -368,8 +348,8 @@ TEST_CASE("GPU: Batch 2D2D sweep", "[gpu][batch][sweep]")
         for (int x = 0; x < 2; ++x) {
           const double actual = 1.0 + 0.1 * gridE[e0] + 0.2 * gridE[e1] +
                                 0.3 * gridT[t] + 0.4 * gridX[x];
-          table[layout.Offset(static_cast<int>(e0), static_cast<int>(e1), t, x)] =
-              std::log10(actual);
+          table[layout.Offset(static_cast<int>(e0), static_cast<int>(e1), t,
+                              x)] = std::log10(actual);
         }
       }
     }
@@ -386,9 +366,8 @@ TEST_CASE("GPU: Batch 2D2D sweep", "[gpu][batch][sweep]")
       MakeAxis(gridT.data(), 2, AxisScale::Linear),
       MakeAxis(gridX.data(), 2, AxisScale::Linear)};
   const int hostRc = LogInterpolateSingleVariable2D2DCustom(
-      gridE.data(), sizeE,
-      logT.data(), logX.data(), count,
-      hostAxes, table.data(), 0.0, hostOut.data());
+      gridE.data(), sizeE, logT.data(), logX.data(), count, hostAxes,
+      table.data(), 0.0, hostOut.data());
   REQUIRE(hostRc == 0);
 
   // --- Device copy ---
@@ -400,23 +379,23 @@ TEST_CASE("GPU: Batch 2D2D sweep", "[gpu][batch][sweep]")
   auto d_logX = ToDevice(logX);
   amrex::Gpu::DeviceVector<double> d_out(totalOut, 0.0);
 
-  Axis ax0 = MakeAxis(d_gridE.data(), static_cast<int>(sizeE), AxisScale::Linear);
-  Axis ax1 = MakeAxis(d_gridE.data(), static_cast<int>(sizeE), AxisScale::Linear);
+  Axis ax0 =
+      MakeAxis(d_gridE.data(), static_cast<int>(sizeE), AxisScale::Linear);
+  Axis ax1 =
+      MakeAxis(d_gridE.data(), static_cast<int>(sizeE), AxisScale::Linear);
   Axis ax2 = MakeAxis(d_gridT.data(), 2, AxisScale::Linear);
   Axis ax3 = MakeAxis(d_gridX.data(), 2, AxisScale::Linear);
 
-  const double* p_logE = d_gridE.data();
-  const double* p_logT = d_logT.data();
-  const double* p_logX = d_logX.data();
-  const double* p_table = d_table.data();
-  double* p_out = d_out.data();
+  const double *p_logE = d_gridE.data();
+  const double *p_logT = d_logT.data();
+  const double *p_logX = d_logX.data();
+  const double *p_table = d_table.data();
+  double *p_out = d_out.data();
 
-  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE (int) {
+  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE(int) {
     Axis axes[4] = {ax0, ax1, ax2, ax3};
-    LogInterpolateSingleVariable2D2DCustom(
-        p_logE, sizeE,
-        p_logT, p_logX, count,
-        axes, p_table, 0.0, p_out);
+    LogInterpolateSingleVariable2D2DCustom(p_logE, sizeE, p_logT, p_logX, count,
+                                           axes, p_table, 0.0, p_out);
   });
   amrex::Gpu::streamSynchronize();
 
@@ -427,8 +406,7 @@ TEST_CASE("GPU: Batch 2D2D sweep", "[gpu][batch][sweep]")
   }
 }
 
-TEST_CASE("GPU: Batch aligned 2D2D sweep", "[gpu][batch][sweep]")
-{
+TEST_CASE("GPU: Batch aligned 2D2D sweep", "[gpu][batch][sweep]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
 
@@ -461,13 +439,11 @@ TEST_CASE("GPU: Batch aligned 2D2D sweep", "[gpu][batch][sweep]")
 
   // --- Host reference ---
   std::array<double, totalOut> hostOut{};
-  Axis hostAxes[2] = {
-      MakeAxis(gridT.data(), 2, AxisScale::Linear),
-      MakeAxis(gridX.data(), 2, AxisScale::Linear)};
+  Axis hostAxes[2] = {MakeAxis(gridT.data(), 2, AxisScale::Linear),
+                      MakeAxis(gridX.data(), 2, AxisScale::Linear)};
   const int hostRc = LogInterpolateSingleVariable2D2DCustomAligned(
-      sizeE,
-      logT.data(), logX.data(), count,
-      hostAxes, table.data(), 0.0, hostOut.data());
+      sizeE, logT.data(), logX.data(), count, hostAxes, table.data(), 0.0,
+      hostOut.data());
   REQUIRE(hostRc == 0);
 
   // --- Device copy ---
@@ -481,17 +457,15 @@ TEST_CASE("GPU: Batch aligned 2D2D sweep", "[gpu][batch][sweep]")
   Axis ax0 = MakeAxis(d_gridT.data(), 2, AxisScale::Linear);
   Axis ax1 = MakeAxis(d_gridX.data(), 2, AxisScale::Linear);
 
-  const double* p_logT = d_logT.data();
-  const double* p_logX = d_logX.data();
-  const double* p_table = d_table.data();
-  double* p_out = d_out.data();
+  const double *p_logT = d_logT.data();
+  const double *p_logX = d_logX.data();
+  const double *p_table = d_table.data();
+  double *p_out = d_out.data();
 
-  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE (int) {
+  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE(int) {
     Axis axes[2] = {ax0, ax1};
-    LogInterpolateSingleVariable2D2DCustomAligned(
-        sizeE,
-        p_logT, p_logX, count,
-        axes, p_table, 0.0, p_out);
+    LogInterpolateSingleVariable2D2DCustomAligned(sizeE, p_logT, p_logX, count,
+                                                  axes, p_table, 0.0, p_out);
   });
   amrex::Gpu::streamSynchronize();
 
@@ -502,8 +476,7 @@ TEST_CASE("GPU: Batch aligned 2D2D sweep", "[gpu][batch][sweep]")
   }
 }
 
-TEST_CASE("GPU: Batch 3D derivative", "[gpu][batch][deriv]")
-{
+TEST_CASE("GPU: Batch 3D derivative", "[gpu][batch][deriv]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
 
@@ -519,8 +492,8 @@ TEST_CASE("GPU: Batch 3D derivative", "[gpu][batch][deriv]")
   for (int id = 0; id < 2; ++id) {
     for (int it = 0; it < 2; ++it) {
       for (int iy = 0; iy < 2; ++iy) {
-        table[layout.Offset(id, it, iy)] =
-            std::log10(1.0 + 0.5 * gridD[id] + 0.25 * gridT[it] + 0.1 * gridY[iy]);
+        table[layout.Offset(id, it, iy)] = std::log10(
+            1.0 + 0.5 * gridD[id] + 0.25 * gridT[it] + 0.1 * gridY[iy]);
       }
     }
   }
@@ -532,14 +505,12 @@ TEST_CASE("GPU: Batch 3D derivative", "[gpu][batch][deriv]")
   // --- Host reference ---
   std::array<double, count> hostInterp{};
   std::array<double, count * 3> hostDeriv{};
-  Axis hostAxes[3] = {
-      MakeAxis(gridD.data(), 2, AxisScale::Log10),
-      MakeAxis(gridT.data(), 2, AxisScale::Log10),
-      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
+  Axis hostAxes[3] = {MakeAxis(gridD.data(), 2, AxisScale::Log10),
+                      MakeAxis(gridT.data(), 2, AxisScale::Log10),
+                      MakeAxis(gridY.data(), 2, AxisScale::Linear)};
   const int hostRc = LogInterpolateDifferentiateSingleVariable3DCustom(
-      dCoord.data(), tCoord.data(), yCoord.data(), count,
-      hostAxes, table.data(), 0.0,
-      hostInterp.data(), hostDeriv.data());
+      dCoord.data(), tCoord.data(), yCoord.data(), count, hostAxes,
+      table.data(), 0.0, hostInterp.data(), hostDeriv.data());
   REQUIRE(hostRc == 0);
 
   // --- Device copy ---
@@ -557,19 +528,18 @@ TEST_CASE("GPU: Batch 3D derivative", "[gpu][batch][deriv]")
   Axis ax1 = MakeAxis(d_gridT.data(), 2, AxisScale::Log10);
   Axis ax2 = MakeAxis(d_gridY.data(), 2, AxisScale::Linear);
 
-  const double* p_dCoord = d_dCoord.data();
-  const double* p_tCoord = d_tCoord.data();
-  const double* p_yCoord = d_yCoord.data();
-  const double* p_table = d_table.data();
-  double* p_interp = d_interp.data();
-  double* p_deriv = d_deriv.data();
+  const double *p_dCoord = d_dCoord.data();
+  const double *p_tCoord = d_tCoord.data();
+  const double *p_yCoord = d_yCoord.data();
+  const double *p_table = d_table.data();
+  double *p_interp = d_interp.data();
+  double *p_deriv = d_deriv.data();
 
-  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE (int) {
+  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE(int) {
     Axis axes[3] = {ax0, ax1, ax2};
     LogInterpolateDifferentiateSingleVariable3DCustom(
-        p_dCoord, p_tCoord, p_yCoord, count,
-        axes, p_table, 0.0,
-        p_interp, p_deriv);
+        p_dCoord, p_tCoord, p_yCoord, count, axes, p_table, 0.0, p_interp,
+        p_deriv);
   });
   amrex::Gpu::streamSynchronize();
 
@@ -578,14 +548,16 @@ TEST_CASE("GPU: Batch 3D derivative", "[gpu][batch][deriv]")
   const auto resultDeriv = ToHost(d_deriv);
   for (std::size_t i = 0; i < count; ++i) {
     CHECK(resultInterp[i] == Catch::Approx(hostInterp[i]).margin(Tol));
-    CHECK(resultDeriv[i * 3 + 0] == Catch::Approx(hostDeriv[i * 3 + 0]).margin(Tol));
-    CHECK(resultDeriv[i * 3 + 1] == Catch::Approx(hostDeriv[i * 3 + 1]).margin(Tol));
-    CHECK(resultDeriv[i * 3 + 2] == Catch::Approx(hostDeriv[i * 3 + 2]).margin(Tol));
+    CHECK(resultDeriv[i * 3 + 0] ==
+          Catch::Approx(hostDeriv[i * 3 + 0]).margin(Tol));
+    CHECK(resultDeriv[i * 3 + 1] ==
+          Catch::Approx(hostDeriv[i * 3 + 1]).margin(Tol));
+    CHECK(resultDeriv[i * 3 + 2] ==
+          Catch::Approx(hostDeriv[i * 3 + 2]).margin(Tol));
   }
 }
 
-TEST_CASE("GPU: Batch 2D2D derivative", "[gpu][batch][deriv]")
-{
+TEST_CASE("GPU: Batch 2D2D derivative", "[gpu][batch][deriv]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
 
@@ -598,7 +570,8 @@ TEST_CASE("GPU: Batch 2D2D derivative", "[gpu][batch][deriv]")
   const std::array<double, 2> gridT{1.0, 2.0};
   const std::array<double, 2> gridX{1.0, 3.0};
 
-  const int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), 2, 2};
+  const int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), 2,
+                          2};
   const Layout layout = MakeLayout(extents, 4);
   std::array<double, sizeE * sizeE * 2 * 2> table{};
   for (std::size_t e0 = 0; e0 < sizeE; ++e0) {
@@ -607,8 +580,8 @@ TEST_CASE("GPU: Batch 2D2D derivative", "[gpu][batch][deriv]")
         for (int x = 0; x < 2; ++x) {
           const double actual = 1.0 + 0.1 * gridE[e0] + 0.2 * gridE[e1] +
                                 0.3 * gridT[t] + 0.4 * gridX[x];
-          table[layout.Offset(static_cast<int>(e0), static_cast<int>(e1), t, x)] =
-              std::log10(actual);
+          table[layout.Offset(static_cast<int>(e0), static_cast<int>(e1), t,
+                              x)] = std::log10(actual);
         }
       }
     }
@@ -627,10 +600,9 @@ TEST_CASE("GPU: Batch 2D2D derivative", "[gpu][batch][deriv]")
       MakeAxis(gridT.data(), 2, AxisScale::Linear),
       MakeAxis(gridX.data(), 2, AxisScale::Linear)};
   const int hostRc = LogInterpolateDifferentiateSingleVariable2D2DCustom(
-      gridE.data(), sizeE,
-      logT.data(), logX.data(), count,
-      hostAxes, table.data(), 0.0,
-      hostInterp.data(), hostDerivT.data(), hostDerivX.data());
+      gridE.data(), sizeE, logT.data(), logX.data(), count, hostAxes,
+      table.data(), 0.0, hostInterp.data(), hostDerivT.data(),
+      hostDerivX.data());
   REQUIRE(hostRc == 0);
 
   // --- Device copy ---
@@ -644,26 +616,26 @@ TEST_CASE("GPU: Batch 2D2D derivative", "[gpu][batch][deriv]")
   amrex::Gpu::DeviceVector<double> d_derivT(totalOut, 0.0);
   amrex::Gpu::DeviceVector<double> d_derivX(totalOut, 0.0);
 
-  Axis ax0 = MakeAxis(d_gridE.data(), static_cast<int>(sizeE), AxisScale::Linear);
-  Axis ax1 = MakeAxis(d_gridE.data(), static_cast<int>(sizeE), AxisScale::Linear);
+  Axis ax0 =
+      MakeAxis(d_gridE.data(), static_cast<int>(sizeE), AxisScale::Linear);
+  Axis ax1 =
+      MakeAxis(d_gridE.data(), static_cast<int>(sizeE), AxisScale::Linear);
   Axis ax2 = MakeAxis(d_gridT.data(), 2, AxisScale::Linear);
   Axis ax3 = MakeAxis(d_gridX.data(), 2, AxisScale::Linear);
 
-  const double* p_logE = d_gridE.data();
-  const double* p_logT = d_logT.data();
-  const double* p_logX = d_logX.data();
-  const double* p_table = d_table.data();
-  double* p_interp = d_interp.data();
-  double* p_derivT = d_derivT.data();
-  double* p_derivX = d_derivX.data();
+  const double *p_logE = d_gridE.data();
+  const double *p_logT = d_logT.data();
+  const double *p_logX = d_logX.data();
+  const double *p_table = d_table.data();
+  double *p_interp = d_interp.data();
+  double *p_derivT = d_derivT.data();
+  double *p_derivX = d_derivX.data();
 
-  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE (int) {
+  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE(int) {
     Axis axes[4] = {ax0, ax1, ax2, ax3};
     LogInterpolateDifferentiateSingleVariable2D2DCustom(
-        p_logE, sizeE,
-        p_logT, p_logX, count,
-        axes, p_table, 0.0,
-        p_interp, p_derivT, p_derivX);
+        p_logE, sizeE, p_logT, p_logX, count, axes, p_table, 0.0, p_interp,
+        p_derivT, p_derivX);
   });
   amrex::Gpu::streamSynchronize();
 
@@ -678,8 +650,7 @@ TEST_CASE("GPU: Batch 2D2D derivative", "[gpu][batch][deriv]")
   }
 }
 
-TEST_CASE("GPU: Batch aligned 2D2D derivative", "[gpu][batch][deriv]")
-{
+TEST_CASE("GPU: Batch aligned 2D2D derivative", "[gpu][batch][deriv]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
 
@@ -691,17 +662,19 @@ TEST_CASE("GPU: Batch aligned 2D2D derivative", "[gpu][batch][deriv]")
   const std::array<double, 2> gridT{1.0, 2.0};
   const std::array<double, 2> gridX{1.0, 3.0};
 
-  const int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), 2, 2};
+  const int extents[4] = {static_cast<int>(sizeE), static_cast<int>(sizeE), 2,
+                          2};
   const Layout layout = MakeLayout(extents, 4);
   std::array<double, sizeE * sizeE * 2 * 2> table{};
   for (std::size_t j = 0; j < sizeE; ++j) {
     for (std::size_t i = 0; i < sizeE; ++i) {
       for (int it = 0; it < 2; ++it) {
         for (int ix = 0; ix < 2; ++ix) {
-          table[layout.Offset(static_cast<int>(i), static_cast<int>(j), it, ix)] =
+          table[layout.Offset(static_cast<int>(i), static_cast<int>(j), it,
+                              ix)] =
               std::log10(2.0 + 0.1 * static_cast<double>(i) +
-                         0.2 * static_cast<double>(j) +
-                         0.3 * gridT[it] + 0.4 * gridX[ix]);
+                         0.2 * static_cast<double>(j) + 0.3 * gridT[it] +
+                         0.4 * gridX[ix]);
         }
       }
     }
@@ -714,13 +687,10 @@ TEST_CASE("GPU: Batch aligned 2D2D derivative", "[gpu][batch][deriv]")
   std::array<double, totalOut> hostInterp{};
   std::array<double, totalOut> hostDerivT{};
   std::array<double, totalOut> hostDerivX{};
-  Axis hostAxes[2] = {
-      MakeAxis(gridT.data(), 2, AxisScale::Linear),
-      MakeAxis(gridX.data(), 2, AxisScale::Linear)};
+  Axis hostAxes[2] = {MakeAxis(gridT.data(), 2, AxisScale::Linear),
+                      MakeAxis(gridX.data(), 2, AxisScale::Linear)};
   const int hostRc = LogInterpolateDifferentiateSingleVariable2D2DCustomAligned(
-      sizeE,
-      logT.data(), logX.data(), count,
-      hostAxes, table.data(), 0.0,
+      sizeE, logT.data(), logX.data(), count, hostAxes, table.data(), 0.0,
       hostInterp.data(), hostDerivT.data(), hostDerivX.data());
   REQUIRE(hostRc == 0);
 
@@ -737,20 +707,18 @@ TEST_CASE("GPU: Batch aligned 2D2D derivative", "[gpu][batch][deriv]")
   Axis ax0 = MakeAxis(d_gridT.data(), 2, AxisScale::Linear);
   Axis ax1 = MakeAxis(d_gridX.data(), 2, AxisScale::Linear);
 
-  const double* p_logT = d_logT.data();
-  const double* p_logX = d_logX.data();
-  const double* p_table = d_table.data();
-  double* p_interp = d_interp.data();
-  double* p_derivT = d_derivT.data();
-  double* p_derivX = d_derivX.data();
+  const double *p_logT = d_logT.data();
+  const double *p_logX = d_logX.data();
+  const double *p_table = d_table.data();
+  double *p_interp = d_interp.data();
+  double *p_derivT = d_derivT.data();
+  double *p_derivX = d_derivX.data();
 
-  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE (int) {
+  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE(int) {
     Axis axes[2] = {ax0, ax1};
     LogInterpolateDifferentiateSingleVariable2D2DCustomAligned(
-        sizeE,
-        p_logT, p_logX, count,
-        axes, p_table, 0.0,
-        p_interp, p_derivT, p_derivX);
+        sizeE, p_logT, p_logX, count, axes, p_table, 0.0, p_interp, p_derivT,
+        p_derivX);
   });
   amrex::Gpu::streamSynchronize();
 
@@ -765,8 +733,7 @@ TEST_CASE("GPU: Batch aligned 2D2D derivative", "[gpu][batch][deriv]")
   }
 }
 
-TEST_CASE("GPU: Batch weighted sum aligned", "[gpu][batch][weighted]")
-{
+TEST_CASE("GPU: Batch weighted sum aligned", "[gpu][batch][weighted]") {
   using namespace WeakLibReader;
   AmrexGuard amrex{};
 
@@ -801,14 +768,11 @@ TEST_CASE("GPU: Batch weighted sum aligned", "[gpu][batch][weighted]")
 
   // --- Host reference ---
   std::array<double, totalOut> hostOut{};
-  Axis hostAxes[2] = {
-      MakeAxis(gridD.data(), 2, AxisScale::Linear),
-      MakeAxis(gridT.data(), 2, AxisScale::Linear)};
+  Axis hostAxes[2] = {MakeAxis(gridD.data(), 2, AxisScale::Linear),
+                      MakeAxis(gridT.data(), 2, AxisScale::Linear)};
   const int hostRc = SumLogInterpolateSingleVariable2D2DCustomAligned(
-      sizeE,
-      logD.data(), nAlpha,
-      logT.data(), count,
-      hostAxes, alpha.data(), table.data(), 0.0, hostOut.data());
+      sizeE, logD.data(), nAlpha, logT.data(), count, hostAxes, alpha.data(),
+      table.data(), 0.0, hostOut.data());
   REQUIRE(hostRc == 0);
 
   // --- Device copy ---
@@ -823,19 +787,17 @@ TEST_CASE("GPU: Batch weighted sum aligned", "[gpu][batch][weighted]")
   Axis ax0 = MakeAxis(d_gridD.data(), 2, AxisScale::Linear);
   Axis ax1 = MakeAxis(d_gridT.data(), 2, AxisScale::Linear);
 
-  const double* p_logD = d_logD.data();
-  const double* p_logT = d_logT.data();
-  const double* p_alpha = d_alpha.data();
-  const double* p_table = d_table.data();
-  double* p_out = d_out.data();
+  const double *p_logD = d_logD.data();
+  const double *p_logT = d_logT.data();
+  const double *p_alpha = d_alpha.data();
+  const double *p_table = d_table.data();
+  double *p_out = d_out.data();
 
-  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE (int) {
+  amrex::ParallelFor(1, [=] AMREX_GPU_DEVICE(int) {
     Axis axes[2] = {ax0, ax1};
     SumLogInterpolateSingleVariable2D2DCustomAligned(
-        sizeE,
-        p_logD, nAlpha,
-        p_logT, count,
-        axes, p_alpha, p_table, 0.0, p_out);
+        sizeE, p_logD, nAlpha, p_logT, count, axes, p_alpha, p_table, 0.0,
+        p_out);
   });
   amrex::Gpu::streamSynchronize();
 

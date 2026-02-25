@@ -1,9 +1,9 @@
 #define SIMPLE_CATCH_NO_MAIN
 #include <catch2/catch_test_macros.hpp>
 
-#include "interp/WeakLibReader_LogInterpolate.hpp"
-#include "base/WeakLibReader_Layout.hpp"
 #include "base/WeakLibReader_AxisTypes.hpp"
+#include "base/WeakLibReader_Layout.hpp"
+#include "interp/WeakLibReader_LogInterpolate.hpp"
 #include "test_constants.hpp"
 
 #include <array>
@@ -11,8 +11,8 @@
 
 using test_constants::Tol;
 
-TEST_CASE("3D log interpolation matches trilinear expectation", "[loginterp][3d]")
-{
+TEST_CASE("3D log interpolation matches trilinear expectation",
+          "[loginterp][3d]") {
   using namespace WeakLibReader;
 
   const std::array<double, 2> gridX{1.0, 2.0};
@@ -35,10 +35,9 @@ TEST_CASE("3D log interpolation matches trilinear expectation", "[loginterp][3d]
     }
   }
 
-  Axis axes[3] = {
-      MakeAxis(gridX.data(), 2, AxisScale::Log10),
-      MakeAxis(gridY.data(), 2, AxisScale::Log10),
-      MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
+  Axis axes[3] = {MakeAxis(gridX.data(), 2, AxisScale::Log10),
+                  MakeAxis(gridY.data(), 2, AxisScale::Log10),
+                  MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
 
   const double x = 1.5;
   const double y = 2.0;
@@ -75,8 +74,8 @@ TEST_CASE("3D log interpolation matches trilinear expectation", "[loginterp][3d]
   CHECK(result == Catch::Approx(expected).margin(Tol));
 }
 
-TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][batch]")
-{
+TEST_CASE("Batch 3D log interpolation matches point wrapper",
+          "[loginterp][3d][batch]") {
   using namespace WeakLibReader;
 
   const std::array<double, 2> gridX{1.0, 2.0};
@@ -89,16 +88,15 @@ TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][b
   for (int ix = 0; ix < 2; ++ix) {
     for (int iy = 0; iy < 2; ++iy) {
       for (int iz = 0; iz < 2; ++iz) {
-        table[layout.Offset(ix, iy, iz)] =
-            std::log10(2.0 + 0.5 * gridX[ix] + 0.3 * gridY[iy] + 0.2 * gridZ[iz]);
+        table[layout.Offset(ix, iy, iz)] = std::log10(
+            2.0 + 0.5 * gridX[ix] + 0.3 * gridY[iy] + 0.2 * gridZ[iz]);
       }
     }
   }
 
-  Axis axes[3] = {
-      MakeAxis(gridX.data(), 2, AxisScale::Log10),
-      MakeAxis(gridY.data(), 2, AxisScale::Log10),
-      MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
+  Axis axes[3] = {MakeAxis(gridX.data(), 2, AxisScale::Log10),
+                  MakeAxis(gridY.data(), 2, AxisScale::Log10),
+                  MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
 
   std::array<double, 3> x0{1.0, 1.5, 2.0};
   std::array<double, 3> x1{1.0, 2.0, 3.0};
@@ -106,10 +104,7 @@ TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][b
   std::array<double, 3> out{};
 
   const int rc = LogInterpolateSingleVariable3DCustom(
-      x0.data(), x1.data(), x2.data(), x0.size(),
-      axes,
-      table.data(),
-      0.0,
+      x0.data(), x1.data(), x2.data(), x0.size(), axes, table.data(), 0.0,
       out.data());
   REQUIRE(rc == 0);
 
@@ -120,14 +115,13 @@ TEST_CASE("Batch 3D log interpolation matches point wrapper", "[loginterp][3d][b
   }
 }
 
-TEST_CASE("3D interpolation respects axis scales", "[loginterp][3d][scales]")
-{
+TEST_CASE("3D interpolation respects axis scales", "[loginterp][3d][scales]") {
   using namespace WeakLibReader;
 
   // Create a simple 2x2x2 grid with values that will produce
   // different results depending on Linear vs Log10 interpolation
-  const std::array<double, 2> gridX{1.0, 10.0};  // Log10 range
-  const std::array<double, 2> gridY{1.0, 10.0};  // Log10 range
+  const std::array<double, 2> gridX{1.0, 10.0}; // Log10 range
+  const std::array<double, 2> gridY{1.0, 10.0}; // Log10 range
   const std::array<double, 2> gridZ{0.0, 1.0};
 
   const int extents[3] = {2, 2, 2};
@@ -144,24 +138,23 @@ TEST_CASE("3D interpolation respects axis scales", "[loginterp][3d][scales]")
     }
   }
 
-  // Test point at geometric midpoint (for Log10) vs arithmetic midpoint (for Linear)
-  const double x = std::sqrt(1.0 * 10.0);  // Geometric mean = 3.162...
+  // Test point at geometric midpoint (for Log10) vs arithmetic midpoint (for
+  // Linear)
+  const double x = std::sqrt(1.0 * 10.0); // Geometric mean = 3.162...
   const double y = std::sqrt(1.0 * 10.0);
   const double z = 0.5;
 
   // With Log10 scales on X and Y
-  Axis axesLog[3] = {
-      MakeAxis(gridX.data(), 2, AxisScale::Log10),
-      MakeAxis(gridY.data(), 2, AxisScale::Log10),
-      MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
+  Axis axesLog[3] = {MakeAxis(gridX.data(), 2, AxisScale::Log10),
+                     MakeAxis(gridY.data(), 2, AxisScale::Log10),
+                     MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
   const double resultLog = LogInterpolateSingleVariable3DCustomPoint(
       x, y, z, axesLog, table.data(), 0.0);
 
   // With Linear scales on X and Y
-  Axis axesLin[3] = {
-      MakeAxis(gridX.data(), 2, AxisScale::Linear),
-      MakeAxis(gridY.data(), 2, AxisScale::Linear),
-      MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
+  Axis axesLin[3] = {MakeAxis(gridX.data(), 2, AxisScale::Linear),
+                     MakeAxis(gridY.data(), 2, AxisScale::Linear),
+                     MakeAxis(gridZ.data(), 2, AxisScale::Linear)};
   const double resultLin = LogInterpolateSingleVariable3DCustomPoint(
       x, y, z, axesLin, table.data(), 0.0);
 
@@ -171,5 +164,6 @@ TEST_CASE("3D interpolation respects axis scales", "[loginterp][3d][scales]")
 
   // For Log10 scale at geometric midpoint, fraction should be 0.5
   // For Linear scale at x=3.162..., fraction should be (3.162-1)/(10-1) = 0.24
-  // So the Log10 result should be closer to the center of the interpolation range
+  // So the Log10 result should be closer to the center of the interpolation
+  // range
 }

@@ -23,8 +23,8 @@ amrex::Gpu::DeviceVector<double> iso_anue_slice_device;
 struct AlignedKernel {
   amrex::Gpu::DeviceVector<double> data;
   int nAlignedE = 0;
-  int nDim3 = 0;   // nT for NES/Pair, nRho for Brem
-  int nDim4 = 0;   // nEta for NES/Pair, nT for Brem
+  int nDim3 = 0; // nT for NES/Pair, nRho for Brem
+  int nDim4 = 0; // nEta for NES/Pair, nT for Brem
   WeakLibReader::Layout layout{};
 };
 
@@ -62,21 +62,19 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
   // Extract Iso moment=0 slices as contiguous 4D and copy to device
   if (opacity_table.scatIso.IsLoaded()) {
     auto slice = WeakLibReader::ExtractIsoMomentSlice4D(
-        opacity_table.scatIso.KernelData(0),
-        opacity_table.scatIso.dimensions, /*iMom=*/0);
+        opacity_table.scatIso.KernelData(0), opacity_table.scatIso.dimensions,
+        /*iMom=*/0);
     iso_slice_device.resize(slice.size());
-    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                     slice.begin(), slice.end(),
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice, slice.begin(), slice.end(),
                      iso_slice_device.begin());
     CCTK_VINFO("Iso nue slice extracted: %zu elements", slice.size());
 
     auto anue_slice = WeakLibReader::ExtractIsoMomentSlice4D(
-        opacity_table.scatIso.KernelData(1),
-        opacity_table.scatIso.dimensions, /*iMom=*/0);
+        opacity_table.scatIso.KernelData(1), opacity_table.scatIso.dimensions,
+        /*iMom=*/0);
     iso_anue_slice_device.resize(anue_slice.size());
-    amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                     anue_slice.begin(), anue_slice.end(),
-                     iso_anue_slice_device.begin());
+    amrex::Gpu::copy(amrex::Gpu::hostToDevice, anue_slice.begin(),
+                     anue_slice.end(), iso_anue_slice_device.begin());
     CCTK_VINFO("Iso anue slice extracted: %zu elements", anue_slice.size());
     // Release raw 5D Iso kernels from device — only the 4D moment slice is
     // needed for interpolation from this point forward.
@@ -85,7 +83,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
 
   // Pre-align NES
   if (opacity_table.scatNES.IsLoaded()) {
-    const auto& nes = opacity_table.scatNES;
+    const auto &nes = opacity_table.scatNES;
     const int nE = opacity_table.energyGrid.nPoints;
     const int nMom = nes.nMoments;
     const int nT = nes.dimensions[3];
@@ -101,10 +99,9 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
       amrex::Gpu::PinnedVector<double> hostBuf(alignedSize);
 
       WeakLibReader::PreAlignScatteringKernelMoment(
-          nes.KernelData(), nesLayout, energyAxis,
-          iMom, nT, nEta,
-          opacity_table.energyGrid.values.data(), nE,
-          nesOffset, hostBuf.data());
+          nes.KernelData(), nesLayout, energyAxis, iMom, nT, nEta,
+          opacity_table.energyGrid.values.data(), nE, nesOffset,
+          hostBuf.data());
 
       nes_aligned[iMom].nAlignedE = nE;
       nes_aligned[iMom].nDim3 = nT;
@@ -112,8 +109,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
       int ext[4] = {nE, nE, nT, nEta};
       nes_aligned[iMom].layout = WeakLibReader::MakeLayout(ext, 4);
       nes_aligned[iMom].data.resize(alignedSize);
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                       hostBuf.begin(), hostBuf.end(),
+      amrex::Gpu::copy(amrex::Gpu::hostToDevice, hostBuf.begin(), hostBuf.end(),
                        nes_aligned[iMom].data.begin());
     }
     CCTK_VINFO("NES pre-aligned: %d moments, %d energy points", nMom, nE);
@@ -121,13 +117,14 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
 
   // Pre-align Pair
   if (opacity_table.scatPair.IsLoaded()) {
-    const auto& pair = opacity_table.scatPair;
+    const auto &pair = opacity_table.scatPair;
     const int nE = opacity_table.energyGrid.nPoints;
     const int nMom = pair.nMoments;
     const int nT = pair.dimensions[3];
     const int nEta = pair.dimensions[4];
     const auto energyAxis = opacity_table.energyGrid.MakeAxis();
-    const auto pairLayout = WeakLibReader::MakeLayout(pair.dimensions.data(), 5);
+    const auto pairLayout =
+        WeakLibReader::MakeLayout(pair.dimensions.data(), 5);
 
     pair_aligned.resize(nMom);
     for (int iMom = 0; iMom < nMom; ++iMom) {
@@ -137,10 +134,9 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
       amrex::Gpu::PinnedVector<double> hostBuf(alignedSize);
 
       WeakLibReader::PreAlignScatteringKernelMoment(
-          pair.KernelData(), pairLayout, energyAxis,
-          iMom, nT, nEta,
-          opacity_table.energyGrid.values.data(), nE,
-          pairOffset, hostBuf.data());
+          pair.KernelData(), pairLayout, energyAxis, iMom, nT, nEta,
+          opacity_table.energyGrid.values.data(), nE, pairOffset,
+          hostBuf.data());
 
       pair_aligned[iMom].nAlignedE = nE;
       pair_aligned[iMom].nDim3 = nT;
@@ -148,8 +144,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
       int ext[4] = {nE, nE, nT, nEta};
       pair_aligned[iMom].layout = WeakLibReader::MakeLayout(ext, 4);
       pair_aligned[iMom].data.resize(alignedSize);
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                       hostBuf.begin(), hostBuf.end(),
+      amrex::Gpu::copy(amrex::Gpu::hostToDevice, hostBuf.begin(), hostBuf.end(),
                        pair_aligned[iMom].data.begin());
     }
     CCTK_VINFO("Pair pre-aligned: %d moments, %d energy points", nMom, nE);
@@ -157,13 +152,14 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
 
   // Pre-align Brem (nMom=1, dims[3]=nRho, dims[4]=nT)
   if (opacity_table.scatBrem.IsLoaded()) {
-    const auto& brem = opacity_table.scatBrem;
+    const auto &brem = opacity_table.scatBrem;
     const int nE = opacity_table.energyGrid.nPoints;
     const int nMom = brem.nMoments;
     const int nRho = brem.dimensions[3];
     const int nT = brem.dimensions[4];
     const auto energyAxis = opacity_table.energyGrid.MakeAxis();
-    const auto bremLayout = WeakLibReader::MakeLayout(brem.dimensions.data(), 5);
+    const auto bremLayout =
+        WeakLibReader::MakeLayout(brem.dimensions.data(), 5);
 
     brem_aligned.resize(nMom);
     for (int iMom = 0; iMom < nMom; ++iMom) {
@@ -173,10 +169,9 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
       amrex::Gpu::PinnedVector<double> hostBuf(alignedSize);
 
       WeakLibReader::PreAlignScatteringKernelMoment(
-          brem.KernelData(), bremLayout, energyAxis,
-          iMom, nRho, nT,
-          opacity_table.energyGrid.values.data(), nE,
-          bremOffset, hostBuf.data());
+          brem.KernelData(), bremLayout, energyAxis, iMom, nRho, nT,
+          opacity_table.energyGrid.values.data(), nE, bremOffset,
+          hostBuf.data());
 
       brem_aligned[iMom].nAlignedE = nE;
       brem_aligned[iMom].nDim3 = nRho;
@@ -184,8 +179,7 @@ extern "C" void TestWeakLibReader_LoadOpacityTable(CCTK_ARGUMENTS) {
       int ext[4] = {nE, nE, nRho, nT};
       brem_aligned[iMom].layout = WeakLibReader::MakeLayout(ext, 4);
       brem_aligned[iMom].data.resize(alignedSize);
-      amrex::Gpu::copy(amrex::Gpu::hostToDevice,
-                       hostBuf.begin(), hostBuf.end(),
+      amrex::Gpu::copy(amrex::Gpu::hostToDevice, hostBuf.begin(), hostBuf.end(),
                        brem_aligned[iMom].data.begin());
     }
     CCTK_VINFO("Brem pre-aligned: %d moments, %d energy points", nMom, nE);
@@ -224,28 +218,27 @@ extern "C" void TestWeakLibReader_InitEmAb(CCTK_ARGUMENTS) {
 
   // Build 4D axes: [E, Rho, T, Ye]
   const WeakLibReader::Axis axes[4] = {
-    opacity_table_device.energyGrid.MakeAxis(),    // E (log10)
-    opacity_table_device.thermoState.axes[0],      // Rho (log10)
-    opacity_table_device.thermoState.axes[1],      // T (log10)
-    opacity_table_device.thermoState.axes[2],      // Ye (linear)
+      opacity_table_device.energyGrid.MakeAxis(), // E (log10)
+      opacity_table_device.thermoState.axes[0],   // Rho (log10)
+      opacity_table_device.thermoState.axes[1],   // T (log10)
+      opacity_table_device.thermoState.axes[2],   // Ye (linear)
   };
 
   // Species 0 = electron neutrino
   const double offset = opacity_table_device.emAb.offsets[0];
-  const double* opacityData = opacity_table_device.emAb.OpacityData(0);
+  const double *opacityData = opacity_table_device.emAb.OpacityData(0);
 
   const double rho = density;
-  const double T   = temperature;
-  const double Ye  = ye;
+  const double T = temperature;
+  const double Ye = ye;
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double interpE = RescaleToAxis(p.x, axes[0]);
-      opacity_emab(p.I) = WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
-          interpE, rho, T, Ye,
-          axes,
-          opacityData, offset);
+        const double interpE = RescaleToAxis(p.x, axes[0]);
+        opacity_emab(p.I) =
+            WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
+                interpE, rho, T, Ye, axes, opacityData, offset);
       });
 }
 
@@ -261,27 +254,26 @@ extern "C" void TestWeakLibReader_InitEmAbAnue(CCTK_ARGUMENTS) {
   CCTK_INFO("Testing EmAb 4D interpolation (species=1, antineutrino)");
 
   const WeakLibReader::Axis axes[4] = {
-    opacity_table_device.energyGrid.MakeAxis(),
-    opacity_table_device.thermoState.axes[0],
-    opacity_table_device.thermoState.axes[1],
-    opacity_table_device.thermoState.axes[2],
+      opacity_table_device.energyGrid.MakeAxis(),
+      opacity_table_device.thermoState.axes[0],
+      opacity_table_device.thermoState.axes[1],
+      opacity_table_device.thermoState.axes[2],
   };
 
   // Species 1 = electron antineutrino
   const double offset = opacity_table_device.emAb.offsets[1];
-  const double* opacityData = opacity_table_device.emAb.OpacityData(1);
+  const double *opacityData = opacity_table_device.emAb.OpacityData(1);
   const double rho = density;
-  const double T   = temperature;
-  const double Ye  = ye;
+  const double T = temperature;
+  const double Ye = ye;
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double interpE = RescaleToAxis(p.x, axes[0]);
-      opacity_emab_anue(p.I) = WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
-          interpE, rho, T, Ye,
-          axes,
-          opacityData, offset);
+        const double interpE = RescaleToAxis(p.x, axes[0]);
+        opacity_emab_anue(p.I) =
+            WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
+                interpE, rho, T, Ye, axes, opacityData, offset);
       });
 }
 
@@ -298,27 +290,26 @@ extern "C" void TestWeakLibReader_InitIso(CCTK_ARGUMENTS) {
 
   // 4D axes: [E, Rho, T, Ye] (same as EmAb after moment extraction)
   const WeakLibReader::Axis axes[4] = {
-    opacity_table_device.energyGrid.MakeAxis(),
-    opacity_table_device.thermoState.axes[0],
-    opacity_table_device.thermoState.axes[1],
-    opacity_table_device.thermoState.axes[2],
+      opacity_table_device.energyGrid.MakeAxis(),
+      opacity_table_device.thermoState.axes[0],
+      opacity_table_device.thermoState.axes[1],
+      opacity_table_device.thermoState.axes[2],
   };
 
   // Offset for species=0, moment=0 from the 2D offset table
   const double offset = opacity_table_device.scatIso.OffsetValue(0, 0);
-  const double* sliceData = iso_slice_device.data();
+  const double *sliceData = iso_slice_device.data();
   const double rho = density;
-  const double T   = temperature;
-  const double Ye  = ye;
+  const double T = temperature;
+  const double Ye = ye;
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double interpE = RescaleToAxis(p.x, axes[0]);
-      opacity_iso(p.I) = WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
-          interpE, rho, T, Ye,
-          axes,
-          sliceData, offset);
+        const double interpE = RescaleToAxis(p.x, axes[0]);
+        opacity_iso(p.I) =
+            WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
+                interpE, rho, T, Ye, axes, sliceData, offset);
       });
 }
 
@@ -334,26 +325,25 @@ extern "C" void TestWeakLibReader_InitIsoAnue(CCTK_ARGUMENTS) {
   CCTK_INFO("Testing Iso 4D interpolation (moment=0, species=1, antineutrino)");
 
   const WeakLibReader::Axis axes[4] = {
-    opacity_table_device.energyGrid.MakeAxis(),
-    opacity_table_device.thermoState.axes[0],
-    opacity_table_device.thermoState.axes[1],
-    opacity_table_device.thermoState.axes[2],
+      opacity_table_device.energyGrid.MakeAxis(),
+      opacity_table_device.thermoState.axes[0],
+      opacity_table_device.thermoState.axes[1],
+      opacity_table_device.thermoState.axes[2],
   };
 
   const double offset = opacity_table_device.scatIso.OffsetValue(1, 0);
-  const double* sliceData = iso_anue_slice_device.data();
+  const double *sliceData = iso_anue_slice_device.data();
   const double rho = density;
-  const double T   = temperature;
-  const double Ye  = ye;
+  const double T = temperature;
+  const double Ye = ye;
 
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double interpE = RescaleToAxis(p.x, axes[0]);
-      opacity_iso_anue(p.I) = WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
-          interpE, rho, T, Ye,
-          axes,
-          sliceData, offset);
+        const double interpE = RescaleToAxis(p.x, axes[0]);
+        opacity_iso_anue(p.I) =
+            WeakLibReader::LogInterpolateSingleVariable4DCustomPoint(
+                interpE, rho, T, Ye, axes, sliceData, offset);
       });
 }
 
@@ -368,15 +358,15 @@ extern "C" void TestWeakLibReader_InitNES(CCTK_ARGUMENTS) {
   CCTK_INFO("Testing NES aligned interpolation (moment=0)");
 
   // Aligned table for moment 0 (H_I zeroth moment)
-  const double* nesData = nes_aligned[0].data.data();
+  const double *nesData = nes_aligned[0].data.data();
   const WeakLibReader::Layout nesLayout = nes_aligned[0].layout;
   const int nAlignedE = nes_aligned[0].nAlignedE;
   const int iE_mid = nAlignedE / 2;
 
   // Axes for aligned interpolation: [T, Eta]
   const WeakLibReader::Axis axes[2] = {
-    opacity_table_device.thermoState.axes[1],  // T
-    opacity_table_device.etaGrid.MakeAxis(),   // Eta
+      opacity_table_device.thermoState.axes[1], // T
+      opacity_table_device.etaGrid.MakeAxis(),  // Eta
   };
 
   const double nesOffset = opacity_table_device.scatNES.OffsetValue(0, 0);
@@ -384,20 +374,17 @@ extern "C" void TestWeakLibReader_InitNES(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double T   = RescaleToAxis(p.y, axes[0]);
-      const double eta = eos_log_eta(p.I);
+        const double T = RescaleToAxis(p.y, axes[0]);
+        const double eta = eos_log_eta(p.I);
 
-      int idxT = 0, idxEta = 0;
-      double fracT = 0.0, fracEta = 0.0;
-      WeakLibReader::detail::IndexAndDelta(axes[0], T, idxT, fracT);
-      WeakLibReader::detail::IndexAndDelta(axes[1], eta, idxEta, fracEta);
+        int idxT = 0, idxEta = 0;
+        double fracT = 0.0, fracEta = 0.0;
+        WeakLibReader::detail::IndexAndDelta(axes[0], T, idxT, fracT);
+        WeakLibReader::detail::IndexAndDelta(axes[1], eta, idxEta, fracEta);
 
-      opacity_nes(p.I) = WeakLibReader::LinearInterp2D4DArray2DAlignedPoint(
-          iE_mid, iE_mid,
-          idxT, idxEta,
-          fracT, fracEta,
-          nesOffset,
-          nesData, nesLayout);
+        opacity_nes(p.I) = WeakLibReader::LinearInterp2D4DArray2DAlignedPoint(
+            iE_mid, iE_mid, idxT, idxEta, fracT, fracEta, nesOffset, nesData,
+            nesLayout);
       });
 }
 
@@ -411,19 +398,20 @@ extern "C" void TestWeakLibReader_InitNESOffDiag(CCTK_ARGUMENTS) {
 
   CCTK_INFO("Testing NES aligned interpolation (off-diagonal energy pair)");
 
-  const double* nesData = nes_aligned[0].data.data();
+  const double *nesData = nes_aligned[0].data.data();
   const WeakLibReader::Layout nesLayout = nes_aligned[0].layout;
   const int nAlignedE = nes_aligned[0].nAlignedE;
   if (nAlignedE < 3) {
-    CCTK_WARN(1, "NES aligned table has fewer than 3 energy points; skipping off-diagonal test");
+    CCTK_WARN(1, "NES aligned table has fewer than 3 energy points; skipping "
+                 "off-diagonal test");
     return;
   }
   const int iE_lo = nAlignedE / 2 - 1;
   const int iE_hi = nAlignedE / 2 + 1;
 
   const WeakLibReader::Axis axes[2] = {
-    opacity_table_device.thermoState.axes[1],
-    opacity_table_device.etaGrid.MakeAxis(),
+      opacity_table_device.thermoState.axes[1],
+      opacity_table_device.etaGrid.MakeAxis(),
   };
 
   const double nesOffset = opacity_table_device.scatNES.OffsetValue(0, 0);
@@ -431,20 +419,18 @@ extern "C" void TestWeakLibReader_InitNESOffDiag(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double T   = RescaleToAxis(p.y, axes[0]);
-      const double eta = eos_log_eta(p.I);
+        const double T = RescaleToAxis(p.y, axes[0]);
+        const double eta = eos_log_eta(p.I);
 
-      int idxT = 0, idxEta = 0;
-      double fracT = 0.0, fracEta = 0.0;
-      WeakLibReader::detail::IndexAndDelta(axes[0], T, idxT, fracT);
-      WeakLibReader::detail::IndexAndDelta(axes[1], eta, idxEta, fracEta);
+        int idxT = 0, idxEta = 0;
+        double fracT = 0.0, fracEta = 0.0;
+        WeakLibReader::detail::IndexAndDelta(axes[0], T, idxT, fracT);
+        WeakLibReader::detail::IndexAndDelta(axes[1], eta, idxEta, fracEta);
 
-      opacity_nes_offdiag(p.I) = WeakLibReader::LinearInterp2D4DArray2DAlignedPoint(
-          iE_lo, iE_hi,
-          idxT, idxEta,
-          fracT, fracEta,
-          nesOffset,
-          nesData, nesLayout);
+        opacity_nes_offdiag(p.I) =
+            WeakLibReader::LinearInterp2D4DArray2DAlignedPoint(
+                iE_lo, iE_hi, idxT, idxEta, fracT, fracEta, nesOffset, nesData,
+                nesLayout);
       });
 }
 
@@ -458,15 +444,15 @@ extern "C" void TestWeakLibReader_InitPair(CCTK_ARGUMENTS) {
 
   CCTK_INFO("Testing Pair aligned interpolation (moment=0)");
 
-  const double* pairData = pair_aligned[0].data.data();
+  const double *pairData = pair_aligned[0].data.data();
   const WeakLibReader::Layout pairLayout = pair_aligned[0].layout;
   const int nAlignedE = pair_aligned[0].nAlignedE;
   const int iE_mid = nAlignedE / 2;
 
   // Axes for aligned interpolation: [T, Eta]
   const WeakLibReader::Axis axes[2] = {
-    opacity_table_device.thermoState.axes[1],  // T
-    opacity_table_device.etaGrid.MakeAxis(),   // Eta
+      opacity_table_device.thermoState.axes[1], // T
+      opacity_table_device.etaGrid.MakeAxis(),  // Eta
   };
 
   const double pairOffset = opacity_table_device.scatPair.OffsetValue(0, 0);
@@ -474,20 +460,17 @@ extern "C" void TestWeakLibReader_InitPair(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double T   = RescaleToAxis(p.y, axes[0]);
-      const double eta = eos_log_eta(p.I);
+        const double T = RescaleToAxis(p.y, axes[0]);
+        const double eta = eos_log_eta(p.I);
 
-      int idxT = 0, idxEta = 0;
-      double fracT = 0.0, fracEta = 0.0;
-      WeakLibReader::detail::IndexAndDelta(axes[0], T, idxT, fracT);
-      WeakLibReader::detail::IndexAndDelta(axes[1], eta, idxEta, fracEta);
+        int idxT = 0, idxEta = 0;
+        double fracT = 0.0, fracEta = 0.0;
+        WeakLibReader::detail::IndexAndDelta(axes[0], T, idxT, fracT);
+        WeakLibReader::detail::IndexAndDelta(axes[1], eta, idxEta, fracEta);
 
-      opacity_pair(p.I) = WeakLibReader::LinearInterp2D4DArray2DAlignedPoint(
-          iE_mid, iE_mid,
-          idxT, idxEta,
-          fracT, fracEta,
-          pairOffset,
-          pairData, pairLayout);
+        opacity_pair(p.I) = WeakLibReader::LinearInterp2D4DArray2DAlignedPoint(
+            iE_mid, iE_mid, idxT, idxEta, fracT, fracEta, pairOffset, pairData,
+            pairLayout);
       });
 }
 
@@ -501,19 +484,20 @@ extern "C" void TestWeakLibReader_InitPairOffDiag(CCTK_ARGUMENTS) {
 
   CCTK_INFO("Testing Pair aligned interpolation (off-diagonal energy pair)");
 
-  const double* pairData = pair_aligned[0].data.data();
+  const double *pairData = pair_aligned[0].data.data();
   const WeakLibReader::Layout pairLayout = pair_aligned[0].layout;
   const int nAlignedE = pair_aligned[0].nAlignedE;
   if (nAlignedE < 3) {
-    CCTK_WARN(1, "Pair aligned table has fewer than 3 energy points; skipping off-diagonal test");
+    CCTK_WARN(1, "Pair aligned table has fewer than 3 energy points; skipping "
+                 "off-diagonal test");
     return;
   }
   const int iE_lo = nAlignedE / 2 - 1;
   const int iE_hi = nAlignedE / 2 + 1;
 
   const WeakLibReader::Axis axes[2] = {
-    opacity_table_device.thermoState.axes[1],
-    opacity_table_device.etaGrid.MakeAxis(),
+      opacity_table_device.thermoState.axes[1],
+      opacity_table_device.etaGrid.MakeAxis(),
   };
 
   const double pairOffset = opacity_table_device.scatPair.OffsetValue(0, 0);
@@ -521,20 +505,18 @@ extern "C" void TestWeakLibReader_InitPairOffDiag(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double T   = RescaleToAxis(p.y, axes[0]);
-      const double eta = eos_log_eta(p.I);
+        const double T = RescaleToAxis(p.y, axes[0]);
+        const double eta = eos_log_eta(p.I);
 
-      int idxT = 0, idxEta = 0;
-      double fracT = 0.0, fracEta = 0.0;
-      WeakLibReader::detail::IndexAndDelta(axes[0], T, idxT, fracT);
-      WeakLibReader::detail::IndexAndDelta(axes[1], eta, idxEta, fracEta);
+        int idxT = 0, idxEta = 0;
+        double fracT = 0.0, fracEta = 0.0;
+        WeakLibReader::detail::IndexAndDelta(axes[0], T, idxT, fracT);
+        WeakLibReader::detail::IndexAndDelta(axes[1], eta, idxEta, fracEta);
 
-      opacity_pair_offdiag(p.I) = WeakLibReader::LinearInterp2D4DArray2DAlignedPoint(
-          iE_lo, iE_hi,
-          idxT, idxEta,
-          fracT, fracEta,
-          pairOffset,
-          pairData, pairLayout);
+        opacity_pair_offdiag(p.I) =
+            WeakLibReader::LinearInterp2D4DArray2DAlignedPoint(
+                iE_lo, iE_hi, idxT, idxEta, fracT, fracEta, pairOffset,
+                pairData, pairLayout);
       });
 }
 
@@ -548,15 +530,15 @@ extern "C" void TestWeakLibReader_InitBrem(CCTK_ARGUMENTS) {
 
   CCTK_INFO("Testing Brem sum-aligned interpolation");
 
-  const double* bremData = brem_aligned[0].data.data();
+  const double *bremData = brem_aligned[0].data.data();
   const WeakLibReader::Layout bremLayout = brem_aligned[0].layout;
   const int nAlignedE = brem_aligned[0].nAlignedE;
   const int iE_mid = nAlignedE / 2;
 
   // Axes for aligned interpolation: [Rho, T]
   const WeakLibReader::Axis axes[2] = {
-    opacity_table_device.thermoState.axes[0],  // Rho
-    opacity_table_device.thermoState.axes[1],  // T
+      opacity_table_device.thermoState.axes[0], // Rho
+      opacity_table_device.thermoState.axes[1], // T
   };
 
   const double bremOffset = opacity_table_device.scatBrem.OffsetValue(0, 0);
@@ -567,36 +549,33 @@ extern "C" void TestWeakLibReader_InitBrem(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double T = RescaleToAxis(p.y, axes[1]);
+        const double T = RescaleToAxis(p.y, axes[1]);
 
-      // Density-weighted terms from EOS-derived GFs
-      const double dxVals[3] = {
-        eos_dxp(p.I),
-        eos_dxn(p.I),
-        eos_dxpn(p.I),
-      };
+        // Density-weighted terms from EOS-derived GFs
+        const double dxVals[3] = {
+            eos_dxp(p.I),
+            eos_dxn(p.I),
+            eos_dxpn(p.I),
+        };
 
-      int idxT = 0;
-      double fracT = 0.0;
-      WeakLibReader::detail::IndexAndDelta(axes[1], T, idxT, fracT);
+        int idxT = 0;
+        double fracT = 0.0;
+        WeakLibReader::detail::IndexAndDelta(axes[1], T, idxT, fracT);
 
-      // Sum over 3 density terms with alpha weights
-      double sum = 0.0;
-      for (int l = 0; l < 3; ++l) {
-        int idxD = 0;
-        double fracD = 0.0;
-        WeakLibReader::detail::IndexAndDelta(axes[0], dxVals[l], idxD, fracD);
+        // Sum over 3 density terms with alpha weights
+        double sum = 0.0;
+        for (int l = 0; l < 3; ++l) {
+          int idxD = 0;
+          double fracD = 0.0;
+          WeakLibReader::detail::IndexAndDelta(axes[0], dxVals[l], idxD, fracD);
 
-        const double val = WeakLibReader::LinearInterp2D4DArray2DAlignedPoint(
-            iE_mid, iE_mid,
-            idxD, idxT,
-            fracD, fracT,
-            bremOffset,
-            bremData, bremLayout);
-        sum += alpha[l] * val;
-      }
+          const double val = WeakLibReader::LinearInterp2D4DArray2DAlignedPoint(
+              iE_mid, iE_mid, idxD, idxT, fracD, fracT, bremOffset, bremData,
+              bremLayout);
+          sum += alpha[l] * val;
+        }
 
-      opacity_brem(p.I) = sum;
+        opacity_brem(p.I) = sum;
       });
 }
 
@@ -608,19 +587,20 @@ extern "C" void TestWeakLibReader_TestEmAbSweep(CCTK_ARGUMENTS) {
     return;
   }
 
-  CCTK_INFO("Testing EmAb energy sweep (LogInterpolateSingleVariable1D3DCustomPoint)");
+  CCTK_INFO("Testing EmAb energy sweep "
+            "(LogInterpolateSingleVariable1D3DCustomPoint)");
 
   const WeakLibReader::Axis axes[4] = {
-    opacity_table_device.energyGrid.MakeAxis(),
-    opacity_table_device.thermoState.axes[0],
-    opacity_table_device.thermoState.axes[1],
-    opacity_table_device.thermoState.axes[2],
+      opacity_table_device.energyGrid.MakeAxis(),
+      opacity_table_device.thermoState.axes[0],
+      opacity_table_device.thermoState.axes[1],
+      opacity_table_device.thermoState.axes[2],
   };
 
   const double offset = opacity_table_device.emAb.offsets[0];
-  const double* opacityData = opacity_table_device.emAb.OpacityData(0);
+  const double *opacityData = opacity_table_device.emAb.OpacityData(0);
 
-  const double* energyValues = opacity_table_device.energyGrid.values.data();
+  const double *energyValues = opacity_table_device.energyGrid.values.data();
   const int nE = opacity_table_device.energyGrid.nPoints;
 
   // Stack buffer limit for device kernels. Low-res tables have nE=40.
@@ -629,26 +609,23 @@ extern "C" void TestWeakLibReader_TestEmAbSweep(CCTK_ARGUMENTS) {
   grid.loop_int_device<0, 0, 0>(
       grid.nghostzones,
       [=] CCTK_DEVICE(const Loop::PointDesc &p) CCTK_ATTRIBUTE_ALWAYS_INLINE {
-      const double rho = RescaleToAxis(p.x, axes[1]);
-      const double T   = RescaleToAxis(p.y, axes[2]);
-      const double Ye  = RescaleToAxis(p.z, axes[3]);
+        const double rho = RescaleToAxis(p.x, axes[1]);
+        const double T = RescaleToAxis(p.y, axes[2]);
+        const double Ye = RescaleToAxis(p.z, axes[3]);
 
-      double sweepOut[kMaxE];
-      const int actualE = (nE <= kMaxE) ? nE : kMaxE;
+        double sweepOut[kMaxE];
+        const int actualE = (nE <= kMaxE) ? nE : kMaxE;
 
-      WeakLibReader::LogInterpolateSingleVariable1D3DCustomPoint(
-          energyValues, static_cast<std::size_t>(actualE),
-          rho, T, Ye,
-          axes,
-          opacityData, offset,
-          sweepOut);
+        WeakLibReader::LogInterpolateSingleVariable1D3DCustomPoint(
+            energyValues, static_cast<std::size_t>(actualE), rho, T, Ye, axes,
+            opacityData, offset, sweepOut);
 
-      // Store sum over energy bins as a single scalar
-      double sum = 0.0;
-      for (int i = 0; i < actualE; ++i) {
-        sum += sweepOut[i];
-      }
-      opacity_emab_sweep(p.I) = sum;
+        // Store sum over energy bins as a single scalar
+        double sum = 0.0;
+        for (int i = 0; i < actualE; ++i) {
+          sum += sweepOut[i];
+        }
+        opacity_emab_sweep(p.I) = sum;
       });
 }
 

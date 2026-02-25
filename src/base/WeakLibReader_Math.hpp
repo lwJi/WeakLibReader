@@ -10,9 +10,7 @@ namespace math {
 
 constexpr double Ln10 = 2.302585092994045901093613792909309;
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double Floor(double value) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE double Floor(double value) noexcept {
 #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   return ::floor(value);
 #else
@@ -20,9 +18,7 @@ double Floor(double value) noexcept
 #endif
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double Log10(double value) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE double Log10(double value) noexcept {
 #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   return ::log10(value);
 #else
@@ -30,9 +26,7 @@ double Log10(double value) noexcept
 #endif
 }
 
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-double Pow10(double value) noexcept
-{
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE double Pow10(double value) noexcept {
 #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
   return ::pow(10.0, value);
 #else
