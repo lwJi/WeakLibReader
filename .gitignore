@@ -13,6 +13,8 @@ CMakeUserPresets.json
 
 thoughts/
 
+.claude/settings.local.json
+
 # Compilation database
 compile_commands.json
 
